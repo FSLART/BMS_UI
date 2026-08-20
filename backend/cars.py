@@ -27,6 +27,10 @@ class CellLimits(BaseModel):
     v_warn_high: float = 4.15
     temp_warn: float = 50.0
     temp_fault: float = 60.0
+    # Abaixo disto o firmware nao le uma celula fraca, le um fio de medicao
+    # solto (FSLART/lart_bms, beta-v2.1). Sao problemas diferentes e mandam
+    # procurar em sitios diferentes, por isso nao se mostram como o mesmo.
+    v_open_wire: float = 2.30
 
 
 class CameraView(BaseModel):
@@ -44,6 +48,9 @@ class CameraView(BaseModel):
     orbit: str = ""
     target: str = "auto auto auto"
     fov: str = ""
+    # Roda o MODELO, nao a camara: o <model-viewer> nao tem roll, portanto
+    # nenhuma orbita poe de pe uma peca exportada deitada. "roll pitch yaw".
+    orientation: str = ""
 
 
 class Hotspot(BaseModel):
@@ -95,6 +102,42 @@ class DbcSource(BaseModel):
     local_dir: str = ""       # optional checkout on this machine, wins over repo
 
 
+class CanBus(BaseModel):
+    """Um dos barramentos CAN do carro.
+
+    O firmware (FSLART/lart_bms, beta-v2.1) separa-os por situacao, nao por
+    tipo de dado: o da powertrain e o que existe com a bateria montada no
+    carro, o de carregamento so vive enquanto o acumulador esta no handcart.
+    Sao fisicamente distintos e correm a velocidades diferentes, por isso
+    escolher mal nao da dados errados -- nao da dados nenhuns.
+    """
+
+    id: str
+    name: str
+    bitrate: int
+    detail: str = ""
+
+
+class CanCommand(BaseModel):
+    """Uma trama que a interface pode enviar para o BMS.
+
+    Declarada aqui, e nao no frontend, porque e especifica da DBC deste carro.
+    Cada uma e um unico bit ligado/desligado.
+
+    `danger=True` marca as que mexem em alta tensao. Nao muda o que e enviado --
+    muda o que e preciso fazer para o enviar.
+    """
+
+    id: str
+    label: str
+    message: str              # nome da mensagem na DBC
+    signal: str
+    on: int = 1
+    off: int = 0
+    danger: bool = False
+    detail: str = ""
+
+
 class CarProfile(BaseModel):
     id: str
     name: str
@@ -110,6 +153,8 @@ class CarProfile(BaseModel):
     available: bool = True
 
     dbc: DbcSource = Field(default_factory=DbcSource)
+    buses: list[CanBus] = Field(default_factory=list)
+    commands: list[CanCommand] = Field(default_factory=list)
     limits: CellLimits = Field(default_factory=CellLimits)
 
     # --- pack topology -----------------------------------------------------
@@ -140,8 +185,17 @@ class CarProfile(BaseModel):
 
     model_closed: str = ""
     model_open: str = ""      # tampa aberta, interiores a vista
+    # Acumulador montado no handcart. Ainda nao existe: enquanto o ficheiro nao
+    # estiver la, o viewer mostra o placeholder dele e a pagina de carregamento
+    # funciona na mesma. As ancoras ja estao declaradas, a espera do GLB.
+    model_charger: str = ""
+    # Um segmento sozinho. Generico: os 6 sao identicos, so muda a informacao
+    # que se pendura nas ancoras.
+    model_segment: str = ""
     view_closed: CameraView = Field(default_factory=CameraView)
     view_open: CameraView = Field(default_factory=CameraView)
+    view_charger: CameraView = Field(default_factory=CameraView)
+    view_segment: CameraView = Field(default_factory=CameraView)
     hotspots: list[Hotspot] = Field(default_factory=list)
 
     @property
@@ -206,6 +260,37 @@ CARS: list[CarProfile] = [
             files=["powertrain_t26.dbc", "handcart_t26.dbc"],
             local_dir="C:/Users/jpser/Documents/GitHub/T26_DBC",
         ),
+        buses=[
+            CanBus(
+                id="car", name="Carro", bitrate=1_000_000,
+                detail="Bateria montada no carro: AMS, sensor ISA IVT e inversores.",
+            ),
+            CanBus(
+                id="charger", name="Carregamento", bitrate=500_000,
+                detail="Bateria no handcart: carregador, handcart e ISA secundario.",
+            ),
+        ],
+        commands=[
+            CanCommand(
+                id="balancing", label="Balanceamento",
+                message="Start_Balancing", signal="Balancing_Request",
+                detail="O firmware so arranca o balanceamento por CAN. Celulas "
+                       "fora de 3000-4250 mV sao excluidas, e para aos 85 degC de die.",
+            ),
+            CanCommand(
+                id="charging", label="Carregamento",
+                message="Start_Charging", signal="Charging_Request",
+                detail="Pede ao BMS que inicie a sessao de carga. So faz sentido "
+                       "com o acumulador no handcart.",
+            ),
+            CanCommand(
+                id="precharge", label="Pre-carga", danger=True,
+                message="Start_PreCharge", signal="Precharge_Request",
+                detail="FECHA OS CONTACTORES E ENERGIZA A ALTA TENSAO. Na DBC "
+                       "quem envia esta mensagem e a VCU: a partir daqui estamos "
+                       "a falar por cima dela.",
+            ),
+        ],
         # NTC 3 e 4 do slave 3 avariados: leem lixo, nao o vizinho.
         broken_thermistors=["3:3", "3:4"],
         # 144s3p: 6 segmentos x 24 grupos serie x 3 celulas = 432 Molicel P45B
@@ -225,10 +310,28 @@ CARS: list[CarProfile] = [
         # os 5,8M triangulos e a bounding box intactos, por isso as ancoras dos
         # hotspots aqui em baixo continuam validas. Ver models/README.md.
         model_open="/models/tek26e_open_light.glb",
-        # De frente, quase ao nivel: mostra o lado das ventoinhas e conectores.
-        view_closed=CameraView(orbit="180deg 80deg 60%", fov="30deg"),
+        # Tres quartos, quase ao nivel: apanha a face das ventoinhas e uma das
+        # laterais, em vez do alcado plano que a vista de frente dava.
+        # Apanhada com o botao "vista" da consola; raio em metros, nao em
+        # percentagem, para nao depender do enquadramento automatico.
+        view_closed=CameraView(orbit="232deg 70deg 0.748m", fov="26deg"),
         # De topo: os segmentos e a placa master leem-se como planta.
         view_open=CameraView(orbit="0deg 18deg 66%", fov="32deg"),
+        # Ainda por exportar. Quando existir, chamar-lhe assim e apanhar as
+        # ancoras com o modo ancora da consola, como se fez para o aberto.
+        model_charger="/models/tek26e_charger.glb",
+        view_charger=CameraView(orbit="200deg 72deg 70%", fov="32deg"),
+        model_segment="/models/seguemento.glb",
+        # As PCBs saem do CAD na face z ~ -68 mm, de lado. O pitch de +90 graus
+        # roda-as para cima, e o modelo fica 457 x 153 x 80 mm.
+        #
+        # As ancoras NAO acompanham o `orientation`: foram rodadas pela mesma
+        # transformacao, (x, y, z) -> (x, -z, y). Se este valor mudar, as 36
+        # posicoes tem de rodar com ele ou saem de cima das celulas.
+        #
+        # Enquadramento apanhado com o botao "vista" da consola.
+        view_segment=CameraView(orbit="-18deg 86deg 0.561m", fov="34deg",
+                                orientation="0deg 90deg 0deg"),
         hotspots=[
             # Conector RTS718N32S03 na tampa. Centro do node no GLB.
             Hotspot(
@@ -281,6 +384,103 @@ CARS: list[CarProfile] = [
                     position="0.127m 0.219m 1.650m", binds="segment:5"),
             Hotspot(id="seg-6", view="open", label="S6",
                     position="0.212m 0.219m 1.650m", binds="segment:6"),
+
+            # --- modelo no carregador ---------------------------------------
+            # Posicoes provisorias: reaproveitam as do modelo fechado, que tem a
+            # mesma geometria de acumulador. Quando o GLB do handcart existir,
+            # apanhar as reais com o modo ancora e substituir aqui -- as ligacoes
+            # (binds) ja estao certas e nao precisam de tocar.
+            Hotspot(id="chg-precharge", view="charger", label="Pre-carga",
+                    position="0.131m 0.241m 1.745m", normal="0.697m 0m -0.717m",
+                    binds="precharge_done", standoff="top-right"),
+            Hotspot(id="chg-control", view="charger", label="Carregador",
+                    position="-0.128m 0.327m 1.755m", normal="0m 1m 0m",
+                    binds="charger_control", standoff="bottom-right"),
+
+            # --- modelo do segmento (generico: os 6 sao iguais) -------------
+            # Posicoes calculadas do GLB: as 72 celulas estao em 18 colunas x 4
+            # filas, e cada grupo paralelo e um trio de celulas seguidas na
+            # mesma fila (6 grupos por fila x 4 filas = 24). Os NTC vem dos 12
+            # nos NTC_SENSOR, que a export nomeia.
+            #
+            # A POSICAO de cada grupo esta certa; a NUMERACAO assume que a serie
+            # sobe fila a fila, da frente para tras. Isso e ligacao de barramento
+            # e nao se le da geometria -- se estiver trocada, corrigir aqui com o
+            # modo ancora da consola. Os binds nao mudam.
+            # --- grupos paralelos ---
+            Hotspot(id="grp-1", view="segment", label="1",
+                    position="-0.184m 0.038m -0.000m", binds="group:1"),
+            Hotspot(id="grp-2", view="segment", label="2",
+                    position="-0.110m 0.038m -0.000m", binds="group:2"),
+            Hotspot(id="grp-3", view="segment", label="3",
+                    position="-0.037m 0.038m -0.000m", binds="group:3"),
+            Hotspot(id="grp-4", view="segment", label="4",
+                    position="0.037m 0.038m -0.000m", binds="group:4"),
+            Hotspot(id="grp-5", view="segment", label="5",
+                    position="0.110m 0.038m -0.000m", binds="group:5"),
+            Hotspot(id="grp-6", view="segment", label="6",
+                    position="0.184m 0.038m -0.000m", binds="group:6"),
+            Hotspot(id="grp-7", view="segment", label="7",
+                    position="-0.184m 0.013m -0.000m", binds="group:7"),
+            Hotspot(id="grp-8", view="segment", label="8",
+                    position="-0.110m 0.013m -0.000m", binds="group:8"),
+            Hotspot(id="grp-9", view="segment", label="9",
+                    position="-0.037m 0.013m -0.000m", binds="group:9"),
+            Hotspot(id="grp-10", view="segment", label="10",
+                    position="0.037m 0.013m -0.000m", binds="group:10"),
+            Hotspot(id="grp-11", view="segment", label="11",
+                    position="0.110m 0.013m -0.000m", binds="group:11"),
+            Hotspot(id="grp-12", view="segment", label="12",
+                    position="0.184m 0.013m -0.000m", binds="group:12"),
+            Hotspot(id="grp-13", view="segment", label="13",
+                    position="-0.184m -0.013m -0.000m", binds="group:13"),
+            Hotspot(id="grp-14", view="segment", label="14",
+                    position="-0.110m -0.013m -0.000m", binds="group:14"),
+            Hotspot(id="grp-15", view="segment", label="15",
+                    position="-0.037m -0.013m -0.000m", binds="group:15"),
+            Hotspot(id="grp-16", view="segment", label="16",
+                    position="0.037m -0.013m -0.000m", binds="group:16"),
+            Hotspot(id="grp-17", view="segment", label="17",
+                    position="0.110m -0.013m -0.000m", binds="group:17"),
+            Hotspot(id="grp-18", view="segment", label="18",
+                    position="0.184m -0.013m -0.000m", binds="group:18"),
+            Hotspot(id="grp-19", view="segment", label="19",
+                    position="-0.184m -0.038m -0.000m", binds="group:19"),
+            Hotspot(id="grp-20", view="segment", label="20",
+                    position="-0.110m -0.038m -0.000m", binds="group:20"),
+            Hotspot(id="grp-21", view="segment", label="21",
+                    position="-0.037m -0.038m -0.000m", binds="group:21"),
+            Hotspot(id="grp-22", view="segment", label="22",
+                    position="0.037m -0.038m -0.000m", binds="group:22"),
+            Hotspot(id="grp-23", view="segment", label="23",
+                    position="0.110m -0.038m -0.000m", binds="group:23"),
+            Hotspot(id="grp-24", view="segment", label="24",
+                    position="0.184m -0.038m -0.000m", binds="group:24"),
+            # --- NTC ---
+            Hotspot(id="ntc-1", view="segment", label="N1",
+                    position="-0.121m 0.040m 0.037m", binds="ntc:1"),
+            Hotspot(id="ntc-2", view="segment", label="N2",
+                    position="0.025m 0.040m 0.037m", binds="ntc:2"),
+            Hotspot(id="ntc-3", view="segment", label="N3",
+                    position="0.171m 0.040m 0.037m", binds="ntc:3"),
+            Hotspot(id="ntc-4", view="segment", label="N4",
+                    position="-0.194m 0.014m 0.037m", binds="ntc:4"),
+            Hotspot(id="ntc-5", view="segment", label="N5",
+                    position="-0.048m 0.014m 0.037m", binds="ntc:5"),
+            Hotspot(id="ntc-6", view="segment", label="N6",
+                    position="0.098m 0.014m 0.037m", binds="ntc:6"),
+            Hotspot(id="ntc-7", view="segment", label="N7",
+                    position="-0.121m -0.012m 0.037m", binds="ntc:7"),
+            Hotspot(id="ntc-8", view="segment", label="N8",
+                    position="0.025m -0.012m 0.037m", binds="ntc:8"),
+            Hotspot(id="ntc-9", view="segment", label="N9",
+                    position="0.171m -0.012m 0.037m", binds="ntc:9"),
+            Hotspot(id="ntc-10", view="segment", label="N10",
+                    position="-0.194m -0.038m 0.037m", binds="ntc:10"),
+            Hotspot(id="ntc-11", view="segment", label="N11",
+                    position="-0.048m -0.038m 0.037m", binds="ntc:11"),
+            Hotspot(id="ntc-12", view="segment", label="N12",
+                    position="0.098m -0.038m 0.037m", binds="ntc:12"),
         ],
     ),
     CarProfile(

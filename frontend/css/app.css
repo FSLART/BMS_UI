@@ -60,6 +60,13 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* O atributo `hidden` esconde por `display: none` vindo do browser, e qualquer
+   regra de autor com `display` ganha-lhe. Basta escrever `.x { display: flex }`
+   algures para um elemento marcado como hidden aparecer na mesma -- foi o que
+   aconteceu com o diálogo de confirmação, que ficou visível e vazio por cima de
+   todos os ecrãs. Isto fecha a classe de erro de uma vez. */
+[hidden] { display: none !important; }
+
 html, body {
   height: 100%;
   overflow: hidden;
@@ -114,6 +121,16 @@ button, input, select, textarea {
 /* lart_logo.png is LART_LogoPrincipal.png trimmed to its content box
    (960x240, 4:1); the original carries ~25% transparent padding. */
 .brand-logo { height: 24px; width: auto; display: block; flex: none; }
+/* O logotipo abre o repositorio. Na janela nativa o pywebview manda links
+   externos para o browser do sistema (OPEN_EXTERNAL_LINKS_IN_BROWSER), por
+   isso um <a> normal chega e nao e preciso ponte para o Python. */
+.brand-link {
+  display: block; flex: none;
+  border-radius: var(--r-sm);
+  transition: opacity .18s var(--ease);
+}
+.brand-link:hover { opacity: .7; }
+.brand-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .brand-title { font-size: 17px; letter-spacing: -.01em; }
 .brand-sub { font-size: 12.5px; color: var(--text-mute); margin-top: 1px; }
 
@@ -500,6 +517,9 @@ button, input, select, textarea {
 .field select:focus, .field input:focus { box-shadow: 0 0 0 2px var(--accent); }
 .field.wide { grid-column: 1 / -1; }
 
+/* Nota por baixo de um campo, para o que a app nao consegue descobrir sozinha. */
+.field-note { font-size: 11.5px; color: var(--text-mute); margin-top: 2px; }
+
 .field-row { display: flex; gap: 6px; align-items: center; }
 .btn-scan {
   flex: none;
@@ -609,13 +629,18 @@ button, input, select, textarea {
   transition: opacity .8s var(--ease-out);
 }
 .viewer model-viewer.shown { opacity: 1; }
+/* First appearance on an empty stage: nothing to cross with, so the long fade
+   is pure waiting. Set by Viewer._reveal, cleared on every later swap. */
+.viewer model-viewer.quick { transition-duration: .25s; }
 
 .viewer-placeholder {
   position: absolute; inset: 0;
   display: grid; place-items: center;
   transition: opacity .5s var(--ease);
 }
-.viewer-placeholder.hidden { opacity: 0; pointer-events: none; }
+/* Gets out of the way at the speed of the quick fade, not the .5s it takes to
+   appear -- otherwise it lingers on top of the model that just came up. */
+.viewer-placeholder.hidden { opacity: 0; pointer-events: none; transition-duration: .25s; }
 .ph-box {
   width: min(62%, 420px); aspect-ratio: 16 / 10;
   border-radius: var(--r-lg);
@@ -991,6 +1016,193 @@ button, input, select, textarea {
 .fault-msg  { font-size: 13px; margin-top: 3px; line-height: 1.45; }
 .empty-note { font-size: 13px; color: var(--text-mute); padding: 10px 4px; }
 
+/* Página do segmento: modelo e leituras em cima, detalhe a toda a largura em
+   baixo. A tabela tem 24 grupos mais 12 NTC -- espremida na coluna lateral
+   ficava uma tira com scroll, e o ponto dela é ver tudo de uma vez. */
+.segment-layout {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0;
+  min-height: 0;
+}
+.segment-layout > .charge-layout.inner { padding-bottom: 0; }
+.segment-detail { margin: 12px 18px 16px; }
+.segment-detail .table-wrap { margin-top: 10px; }
+
+/* O canto inferior esquerdo é da legenda, por isso este vai para a direita,
+   onde não há nada. Herda tudo o resto de .view-reset. */
+.seg-reset { right: 14px; bottom: 12px; }
+
+/* Ligar/desligar famílias de anotações, canto superior direito do modelo. */
+.seg-toggles { position: absolute; right: 14px; top: 12px; display: flex; gap: 6px; }
+.seg-toggle {
+  background: rgba(20, 20, 23, .82);
+  backdrop-filter: blur(12px);
+  border: 0; color: var(--text-mute);
+  border-radius: var(--r-sm);
+  padding: 6px 12px;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  transition: color .18s var(--ease), background .18s var(--ease);
+}
+.seg-toggle:hover { color: var(--text-dim); }
+/* Ligado é o estado normal, por isso é o realçado. */
+.seg-toggle.on { color: var(--accent); background: rgba(255, 195, 0, .14); }
+
+/* Legenda por cima do modelo do segmento, canto inferior esquerdo. */
+.seg-legend {
+  position: absolute; left: 14px; bottom: 12px;
+  display: flex; gap: 14px;
+  font-size: 11.5px; color: var(--text-mute);
+  pointer-events: none;
+}
+.seg-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.seg-legend i { width: 7px; height: 7px; border-radius: 50%; }
+
+/* Estado das máquinas do AMS.
+   Caixas como as de Segurança logo acima, e não uma tabela: com o rótulo à
+   esquerda e o valor encostado à direita, a barra lateral abria um vão enorme
+   entre os dois. Aqui o valor fica debaixo do seu rótulo, sempre perto. */
+.state-rows { display: flex; flex-direction: column; gap: 8px; }
+.state-item {
+  display: flex; flex-direction: column; gap: 3px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  padding: 9px 13px;
+}
+.state-k { font-size: 11.5px; color: var(--text-mute); }
+.state-v {
+  font-size: 13px; color: var(--text-dim);
+  /* Nomes como WAIT_FOR_AIR_NEG_TO_CLOSE têm de quebrar, não cortar. */
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+/* ── Comandos ─────────────────────────────────────────────────────────────
+   A única parte da app que sai para o hardware. Fica visualmente sóbria de
+   propósito: não é um painel de atalhos, e o realce vermelho é só para a
+   pré-carga, que fecha contactores. */
+.cmd-list { display: flex; flex-direction: column; gap: 6px; }
+.cmd {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 9px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+.cmd.danger { box-shadow: inset 2px 0 0 var(--fault); }
+.cmd.off-line { opacity: .42; }
+.cmd-label { font-size: 12.5px; }
+.cmd-buttons { display: flex; gap: 4px; flex: none; }
+.cmd-btn {
+  background: var(--surface-3);
+  border: 0; color: var(--text-dim);
+  border-radius: var(--r-sm);
+  padding: 5px 9px;
+  font-family: inherit; font-size: 11.5px; font-weight: 600;
+  cursor: pointer;
+  transition: background .18s, color .18s;
+}
+.cmd-btn:hover:not(:disabled) { background: #32323A; color: var(--text); }
+.cmd-btn:disabled { cursor: not-allowed; opacity: .5; }
+
+/* Confirmação: cobre o ecrã porque a decisão é essa e não outra. */
+.cmd-confirm {
+  position: fixed; inset: 0; z-index: 200;
+  display: grid; place-items: center;
+  background: rgba(0, 0, 0, .62);
+  backdrop-filter: blur(3px);
+}
+.cmd-dialog {
+  width: min(440px, calc(100% - 48px));
+  padding: 22px 24px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+}
+.cmd-dialog-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cmd-dialog h3 { font-size: 17px; }
+.cmd-danger-tag {
+  padding: 2px 8px; border-radius: var(--r-pill);
+  background: rgba(255, 69, 58, .16); color: var(--fault);
+  font-size: 11px; font-weight: 600; letter-spacing: .02em;
+}
+.cmd-detail { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-top: 10px; }
+.cmd-frame {
+  font-size: 12.5px; color: var(--text-mute);
+  margin-top: 12px; padding: 8px 10px;
+  background: var(--surface-2); border-radius: var(--r-sm);
+}
+.cmd-frame.err { color: var(--fault); }
+.cmd-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.btn-send {
+  background: var(--accent); border: 0; color: #14140F;
+  border-radius: var(--r-sm); padding: 9px 18px;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.btn-send:disabled { opacity: .6; cursor: progress; }
+.btn-send.danger { background: var(--fault); color: #fff; }
+
+/* ── Carregamento ─────────────────────────────────────────────────────── */
+/* Modelo à esquerda, leituras à direita. O modelo ainda não existe e mostra o
+   placeholder do viewer; o lado direito é que faz o trabalho. */
+.charge-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 14px;
+  padding: 16px 18px;
+  min-height: 0;
+}
+.charge-stage { position: relative; min-height: 0; border-radius: var(--r-md); overflow: hidden; }
+.charge-stage > .viewer { position: absolute; inset: 0; }
+.charge-side {
+  display: flex; flex-direction: column; gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Contador da sessão: o número que se lê de longe, com o pack no handcart. */
+.charge-card.meter { background: var(--surface-2); }
+.meter-label { font-size: 12px; color: var(--text-mute); }
+.meter-value {
+  font-family: var(--mono);
+  font-size: 34px; font-weight: 600;
+  color: var(--accent);
+  line-height: 1.1; margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.meter-value small { font-size: 15px; color: var(--text-dim); margin-left: 6px; font-weight: 600; }
+.meter-sub { font-size: 12px; color: var(--text-mute); margin-top: 6px; }
+
+.charge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  align-content: start;
+  padding: 16px 18px;
+  overflow-y: auto;
+}
+.charge-card {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+}
+.charge-card.wide { grid-column: 1 / -1; }
+
+.readout-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 9px 16px;
+  margin-top: 12px;
+  align-items: baseline;
+}
+.readout-grid .ro-k { font-size: 12.5px; color: var(--text-mute); }
+.readout-grid .ro-v {
+  font-family: var(--mono);
+  font-size: 15px;
+  text-align: right;
+}
+
 /* --- cells + chart --- */
 .dash-bottom {
   display: grid; grid-template-columns: 1fr 400px;
@@ -1026,9 +1238,30 @@ button, input, select, textarea {
 }
 .cell[data-sev="warn"]  { box-shadow: inset 0 0 0 1.5px var(--warn); }
 .cell[data-sev="fault"] { box-shadow: inset 0 0 0 1.5px var(--fault); }
+/* Only drawn when the balancing data is per cell. While the AMS publishes a
+   single pack-wide state, the badge in the header says it instead. */
 .cell.balancing::after {
   content: ""; position: absolute; top: 3px; right: 3px;
   width: 3px; height: 3px; border-radius: 50%; background: var(--text);
+}
+
+/* An open wire is a fault, but a different one: a loose sense lead, not a flat
+   cell. Hatched so it never reads as a voltage worth acting on. */
+.cell.open-wire {
+  box-shadow: inset 0 0 0 1.5px var(--fault);
+  background-image: repeating-linear-gradient(
+    45deg, transparent 0 2px, rgba(255, 255, 255, .35) 2px 3px);
+}
+
+/* Pack-wide balancing. The AMS publishes no per-cell discharge status, so this
+   is one badge rather than a mark on every cell. */
+.bal-badge {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 195, 0, .14);
+  color: var(--accent);
+  font-size: 11.5px; font-weight: 600;
+  letter-spacing: .01em;
 }
 
 .chart-pane {
@@ -1089,6 +1322,9 @@ button, input, select, textarea {
   line-height: 1.5;
 }
 .link-tag { margin-right: 8px; color: var(--accent); background: var(--accent-soft); }
+/* Modo detetado, não escolhido: cor diferente do tag do transporte, para não
+   se confundir com uma definição. */
+.link-tag.mode { margin-left: 8px; margin-right: 0; color: var(--ok); background: rgba(48, 209, 88, .14); }
 .cells-topo { display: inline-flex; gap: 8px; }
 
 /* ==========================================================================

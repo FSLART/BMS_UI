@@ -9,9 +9,14 @@
 
 import { modelCache, resolveModel } from './preload.js';
 
+// View names are open-ended: a car declares whichever it has. `charger` is the
+// pack sitting on the handcart, and exists before its GLB does -- the viewer
+// falls back to a placeholder, which is the point.
 const DEFAULT_MODELS = {
   closed: '/models/battery_closed.glb',
   open: '/models/battery_open.glb',
+  charger: '/models/battery_charger.glb',
+  segment: '/models/battery_segment.glb',
 };
 
 /**
@@ -22,8 +27,10 @@ const DEFAULT_MODELS = {
  * Empty orbit means "let model-viewer frame the model itself".
  */
 const CAMERA_FALLBACK = {
-  closed: { orbit: '', target: 'auto auto auto', fov: '' },
-  open: { orbit: '', target: 'auto auto auto', fov: '' },
+  closed: { orbit: '', target: 'auto auto auto', fov: '', orientation: '' },
+  open: { orbit: '', target: 'auto auto auto', fov: '', orientation: '' },
+  charger: { orbit: '', target: 'auto auto auto', fov: '', orientation: '' },
+  segment: { orbit: '', target: 'auto auto auto', fov: '', orientation: '' },
 };
 
 /**
@@ -183,7 +190,9 @@ async function probe(url) {
 }
 
 function placeholder(which, path, info) {
-  const label = which === 'closed' ? 'bateria fechada' : 'bateria aberta';
+  const label = { closed: 'bateria fechada', open: 'bateria aberta',
+                  charger: 'bateria no carregador',
+                  segment: 'segmento' }[which] || which;
   const el = document.createElement('div');
   el.className = 'viewer-placeholder';
   if (info && info.tooBig) {
@@ -293,7 +302,7 @@ function matteMaterials(mv, src) {
 export class Viewer {
   /**
    * @param {HTMLElement} root  container with class .viewer
-   * @param {'closed'|'open'} initial
+   * @param {'closed'|'open'|'charger'} initial
    */
   constructor(root, initial = 'closed') {
     this.root = root;
@@ -311,16 +320,17 @@ export class Viewer {
    * Starting framing per view, straight from the car profile. Anything the
    * profile leaves blank falls through to model-viewer's own framing.
    */
-  setViews({ closed, open } = {}) {
+  setViews(views = {}) {
     const pick = (v, fb) => ({
       orbit: v?.orbit || fb.orbit,
       target: v?.target || fb.target,
       fov: v?.fov || fb.fov,
+      orientation: v?.orientation || fb.orientation,
     });
-    this.views = {
-      closed: pick(closed, CAMERA_FALLBACK.closed),
-      open: pick(open, CAMERA_FALLBACK.open),
-    };
+    this.views = {};
+    for (const key of Object.keys(CAMERA_FALLBACK)) {
+      this.views[key] = pick(views[key], CAMERA_FALLBACK[key]);
+    }
     // Already-built viewers keep their own camera; re-apply so a car swap does
     // not leave the previous car's framing in place.
     for (const which of Object.keys(this.mv)) this._applyView(which);
@@ -331,6 +341,10 @@ export class Viewer {
     const cam = this.views[which];
     if (!mv || !cam) return false;
     mv.resetTurntableRotation?.(0);
+    // Orientation first: it changes the model's bounds, and "auto" framing and
+    // percentage radii are computed from those.
+    if (cam.orientation) mv.setAttribute('orientation', cam.orientation);
+    else mv.removeAttribute('orientation');
     if (cam.orbit) mv.cameraOrbit = cam.orbit;
     if (cam.target) mv.cameraTarget = cam.target;
     if (cam.fov) mv.fieldOfView = cam.fov;
@@ -341,9 +355,12 @@ export class Viewer {
   }
 
   /** Point the viewer at another car's GLBs, dropping whatever was loaded. */
-  setModels({ closed, open }) {
-    const next = { closed: closed || DEFAULT_MODELS.closed, open: open || DEFAULT_MODELS.open };
-    if (next.closed === this.models.closed && next.open === this.models.open) return;
+  setModels(models = {}) {
+    const next = {};
+    for (const key of Object.keys(DEFAULT_MODELS)) {
+      next[key] = models[key] || DEFAULT_MODELS[key];
+    }
+    if (Object.keys(next).every((k) => next[k] === this.models[k])) return;
     this.models = next;
     Object.values(this.mv).forEach((el) => el.remove());
     this.mv = {};
@@ -391,6 +408,7 @@ export class Viewer {
     mv.setAttribute('tone-mapping', RENDER.toneMapping);
     mv.setAttribute('environment-image', 'neutral');
     const cam = this.views[which] || CAMERA_FALLBACK[which];
+    if (cam.orientation) mv.setAttribute('orientation', cam.orientation);
     if (cam.orbit) mv.setAttribute('camera-orbit', cam.orbit);
     if (cam.target) mv.setAttribute('camera-target', cam.target);
     if (cam.fov) mv.setAttribute('field-of-view', cam.fov);
@@ -421,9 +439,22 @@ export class Viewer {
     return mv;
   }
 
+  /**
+   * Show one model, hide the others.
+   *
+   * Two cases that deserve different timing. Coming up on an empty stage there
+   * is nothing to cross with, and the long fade just reads as the app being
+   * slow to start -- the model is parsed and on the GPU well before it is
+   * visible. Going from one model to the other, the fade is the whole point:
+   * it is what stops the lid opening as a hard cut.
+   */
   _reveal(which) {
     this.placeholder.classList.add('hidden');
-    Object.entries(this.mv).forEach(([k, el]) => el.classList.toggle('shown', k === which));
+    const first = !Object.values(this.mv).some((el) => el.classList.contains('shown'));
+    Object.entries(this.mv).forEach(([k, el]) => {
+      el.classList.toggle('quick', first && k === which);
+      el.classList.toggle('shown', k === which);
+    });
   }
 
   /** Crossfade to the other model. Falls back to swapping the placeholder text. */
@@ -487,6 +518,32 @@ export class Viewer {
     return true;
   }
 
+  /**
+   * The current framing, as the `CameraView(...)` line that produces it.
+   *
+   * Radius comes back in metres and is emitted as metres: a percentage is
+   * relative to whatever model-viewer decided the framing distance was, and
+   * that shifts when the model or its orientation changes. Metres pin it.
+   */
+  captureView() {
+    const mv = this.mv[this.current];
+    if (!mv || !mv.loaded) return null;
+    const o = mv.getCameraOrbit();
+    const deg = (rad) => `${Math.round((rad * 180) / Math.PI)}deg`;
+    const view = this.views[this.current] || {};
+    const parts = [
+      `orbit="${deg(o.theta)} ${deg(o.phi)} ${o.radius.toFixed(3)}m"`,
+      `fov="${mv.getFieldOfView().toFixed(0)}deg"`,
+    ];
+    // Only carried through when the profile set one; it is not read back from
+    // the element, so a hand-edited attribute would not survive a capture.
+    if (view.orientation) parts.push(`orientation="${view.orientation}"`);
+    return {
+      view: this.current,
+      snippet: `view_${this.current}=CameraView(${parts.join(', ')}),`,
+    };
+  }
+
   idle(on) {
     const mv = this.mv[this.current];
     if (!mv) return;
@@ -547,6 +604,9 @@ export class Viewer {
         mv.appendChild(btn);
       }
       const st = state[h.id] || {};
+      // `off` hides a marker without forgetting its value: a segment carries 36
+      // of them and showing every one at once buries the model.
+      btn.hidden = !!st.off;
       btn.dataset.sev = st.sev || 'idle';
       btn.classList.toggle('is-hot', !!st.hot);
       btn.classList.toggle('is-sel', !!st.selected);

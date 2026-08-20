@@ -55,6 +55,9 @@ class Cell(BaseModel):
     voltage: float = 0.0
     temperature: float | None = None
     balancing: bool = False
+    # Reading below the open-wire threshold: the sense lead is loose, not the
+    # cell flat. Kept apart from status so the UI can say which.
+    open_wire: bool = False
     status: Severity = Severity.UNKNOWN
 
 
@@ -103,7 +106,16 @@ class Pack(BaseModel):
 
 
 class Safety(BaseModel):
-    """Formula Student shutdown-circuit relevant signals."""
+    """Formula Student shutdown-circuit relevant signals.
+
+    The fields exist for any car; `available` says which of them THIS car's
+    decoder actually measures. Everything not listed is never shown, rather
+    than shown as a green light standing for a signal nobody is reading -- an
+    IMD lamp fed from the SDC says "insulation fine" when all it knows is that
+    the loop is closed.
+    """
+
+    available: list[str] = Field(default_factory=list)
 
     ams_ok: bool = False
     imd_ok: bool = False
@@ -113,6 +125,10 @@ class Safety(BaseModel):
     air_negative: bool = False
     precharge_done: bool = False
     insulation_resistance: float | None = None   # ohms
+
+    # Nomes das maquinas de estado do AMS, das tabelas VAL_ da DBC.
+    master_state: str = ""
+    precharge_state: str = ""
 
 
 class Charger(BaseModel):
@@ -132,6 +148,13 @@ class Charger(BaseModel):
     temperature: float | None = None
     faults: list[str] = Field(default_factory=list)
 
+    # Energy put into the pack since this session started, and how long it has
+    # been running. Session-relative on purpose: the IVT's own Wh register is a
+    # lifetime counter, and "how much went in tonight" is the question anyone
+    # standing next to the handcart is actually asking.
+    energy_wh: float = 0.0
+    session_s: float = 0.0
+
 
 class Fault(BaseModel):
     code: str
@@ -145,6 +168,10 @@ class LinkMeta(BaseModel):
     type: LinkType = LinkType.NONE
     status: LinkStatus = LinkStatus.DISCONNECTED
     detail: str = ""
+    # Numbers are coming from the simulator, not from hardware. Explicit rather
+    # than inferred from `detail`: the UI has to be able to refuse to send
+    # commands, and guessing from a display string is not a basis for that.
+    demo: bool = False
     rx_rate: float = 0.0          # frames/s
     latency_ms: float | None = None
     last_frame_ts: float | None = None
@@ -155,25 +182,52 @@ class CameraView(BaseModel):
     orbit: str = ""
     target: str = "auto auto auto"
     fov: str = ""
+    # Roda o MODELO, nao a camara: o <model-viewer> nao tem roll, portanto
+    # nenhuma orbita poe de pe uma peca exportada deitada. "roll pitch yaw".
+    orientation: str = ""
 
 
 class Hotspot(BaseModel):
     id: str
-    view: str = "closed"
+    view: str = "closed"          # closed | open | charger
     position: str = ""
     normal: str = "0m 1m 0m"
     label: str = ""
     binds: str = ""
+    # Mirrors cars.Hotspot. Missing here, pydantic dropped it silently on the
+    # way into CarMeta -- harmless today because the frontend reads the raw
+    # profile from /api/cars, but a trap for whoever uses CarMeta next.
+    standoff: str = ""
+
+
+class CanBus(BaseModel):
+    id: str = ""
+    name: str = ""
+    bitrate: int = 0
+    detail: str = ""
+
+
+class CanCommand(BaseModel):
+    id: str = ""
+    label: str = ""
+    danger: bool = False
+    detail: str = ""
 
 
 class CarMeta(BaseModel):
     id: str = ""
     name: str = ""
     subtitle: str = ""
+    buses: list[CanBus] = Field(default_factory=list)
+    commands: list[CanCommand] = Field(default_factory=list)
     model_closed: str = ""
     model_open: str = ""
+    model_charger: str = ""
+    model_segment: str = ""
     view_closed: CameraView = Field(default_factory=CameraView)
     view_open: CameraView = Field(default_factory=CameraView)
+    view_charger: CameraView = Field(default_factory=CameraView)
+    view_segment: CameraView = Field(default_factory=CameraView)
     hotspots: list[Hotspot] = Field(default_factory=list)
 
 
@@ -184,6 +238,10 @@ class BmsState(BaseModel):
     link: LinkMeta = Field(default_factory=LinkMeta)
     pack: Pack = Field(default_factory=Pack)
     safety: Safety = Field(default_factory=Safety)
+    # Which bus we turned out to be on, worked out from the traffic rather than
+    # asked: charger frames present means the pack is on the handcart, their
+    # absence means it is in the car. Never a setting.
+    mode: Literal["car", "charger"] = "car"
     charging: bool = False
     charger: Charger = Field(default_factory=Charger)
     segments: list[Segment] = Field(default_factory=list)

@@ -15,6 +15,16 @@ export const api = {
     }).then(json),
   disconnect: () => fetch('/api/disconnect', { method: 'POST' }).then(json),
 
+  /** Send a declared CAN command. The backend re-checks every guard. */
+  command: (id, on) =>
+    fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, on }),
+    })
+      .then(json)
+      .catch((e) => ({ ok: false, error: String(e.message || e) })),
+
   /**
    * Send a .dbc the user picked. Raw body, not multipart: the backend then
    * needs no python-multipart, which matters for an app that ships offline.

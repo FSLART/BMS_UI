@@ -62,7 +62,7 @@ Com `slaves_per_segment=2` e `cells_per_slave=12`: o slave 1 cobre os grupos
 
 | ID | Mensagem | Para o `UniversalBmsState` |
 |---|---|---|
-| 1793 | `Master_MSC_ID_1` | `ams_current_draw` (só reserva, ver abaixo); `master_state`, `master_fan_pwm`, `mcu_temperature` |
+| 1793 | `Master_MSC_ID_1` | `master_state`, `master_fan_pwm`, `mcu_temperature`. **`ams_current_draw` não é usado** — ver abaixo |
 | 1794 | `Master_PreCharge_ID_1` | `precharge_ctc_air_pos_state` → `safety.air_positive`; `..._air_min_state` → `air_negative`; `precharge_state == HV_ON` → `precharge_done` |
 | 1795 | `Master_MSC_ID_2` | `fault1_*` / `fault2_*` → lista de `Fault` (com tabela `VAL_`, 255 = `EMPTY`) |
 | 1796 | `Master_MSC_ID_3` | `overall_maximum_voltage` / `minimum_voltage` → `pack.cell_v_max` / `cell_v_min`; idem temperaturas |
@@ -93,9 +93,15 @@ regeneração**. É essa a regra em `BmsState.charging`.
 
 ## Decisões do descodificador
 
-- **Corrente e tensão vêm do IVT, não do AMS.** `ams_current_draw` está
-  declarado `unsigned [0|65535]` a 0.001 A: satura aos 65,5 A e não consegue
-  representar regen. Fica como reserva para quando o IVT está calado.
+- **Corrente e tensão vêm do IVT. O `ams_current_draw` não serve para nada
+  disto.** Apesar do nome, não é a corrente do pack: o firmware preenche-o de
+  `analog_readings->ams_master_current`, um sensor hall MCS1802 a 0.264 V/A que
+  mede o que a **própria placa master consome** (uns amperes, sem relação com a
+  tração). Ver `Firmware/Core/Src/analog_readings.c` em
+  [lart_bms](https://github.com/FSLART/lart_bms/tree/beta-v2.1). Ainda por cima
+  o firmware calcula-o como float com sinal e a DBC declara-o `unsigned`, por
+  isso valores negativos dão a volta. Se o IVT estiver calado, a corrente é
+  desconhecida e é isso que se mostra, mais uma falta `IVT_MUTE`.
 - **`pack.voltage` de reserva é a soma das tensões de célula**, não a soma de
   `module_voltage_sum` — ver o defeito do slave 10 abaixo.
 - **A temperatura por célula fica vazia.** São 6 NTC por slave contra 12 grupos,
@@ -118,12 +124,53 @@ Hoje encontra dois:
   `module_undervoltage` nem `module_under_over_identifier`** — só os slaves 1 e
   2 os declaram. As faltas de OV/UV por módulo só funcionam nesses dois.
 
+## Dois barramentos, não um
+
+O firmware usa **CAN1 para a powertrain e CAN2 só para carregamento** (handcart,
+carregador EV Europe, ISA secundário). As mensagens do carregador que este
+descodificador percebe só aparecem em quem estiver ligado ao CAN2. A interface
+liga a um canal de cada vez, portanto num carregamento vê-se ou o AMS ou o
+carregador, não os dois.
+
+| Barramento | Velocidade | Quando existe |
+|---|---|---|
+| Carro (CAN1) | **1 Mbit/s** | bateria montada no carro |
+| Carregamento (CAN2) | **500 kbit/s** | bateria no handcart |
+
+Valores confirmados pela equipa. A velocidade é a única coisa que a app não
+consegue descobrir sozinha — no valor errado não chega trama nenhuma, portanto
+não há tráfego de onde inferir. Tudo o resto (em que barramento se está) sai do
+que aparece no fio: ver `BmsState.mode`.
+
+## Bitmasks a caminho do firmware
+
+Estão previstas três, e o modelo de estado já as acomoda sem mudar de forma —
+`Cell.open_wire`, `Cell.balancing` e `Thermistor` já são por posição. Só falta o
+descodificador passar a lê-las em vez de as inferir.
+
+| Bitmask | O que substitui hoje | Onde ligar |
+|---|---|---|
+| Células em fio aberto | dedução por tensão `< v_open_wire` em `_build_cells` | pôr `open_wire` a partir do bit, e deixar o limiar só como reserva |
+| NTC em fio aberto | nada — hoje um NTC solto passa por leitura válida | `_build_thermistors`, marcar `status=UNKNOWN` e `temperature=None` |
+| Células em balanceamento | `master_state == BALANCING` aplicado ao pack inteiro | `_balancing` deixa de ser global; `Cell.balancing` vem do bit |
+
+A interface não precisa de alteração nenhuma para o balanceamento: já decide
+pela forma dos dados. Enquanto todas as células trazem a mesma flag mostra um
+badge de pack; assim que deixarem de concordar, marca as que estão mesmo a
+descarregar. Ver `_paintCells` em `frontend/js/dashboard.js`.
+
 ## Por confirmar com o firmware
 
-- `BMS_ChargingRequest.Control`: assumido `0 = carregar`, `1 = parar` (protocolo
-  Elcon/TC habitual). Confirmar.
 - Sinal da corrente do IVT: assumido **positivo = descarga**. Se o shunt estiver
   montado ao contrário, inverter num sítio só (`_build_pack`).
+- O último slave da cadeia ADBMS6830 emite o sentinela `0x8000`, que descodifica
+  como ≈ −3,42 V. O firmware mitiga com valor absoluto e trata `< 2,30 V` como
+  fio aberto. Os limites em `CellLimits` usam `v_min = 2,50`, portanto uma
+  leitura de fio aberto aparece aqui como subtensão — que manda alguém procurar
+  o problema errado.
+
+**Confirmado no firmware:** `BMS_ChargingRequest.Control` é `0 = carregar`,
+`1 = parar`, como estava implementado.
 - Não há mensagem de IMD nem de resistência de isolamento nesta base de dados.
   `safety.imd_ok` está ligado ao SDC, que é a única evidência disponível.
 - Não há sinal de SOH nem de balanceamento por célula. O balanceamento é global,

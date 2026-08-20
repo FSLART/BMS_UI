@@ -13,6 +13,7 @@ import time
 from .cars import CarProfile
 from .state import (
     Cell,
+    Charger,
     Fault,
     Pack,
     Safety,
@@ -25,6 +26,17 @@ from .state import (
 )
 
 
+# Carregador EV Europe OEM3 650-6 do handcart: 600 V a 6 A.
+CHARGER_MAX_A = 6.0
+CHARGER_MAX_V = 600.0
+
+# Ciclo do demo: conduzir e depois carregar, para se ver o programa todo sem
+# hardware nenhum. Curto o suficiente para nao ser preciso esperar.
+DRIVE_S = 50.0
+CHARGE_S = 30.0
+CYCLE_S = DRIVE_S + CHARGE_S
+
+
 class Simulator:
     """Stateful pack model. Call `step()` at whatever rate you like."""
 
@@ -34,6 +46,10 @@ class Simulator:
         self.t0 = time.time()
         self.soc = 92.0
         self.energy_used = 0.0
+        # Contador da sessao de carga, reposto a cada nova fase de carregamento.
+        self.chg_energy_wh = 0.0
+        self.chg_started: float | None = None
+        self._was_charging = False
         self._last_step = self.t0
         self._faults: list[Fault] = []
 
@@ -61,8 +77,26 @@ class Simulator:
 
     # -- current profile -----------------------------------------------------
 
+    def charging_phase(self, t: float) -> bool:
+        """Demo alternates between the two situations the pack really lives in.
+
+        Everything is reachable in one session -- which is the point of demo --
+        without ever showing an incoherent mixture, like traction current with
+        a charger delivering into the pack at the same time.
+        """
+        return (t % CYCLE_S) >= DRIVE_S
+
     def _current(self, t: float) -> float:
-        """Synthetic lap: accel bursts, coast, regen braking."""
+        """Driving, or charging, depending on the phase.
+
+        Driving: a synthetic lap with accel bursts, coast and regen braking.
+        Charging: negative and almost flat, tapering as the pack fills, which
+        is what an EV Europe OEM3 at 600 V / 6 A actually does.
+        """
+        if self.charging_phase(t):
+            taper = max(0.15, min(1.0, (100.0 - self.soc) / 15.0))
+            return -CHARGER_MAX_A * taper + self.rng.gauss(0, 0.05)
+
         lap = t % 45.0
         base = 60.0 * math.sin(lap / 45.0 * 2 * math.pi)
         burst = 90.0 * max(0.0, math.sin(lap / 7.0 * 2 * math.pi)) ** 3
@@ -189,19 +223,51 @@ class Simulator:
 
         self._update_faults(pack)
 
+        # Em demo o carregador está sempre presente, para o separador de
+        # Carregamento estar sempre lá. Só entrega corrente na fase de carga --
+        # tal como um carregador ligado mas em repouso.
+        on_charge = self.charging_phase(t)
+        # Cada fase de carga e uma sessao nova: o contador arranca do zero,
+        # como acontece quando se liga o handcart.
+        if on_charge and not self._was_charging:
+            self.chg_energy_wh = 0.0
+            self.chg_started = now
+        self._was_charging = on_charge
+        if on_charge:
+            self.chg_energy_wh += (pack_v + 1.2) * abs(current) * dt / 3600.0
+
+        charger = Charger(
+            present=True,
+            output_voltage=round(pack_v + 1.2, 1) if on_charge else 0.0,
+            output_current=round(abs(current), 2) if on_charge else 0.0,
+            requested_voltage=CHARGER_MAX_V,
+            requested_current=CHARGER_MAX_A,
+            enabled=on_charge and self.soc < 99.5,
+            temperature=round(38.0 + 6.0 * math.sin(t / 90.0), 1),
+            faults=[],
+            energy_wh=round(self.chg_energy_wh, 1),
+            session_s=round(now - self.chg_started, 0) if self.chg_started else 0.0,
+        )
+
         return BmsState(
             ts=now,
             stale=False,
             pack=pack,
+            mode="charger" if on_charge else "car",
+            charging=on_charge and current < -0.5,
+            charger=charger,
             safety=Safety(
+                # A mesma lista que o descodificador real declara: o demo nao
+                # deve mostrar luzes que o hardware nao tem.
+                available=["ams_ok", "sdc_closed", "air_positive",
+                           "air_negative", "precharge_done"],
                 ams_ok=pack.status is not Severity.FAULT,
-                imd_ok=True,
-                bspd_ok=True,
                 sdc_closed=pack.status is not Severity.FAULT,
                 air_positive=True,
                 air_negative=True,
                 precharge_done=True,
-                insulation_resistance=round(1_200_000 + self.rng.gauss(0, 40_000), 0),
+                master_state="CHARGING" if on_charge else "ONMISSION",
+                precharge_state="HV_ON",
             ),
             segments=segments,
             cells=cells,

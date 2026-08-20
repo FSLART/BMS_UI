@@ -30,6 +30,12 @@ await new Preloader($('screen-loading')).run();
 // --- viewers: closed on the connection screen, open on the dashboard ----
 const connectViewer = new Viewer($('viewer-connect'), 'closed');
 const dashViewer = new Viewer($('viewer-dash'), 'open');
+// Pack on the handcart. Its GLB does not exist yet, so this shows the viewer's
+// placeholder until someone exports one -- the charging page works either way.
+const chargeViewer = new Viewer($('viewer-charge'), 'charger');
+// One generic segment: the six are identical, only the data on the anchors
+// changes. So one model and one set of 36 anchors serve all of them.
+const segmentViewer = new Viewer($('viewer-segment'), 'segment');
 // No auto-rotate: the connection screen is meant to hold the framing set in
 // CAMERA.closed, and a slow spin walks away from it after a few seconds.
 connectViewer.idle(false);
@@ -60,6 +66,8 @@ function setStatus({ kind, text }) {
 const connectScreen = new ConnectScreen($('transport-list'), { onStatus: setStatus });
 const dashboard = new Dashboard({
   viewer: dashViewer,
+  chargeViewer,
+  segmentViewer,
   onDisconnect: async () => {
     await api.disconnect();
     connectScreen.reset();
@@ -72,24 +80,32 @@ const dashboard = new Dashboard({
 let currentCar = null;
 
 const carScreen = new CarScreen($('car-grid'), {
-  onSelect: (car) => {
+  onSelect: async (car) => {
     currentCar = car;
+    // Rebuilds the transport rows: the CAN bus list belongs to this car.
+    await connectScreen.setCar(car);
     $('connect-car').textContent = car.name;
     $('dash-car').textContent = car.name;
-    const models = { closed: car.model_closed, open: car.model_open };
-    const views = { closed: car.view_closed, open: car.view_open };
-    connectViewer.setViews(views);
-    dashViewer.setViews(views);
-    connectViewer.setHotspots(car.hotspots);
-    dashViewer.setHotspots(car.hotspots);
-    connectViewer.setModels(models);
-    dashViewer.setModels(models);
+    const models = {
+      closed: car.model_closed, open: car.model_open,
+      charger: car.model_charger, segment: car.model_segment,
+    };
+    const views = {
+      closed: car.view_closed, open: car.view_open,
+      charger: car.view_charger, segment: car.view_segment,
+    };
+    for (const v of [connectViewer, dashViewer, chargeViewer, segmentViewer]) {
+      v.setViews(views);
+      v.setHotspots(car.hotspots);
+      v.setModels(models);
+    }
     connectScreen.reset();
     showScreen('connect');
   },
 });
 
 $('btn-reset-view').addEventListener('click', () => dashViewer.resetCamera());
+$('btn-reset-segment').addEventListener('click', () => segmentViewer.resetCamera());
 
 $('btn-change-car').addEventListener('click', async () => {
   await api.disconnect();
@@ -101,6 +117,8 @@ $('btn-change-car').addEventListener('click', async () => {
 window.__bms = {
   connectViewer,
   dashViewer,
+  chargeViewer,
+  segmentViewer,
   connectScreen,
   dashboard,
   /**
@@ -121,7 +139,10 @@ window.__bms = {
         fov: `${mv.getFieldOfView().toFixed(0)}deg`,
       };
     };
-    return { closed: read(connectViewer), open: read(dashViewer) };
+    return {
+      closed: read(connectViewer), open: read(dashViewer),
+      charger: read(chargeViewer), segment: read(segmentViewer),
+    };
   },
 };
 
@@ -133,10 +154,28 @@ logConsole.startBadgePolling();
 // Anchor picker. Targets whichever model is currently on screen, so the same
 // button serves the closed model on the connection screen and the open one on
 // the dashboard.
+/**
+ * Whichever model is on screen right now. On the connection screen that is the
+ * closed pack; on the dashboard it depends on which page is open.
+ */
+function currentViewer() {
+  if (active !== 'dash') return connectViewer;
+  return { segment: segmentViewer, charge: chargeViewer }[dashboard.page] || dashViewer;
+}
+
+// Save the framing you just dragged to. Separate from the anchor picker: that
+// one returns a point ON the model, this returns where the camera looks FROM.
+logConsole.onCaptureView = async () => {
+  const got = currentViewer().captureView();
+  if (!got) return logConsole.note('Sem modelo carregado nesta vista.', 'WARNING');
+  try { await navigator.clipboard.writeText(got.snippet); } catch { /* clipboard may be blocked */ }
+  logConsole.note(`${got.snippet}   [copiado — colar em backend/cars.py]`);
+};
+
 let picking = false;
 logConsole.onTogglePicker = async () => {
   picking = !picking;
-  const viewer = active === 'dash' ? dashViewer : connectViewer;
+  const viewer = currentViewer();
   const ok = viewer.enablePicker(picking, async (hit) => {
     if (!hit) return logConsole.note('Clique fora da geometria — sem interseção.', 'WARNING');
     const snippet = `Hotspot(id="", view="${hit.view}", label="",

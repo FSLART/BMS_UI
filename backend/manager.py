@@ -25,6 +25,8 @@ from .state import (
     STALE_AFTER_S,
     BmsState,
     CameraView,
+    CanBus,
+    CanCommand,
     CarMeta,
     Hotspot,
     LinkMeta,
@@ -53,6 +55,9 @@ class ConnectionManager:
         self._task: asyncio.Task[None] | None = None
         self._sim: Simulator | None = None
         self._demo_fallback = False
+        # Only set while a real CAN link is up. Commands refuse without them.
+        self._tx: CanTransport | None = None
+        self._db = None
 
     # -- car selection -------------------------------------------------------
 
@@ -65,9 +70,18 @@ class ConnectionManager:
             subtitle=self.car.subtitle,
             model_closed=self.car.model_closed,
             model_open=self.car.model_open,
+            model_charger=self.car.model_charger,
+            model_segment=self.car.model_segment,
             view_closed=CameraView(**self.car.view_closed.model_dump()),
             view_open=CameraView(**self.car.view_open.model_dump()),
+            view_charger=CameraView(**self.car.view_charger.model_dump()),
+            view_segment=CameraView(**self.car.view_segment.model_dump()),
             hotspots=[Hotspot(**h.model_dump()) for h in self.car.hotspots],
+            buses=[CanBus(**b.model_dump()) for b in self.car.buses],
+            commands=[
+                CanCommand(id=c.id, label=c.label, danger=c.danger, detail=c.detail)
+                for c in self.car.commands
+            ],
         )
 
     async def select_car(self, car_id: str) -> dict[str, Any]:
@@ -164,6 +178,8 @@ class ConnectionManager:
                 await self._task
             self._task = None
         self._sim = None
+        self._tx = None
+        self._db = None
         self.state = BmsState(car=self.car_meta())
         self._broadcast()
         return {"ok": True}
@@ -228,6 +244,10 @@ class ConnectionManager:
             self._set_link(status=LinkStatus.ERROR, error=str(exc))
             return
 
+        # From here the app can also talk. Kept on the manager rather than
+        # passed around, so send_command has one place to check.
+        self._tx, self._db = transport, db
+
         origins = ", ".join(f.describe for f in files)
         self._set_link(status=LinkStatus.HANDSHAKING, detail=detail)
         log.info("A aguardar tramas do AMS em %s | %s", detail, origins)
@@ -276,6 +296,8 @@ class ConnectionManager:
 
                 await asyncio.sleep(max(0.0, period - (time.time() - loop_start)))
         finally:
+            self._tx = None
+            self._db = None
             await transport.close()
 
     # -- simulator -----------------------------------------------------------
@@ -302,6 +324,9 @@ class ConnectionManager:
                 state.link = LinkMeta(
                     type=lt,
                     status=LinkStatus.LIVE,
+                    # Everything reaching this branch is simulated, whether it
+                    # got here by choice or by falling back off a dead bus.
+                    demo=True,
                     detail=detail if lt is not LinkType.SIM else "Simulador interno",
                     rx_rate=self.state.link.rx_rate,
                     latency_ms=round(2.0 + (loop_start * 37 % 3), 1),
@@ -324,6 +349,54 @@ class ConnectionManager:
         except Exception as exc:  # noqa: BLE001 - surface any driver failure in the UI
             log.exception("Falha na ligacao %s", lt.value.upper())
             self._set_link(status=LinkStatus.ERROR, error=str(exc))
+
+    # -- commands ------------------------------------------------------------
+
+    async def send_command(self, cmd_id: str, on: bool) -> dict[str, Any]:
+        """Transmit one of the car's declared commands.
+
+        The guards are the point of this method. This is a monitoring tool that
+        happens to be able to talk, and everything below refuses rather than
+        guesses:
+
+        * demo never transmits -- pretending to command a pack that is not
+          there is the worst possible outcome
+        * only while the link is LIVE, so nothing goes out at a moment when we
+          cannot see what it did
+        * the command must be declared in the car profile; no arbitrary frames
+        """
+        if self.car is None:
+            return {"ok": False, "error": "Nenhum carro selecionado"}
+
+        cmd = next((c for c in self.car.commands if c.id == cmd_id), None)
+        if cmd is None:
+            log.warning("Comando desconhecido: %s", cmd_id)
+            return {"ok": False, "error": f"Comando desconhecido: {cmd_id}"}
+
+        if self._demo_fallback and self._sim is not None:
+            msg = "Modo demo: nada e enviado para o barramento."
+            log.warning("%s (%s)", msg, cmd.label)
+            return {"ok": False, "error": msg}
+
+        transport, db = self._tx, self._db
+        if transport is None or db is None or self.state.link.status is not LinkStatus.LIVE:
+            msg = "Sem ligacao ativa ao BMS."
+            log.warning("%s Comando '%s' nao enviado.", msg, cmd.label)
+            return {"ok": False, "error": msg}
+
+        try:
+            message = db.get_message_by_name(cmd.message)
+            payload = message.encode({cmd.signal: cmd.on if on else cmd.off})
+            await transport.send(message.frame_id, payload, message.is_extended_frame)
+        except Exception as exc:  # noqa: BLE001
+            log.error("Falha a enviar '%s': %s", cmd.label, exc)
+            return {"ok": False, "error": str(exc)}
+
+        # Loud on purpose: every transmission onto the vehicle is in the log,
+        # with what it was and who asked for it.
+        log.warning("COMANDO ENVIADO -> %s = %s  (%s, 0x%X)",
+                    cmd.label, "ON" if on else "OFF", cmd.message, message.frame_id)
+        return {"ok": True, "sent": cmd.label, "on": on}
 
     # -- staleness watchdog --------------------------------------------------
 

@@ -36,12 +36,13 @@ from urllib.request import urlopen
 
 from .cars import DbcSource
 from .logbuffer import log
+from .resources import resource_path
 
 DOWNLOAD_TIMEOUT_S = 6.0
 
 # Committed with the source. Guarantees a working decoder on a machine that has
 # never been online and never had the CAN repo checked out.
-VENDORED_DIR = Path(__file__).parent / "dbc"
+VENDORED_DIR = resource_path("backend", "dbc")
 
 
 def cache_dir() -> Path:

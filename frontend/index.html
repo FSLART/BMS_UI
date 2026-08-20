@@ -43,7 +43,10 @@
 <div id="screen-car" class="screen">
   <header class="topbar">
     <div class="brand">
-      <img class="brand-logo" src="/pics/lart_logo.png" alt="LART" />
+      <a class="brand-link" href="https://github.com/FSLART/BMS_UI" target="_blank"
+         rel="noopener noreferrer" title="Repositorio do projeto no GitHub">
+        <img class="brand-logo" src="/pics/lart_logo.png" alt="LART" />
+      </a>
       <div>
         <div class="brand-title">Accumulator Monitor</div>
       </div>
@@ -73,7 +76,10 @@
 <div id="screen-connect" class="screen">
   <header class="topbar">
     <div class="brand">
-      <img class="brand-logo" src="/pics/lart_logo.png" alt="LART" />
+      <a class="brand-link" href="https://github.com/FSLART/BMS_UI" target="_blank"
+         rel="noopener noreferrer" title="Repositorio do projeto no GitHub">
+        <img class="brand-logo" src="/pics/lart_logo.png" alt="LART" />
+      </a>
       <div>
         <div class="brand-title">Accumulator Monitor</div>
         <div class="brand-sub" id="connect-car">—</div>
@@ -126,11 +132,16 @@
 <div id="screen-dash" class="screen">
   <header class="dash-top">
     <div class="brand">
-      <img class="brand-logo" src="/pics/lart_logo.png" alt="LART" />
+      <a class="brand-link" href="https://github.com/FSLART/BMS_UI" target="_blank"
+         rel="noopener noreferrer" title="Repositorio do projeto no GitHub">
+        <img class="brand-logo" src="/pics/lart_logo.png" alt="LART" />
+      </a>
       <div>
         <div class="brand-title" id="dash-car">Accumulator Monitor</div>
         <div class="brand-sub">
           <span class="link-tag" id="dash-link-type"></span><span id="dash-link"></span>
+          <!-- Deduzido do tráfego, não escolhido. Ver Dashboard._updateCharger. -->
+          <span class="link-tag mode" id="mode-tag" hidden></span>
         </div>
       </div>
     </div>
@@ -158,6 +169,13 @@
     <button class="tab active" data-page="overview">Visão geral</button>
     <button class="tab" data-page="cells">Células</button>
     <button class="tab" data-page="tables">Tabelas</button>
+    <!-- Só aparece no barramento de carregamento: no do carro não há
+         carregador nenhum a falar, e um separador permanentemente vazio é
+         ruído. Ver Dashboard._updateCharger. -->
+    <button class="tab" data-page="charge" id="tab-charge" hidden>Carregamento</button>
+    <!-- Aparece ao clicar num segmento na barra lateral. O modelo é genérico:
+         os 6 segmentos são iguais, só muda a informação nas âncoras. -->
+    <button class="tab" data-page="segment" id="tab-segment" hidden>Segmento</button>
   </nav>
 
   <div class="dash-pages">
@@ -183,11 +201,23 @@
     <aside class="side right">
       <h3>Segurança</h3>
       <div class="safety-grid" id="safety-grid"></div>
-      <h3 style="margin-top:8px">Isolamento</h3>
-      <div class="readouts">
-        <span class="ro" title="Resistência de isolamento"><b>R</b><span id="s-iso">—</span></span>
-        <span class="ro" title="Estado de saúde"><b>SOH</b><span id="s-soh">—</span></span>
+      <!-- Substituiu o bloco de Isolamento: este BMS não mede resistência de
+           isolamento nem publica SOH, e ambos eram valores fixos. Estas duas
+           máquinas de estado vêm das tabelas VAL_ da DBC. -->
+      <h3 style="margin-top:8px">Estado do AMS</h3>
+      <div class="state-rows">
+        <div class="state-item">
+          <span class="state-k">Master</span>
+          <span class="state-v mono" id="s-state">—</span>
+        </div>
+        <div class="state-item">
+          <span class="state-k">Pré-carga</span>
+          <span class="state-v mono" id="s-precharge">—</span>
+        </div>
       </div>
+      <h3 style="margin-top:8px">Comandos</h3>
+      <div class="cmd-list" id="cmd-list"></div>
+
       <h3 style="margin-top:8px">Faltas</h3>
       <div class="fault-list" id="fault-list"></div>
     </aside>
@@ -202,7 +232,12 @@
           <span><i class="dot ok"></i>ok</span>
           <span><i class="dot warn"></i>aviso</span>
           <span><i class="dot fault"></i>falta</span>
-          <span style="color:var(--text-dim)">• balanceamento</span>
+          <!-- Pack-wide, not per cell: the AMS publishes one balancing state
+               for the whole pack and no per-cell discharge status. -->
+          <span class="bal-badge" id="bal-badge" hidden
+                title="O AMS publica um estado de balanceamento para o pack inteiro, não por célula">
+            a balancear
+          </span>
         </div>
       </div>
       <div class="cell-grid" id="cell-grid"></div>
@@ -260,6 +295,143 @@
       <div class="table-wrap" id="table-temps"></div>
     </div>
   </section>
+
+  <!-- ── Carregamento (só no barramento do handcart) ─────────────────────── -->
+  <section class="page" id="page-charge">
+    <div class="charge-layout">
+      <!-- Bateria montada no carregador. O GLB ainda não existe: o viewer
+           mostra o placeholder dele e a página continua a funcionar. -->
+      <section class="charge-stage">
+        <div class="viewer" id="viewer-charge"></div>
+      </section>
+
+      <aside class="charge-side">
+        <!-- Contador da sessão. Grande de propósito: é o número que se olha
+             de longe, com o acumulador no handcart. -->
+        <div class="charge-card meter">
+          <div class="meter-label">Energia carregada</div>
+          <div class="meter-value"><span id="chg-energy">0.00</span><small>kWh</small></div>
+          <div class="meter-sub"><span id="chg-session">—</span> · <span id="chg-power">—</span></div>
+        </div>
+
+        <div class="charge-card">
+          <div class="panel-head compact"><h3>Carregador</h3>
+            <span class="panel-sub" id="chg-state">à espera</span></div>
+          <div class="readout-grid">
+            <span class="ro-k">Saída</span><span class="ro-v" id="chg-v">—</span>
+            <span class="ro-k">Corrente</span><span class="ro-v" id="chg-i">—</span>
+            <span class="ro-k">Temperatura</span><span class="ro-v" id="chg-t">—</span>
+          </div>
+        </div>
+
+        <div class="charge-card">
+          <div class="panel-head compact"><h3>Pedido do BMS</h3>
+            <span class="panel-sub" id="chg-cmd">—</span></div>
+          <div class="readout-grid">
+            <span class="ro-k">Tensão máx.</span><span class="ro-v" id="chg-req-v">—</span>
+            <span class="ro-k">Corrente máx.</span><span class="ro-v" id="chg-req-i">—</span>
+            <span class="ro-k">Pack</span><span class="ro-v" id="chg-pack">—</span>
+          </div>
+        </div>
+
+        <div class="charge-card">
+          <div class="panel-head compact"><h3>Comando</h3></div>
+          <!-- Start_Charging, para o BMS. O `Control` do carregador é o BMS que
+               o escreve; esta app pede-lhe que arranque, não fala por cima. -->
+          <div class="cmd-list" id="chg-cmd-list"></div>
+        </div>
+
+        <div class="charge-card">
+          <div class="panel-head compact"><h3>Avisos do carregador</h3></div>
+          <div class="fault-list" id="chg-faults"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ── Segmento ───────────────────────────────────────────────────────── -->
+  <section class="page" id="page-segment">
+    <div class="segment-layout">
+    <div class="charge-layout inner">
+      <section class="charge-stage">
+        <div class="viewer" id="viewer-segment"></div>
+        <!-- 36 anotações ao mesmo tempo tapam o modelo. Cada família liga e
+             desliga por si. -->
+        <div class="seg-toggles">
+          <button class="seg-toggle on" id="seg-show-v" data-kind="v">Tensões</button>
+          <button class="seg-toggle on" id="seg-show-t" data-kind="t">NTC</button>
+        </div>
+        <button class="view-reset seg-reset" id="btn-reset-segment" title="Repor vista inicial">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="4,9 4,4 9,4" /><polyline points="15,4 20,4 20,9" />
+            <polyline points="20,15 20,20 15,20" /><polyline points="9,20 4,20 4,15" />
+            <circle cx="12" cy="12" r="2.5" />
+          </svg>
+          <span>Repor vista</span>
+        </button>
+        <div class="seg-legend">
+          <span><i class="dot ok"></i>ok</span>
+          <span><i class="dot warn"></i>aviso</span>
+          <span><i class="dot fault"></i>falta</span>
+        </div>
+      </section>
+
+      <aside class="charge-side">
+        <div class="charge-card meter">
+          <div class="meter-label" id="seg-title">Segmento</div>
+          <div class="meter-value"><span id="seg-v">—</span><small>V</small></div>
+          <div class="meter-sub" id="seg-sub">—</div>
+        </div>
+
+        <div class="charge-card">
+          <div class="panel-head compact"><h3>Grupos paralelos</h3>
+            <span class="panel-sub" id="seg-groups-sub"></span></div>
+          <div class="readout-grid">
+            <span class="ro-k">Mais baixo</span><span class="ro-v" id="seg-vmin">—</span>
+            <span class="ro-k">Mais alto</span><span class="ro-v" id="seg-vmax">—</span>
+            <span class="ro-k">Desvio</span><span class="ro-v" id="seg-vdelta">—</span>
+          </div>
+        </div>
+
+        <div class="charge-card">
+          <div class="panel-head compact"><h3>NTC</h3>
+            <span class="panel-sub" id="seg-ntc-sub"></span></div>
+          <div class="readout-grid">
+            <span class="ro-k">Máxima</span><span class="ro-v" id="seg-tmax">—</span>
+            <span class="ro-k">Média</span><span class="ro-v" id="seg-tavg">—</span>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+
+    <!-- A toda a largura, em baixo: são 24 grupos mais 12 NTC, e numa coluna
+         de 340px isso vira uma tira com scroll horizontal. -->
+    <div class="charge-card segment-detail">
+      <div class="panel-head compact"><h3>Detalhe</h3>
+        <span class="panel-sub" id="seg-table-sub"></span></div>
+      <div class="table-wrap" id="seg-table"></div>
+    </div>
+    </div>
+  </section>
+  </div>
+</div>
+
+<!-- Confirmação de comando. Fora dos ecrãs, porque cobre o que estiver por
+     baixo: enviar uma trama para o carro é a única coisa nesta app que sai
+     para o hardware, e não deve poder acontecer de passagem. -->
+<div class="cmd-confirm" id="cmd-confirm" hidden>
+  <div class="cmd-dialog" role="dialog" aria-modal="true">
+    <div class="cmd-dialog-head">
+      <span class="cmd-danger-tag" id="cmd-danger" hidden>alta tensão</span>
+      <h3 id="cmd-title">—</h3>
+    </div>
+    <p class="cmd-detail" id="cmd-detail"></p>
+    <p class="cmd-frame mono" id="cmd-frame"></p>
+    <div class="cmd-actions">
+      <button class="btn-ghost btn-neutral" id="cmd-cancel">Cancelar</button>
+      <button class="btn-send" id="cmd-send">Enviar</button>
+    </div>
   </div>
 </div>
 

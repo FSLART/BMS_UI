@@ -136,6 +136,29 @@ class CanTransport(Transport):
     def alive(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
 
+    async def send(self, frame_id: int, payload: bytes, extended: bool = False) -> None:
+        """Put one frame on the bus.
+
+        The only path out of this app onto the vehicle. Kept deliberately thin
+        and explicit -- no queue, no retry: a command that failed to send must
+        surface as a failure, not sit in a buffer to be delivered later at a
+        moment nobody chose.
+        """
+        import can
+
+        if self._bus is None:
+            raise TransportError("Barramento fechado")
+
+        msg = can.Message(
+            arbitration_id=frame_id,
+            data=payload,
+            is_extended_id=extended,
+        )
+        try:
+            await asyncio.to_thread(self._bus.send, msg, 1.0)
+        except Exception as exc:  # noqa: BLE001 - driver, bus-off, arbitration
+            raise TransportError(f"Falha a enviar 0x{frame_id:X}: {exc}") from exc
+
     def drain(self, limit: int = QUEUE_MAX) -> list[RawFrame]:
         """Everything received since the last call, oldest first."""
         out: list[RawFrame] = []

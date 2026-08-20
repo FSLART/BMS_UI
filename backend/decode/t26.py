@@ -15,11 +15,11 @@ Shape of the bus (see transports/DBC_T26.md for the full map):
 
 Two decisions worth knowing about:
 
-* **Current and pack voltage come from the IVT, not from the AMS.**
-  `ams_current_draw` is declared unsigned `[0|65535]` at 0.001 A, so it both
-  saturates at 65.5 A and cannot express regen. `IVT_Result_I` is a signed
-  32-bit milliamp reading from the ISA shunt and has neither problem. The AMS
-  value is still decoded and kept as a fallback for when the IVT is silent.
+* **Current and pack voltage come from the IVT, and only from the IVT.**
+  `ams_current_draw` sounds like the pack current and is not: the firmware
+  fills it from an MCS1802 hall sensor measuring what the AMS master board
+  itself draws. `IVT_Result_I` is the signed milliamp reading from the ISA
+  shunt. With the shunt silent the current is unknown, and says so.
 
 * **Cell temperature stays empty.** There are 6 NTCs per slave against 12 cell
   groups, and which group each NTC sits on is a hardware fact this code does
@@ -145,6 +145,13 @@ class T26Decoder:
         self.undecodable: set[int] = set()
         self._faults: list[Fault] = []
         self._balancing = False
+
+        # Charging session accumulator. Integrated here rather than read from
+        # the IVT's Wh register because that register counts for the life of
+        # the sensor; what matters on the handcart is this session.
+        self._chg_energy_wh = 0.0
+        self._chg_started: float | None = None
+        self._chg_last: float | None = None
 
         # frame id -> (kind, slave index, block number). Built once from the
         # database so a renumbered DBC needs no change here.
@@ -284,13 +291,18 @@ class T26Decoder:
         limits = car.limits
         now = time.time()
 
+        # Before the cells: they carry the balancing flag, and reading it after
+        # _build_safety had set it left every frame one behind.
+        state_name = _name(self.sig["master_state"].get(now)) if "master_state" in self.sig else ""
+        self._balancing = state_name == "BALANCING"
+
         cells = self._build_cells(now)
         thermistors = self._build_thermistors(now)
         segments = self._build_segments(cells, thermistors)
         pack = self._build_pack(cells, thermistors, now)
         safety = self._build_safety(now)
         charger = self._build_charger(now)
-        self._update_faults(now, pack, charger)
+        self._update_faults(now, pack, charger, cells)
 
         return BmsState(
             ts=now,
@@ -299,6 +311,9 @@ class T26Decoder:
             pack=pack,
             safety=safety,
             charger=charger,
+            # Hearing the charger is what says which bus this is. Nothing is
+            # configured; plug in, and the app works out where it landed.
+            mode="charger" if charger.present else "car",
             # Negative current alone is ambiguous: it is regen on track and a
             # charge on the handcart. The charger being on the bus is what
             # separates them.
@@ -333,6 +348,7 @@ class T26Decoder:
             for ch in range(car.cells_per_slave):
                 v = self.cell_v[si][ch] if fresh else None
                 index = first + ch + 1
+                open_wire = v is not None and v < car.limits.v_open_wire
                 cells.append(
                     Cell(
                         id=f"cell_{segment:02d}_{index:02d}",
@@ -345,9 +361,14 @@ class T26Decoder:
                         # NTC -> group mapping is unknown; see module docstring.
                         temperature=None,
                         balancing=self._balancing,
+                        open_wire=open_wire,
                         status=(
-                            classify_cell(v, None, car.limits)
-                            if v is not None else Severity.UNKNOWN
+                            Severity.UNKNOWN if v is None
+                            # An open wire is a wiring fault, not a flat cell.
+                            # Reported as a fault either way, but never as a
+                            # voltage anyone should act on.
+                            else Severity.FAULT if open_wire
+                            else classify_cell(v, None, car.limits)
                         ),
                     )
                 )
@@ -414,18 +435,17 @@ class T26Decoder:
             t = sig.get(name)
             return t.num(now) if t else None
 
-        # --- current: IVT first, AMS as the fallback -------------------------
+        # --- current: the IVT, and nothing else -------------------------------
+        # `ams_current_draw` is NOT the pack current, despite the name. The
+        # firmware fills it from `analog_readings->ams_master_current`, an
+        # MCS1802 hall sensor at 0.264 V/A reading what the AMS master board
+        # itself consumes -- a few amps, unrelated to traction. Using it as a
+        # fallback put a plausible-looking half-amp where the pack current goes.
+        # If the ISA shunt is quiet, the current is unknown and says so.
         current = None
         ivt_ma = s("IVT_Result_I")
         if ivt_ma is not None:
             current = ivt_ma / 1000.0
-        else:
-            ams_a = s("ams_current_draw")
-            if ams_a is not None:
-                # Unsigned field: at full scale it is saturated, not 65.5 A.
-                current = ams_a if ams_a < 65.5 else float("nan")
-                if ams_a >= 65.535:
-                    current = 65.535
 
         # --- pack voltage: IVT, else the cell voltages added up --------------
         # Not the sum of `module_voltage_sum`, even though that looks like the
@@ -501,20 +521,22 @@ class T26Decoder:
             return bool(v)
 
         master_state = _name(sig["master_state"].get(now)) if "master_state" in sig else ""
-        self._balancing = master_state == "BALANCING"
         precharge = _name(sig["precharge_state"].get(now)) if "precharge_state" in sig else ""
 
+        # What this bus genuinely reports. IMD, BSPD and insulation resistance
+        # are absent from the database: the AMS does not read them, so they are
+        # not claimed. Feeding an IMD lamp from the SDC would turn "the loop is
+        # closed" into "insulation is fine", which is not the same statement.
         return Safety(
+            available=["ams_ok", "sdc_closed", "air_positive",
+                       "air_negative", "precharge_done"],
             ams_ok=self.live(now) and master_state not in ("FAULT", "KILL"),
-            # No IMD message on this database — the IMD reports through the
-            # shutdown circuit, so sdc_closed is the only evidence available.
-            imd_ok=flag("SDC_State"),
-            bspd_ok=flag("SDC_State"),
             sdc_closed=flag("SDC_State"),
             air_positive=flag("precharge_ctc_air_pos_state"),
             air_negative=flag("precharge_ctc_air_min_state"),
             precharge_done=precharge == PRECHARGE_DONE_STATE,
-            insulation_resistance=None,
+            master_state=master_state,
+            precharge_state=precharge,
         )
 
     def _build_charger(self, now: float) -> Charger:
@@ -531,11 +553,30 @@ class T26Decoder:
 
         temp = s("chg.Charger_Temperature")
         req_ctrl = s("req.Control")
+        out_i = s("chg.Output_Current") or 0.0
+
+        # Session bookkeeping. A session starts when the charger appears and
+        # ends when it goes quiet: unplugging resets the count rather than
+        # carrying yesterday's total into tonight.
+        if not present:
+            self._chg_energy_wh = 0.0
+            self._chg_started = None
+            self._chg_last = None
+        else:
+            if self._chg_started is None:
+                self._chg_started = now
+            if self._chg_last is not None:
+                dt = now - self._chg_last
+                # Guard the gap: a paused UI or a stalled bus must not book
+                # hours of energy that never flowed.
+                if 0.0 < dt <= 5.0:
+                    self._chg_energy_wh += (out_v or 0.0) * out_i * dt / 3600.0
+            self._chg_last = now
 
         return Charger(
             present=present,
             output_voltage=round(out_v, 1) if out_v is not None else 0.0,
-            output_current=round(s("chg.Output_Current") or 0.0, 2),
+            output_current=round(out_i, 2),
             requested_voltage=round(s("req.Max_Charging_Voltage") or 0.0, 1),
             requested_current=round(s("req.Max_Charging_Current") or 0.0, 2),
             # Control is the enable bit the BMS sends: 0 = charge, 1 = stop, per
@@ -543,11 +584,14 @@ class T26Decoder:
             enabled=req_ctrl is not None and req_ctrl == 0,
             temperature=round(temp, 1) if temp is not None else None,
             faults=faults,
+            energy_wh=round(self._chg_energy_wh, 1),
+            session_s=round(now - self._chg_started, 0) if self._chg_started else 0.0,
         )
 
     # -- faults --------------------------------------------------------------
 
-    def _update_faults(self, now: float, pack: Pack, charger: Charger) -> None:
+    def _update_faults(self, now: float, pack: Pack, charger: Charger,
+                       cells: list[Cell]) -> None:
         """Latch faults so a condition that clears in 100 ms is still readable.
 
         Sources, in order of authority: the two fault slots the master
@@ -569,6 +613,20 @@ class T26Decoder:
             if idx_t and idx_v and idx_t.get(now, ttl=5.0) is not None:
                 where = f" [{_name(idx_t.get(now, ttl=5.0))} {_num(idx_v.get(now, ttl=5.0)):.0f}]"
             active.append((label, Severity.FAULT, f"{label.replace('FAULT_', '')}{where}"))
+
+        for c in cells:
+            if c.open_wire:
+                active.append((
+                    f"OPEN_WIRE_{c.slave}_{c.slave_channel}", Severity.FAULT,
+                    f"Fio de medicao solto: slave {c.slave}, celula {c.slave_channel}",
+                ))
+
+        # Without the shunt there is no current, no power and no coulomb count.
+        # Worth a fault: the pack looks calm on a screen that simply cannot see
+        # what it is doing.
+        if self.live(now) and sig.get("IVT_Result_I") is None:
+            active.append(("IVT_MUTE", Severity.WARN,
+                           "Sensor ISA IVT sem transmitir - corrente desconhecida"))
 
         detected = sig.get("slaves_detected")
         n = detected.num(now, ttl=5.0) if detected else None

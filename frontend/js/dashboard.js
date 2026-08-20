@@ -1,16 +1,35 @@
 import { Sparkline } from './chart.js';
+import { Commands } from './commands.js';
 import { GroupedBarChart, ValueTable } from './panels.js';
 
 const $ = (id) => document.getElementById(id);
 
-const SAFETY_LABELS = [
-  ['ams_ok', 'AMS'],
-  ['imd_ok', 'IMD'],
-  ['bspd_ok', 'BSPD'],
-  ['sdc_closed', 'SDC'],
-  ['air_positive', 'AIR+'],
-  ['air_negative', 'AIR−'],
-];
+/** Seconds as h/min/s, dropping the units that are still zero. */
+function fmtDuration(s) {
+  s = Math.max(0, Math.round(s));
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min ${String(s % 60).padStart(2, '0')} s`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`;
+}
+
+/**
+ * Labels for every safety signal the universal model can carry.
+ *
+ * Which of them a car actually shows comes from `safety.available`, filled by
+ * that car's decoder. IMD, BSPD and insulation resistance are in this table
+ * because other cars may report them; the TEK-26e's AMS does not read them, so
+ * they simply never appear rather than showing a light that means nothing.
+ */
+const SAFETY_LABELS = {
+  ams_ok: 'AMS',
+  imd_ok: 'IMD',
+  bspd_ok: 'BSPD',
+  sdc_closed: 'SDC',
+  air_positive: 'AIR+',
+  air_negative: 'AIR−',
+  precharge_done: 'Pré-carga',
+};
 
 /**
  * Cell voltage -> colour. Healthy cells ride a green ramp that brightens with
@@ -37,12 +56,18 @@ export function cellColor(v, sev) {
 }
 
 export class Dashboard {
-  constructor({ viewer, onDisconnect }) {
+  constructor({ viewer, chargeViewer, segmentViewer, onDisconnect }) {
     this.viewer = viewer;
+    this.chargeViewer = chargeViewer;
+    this.segmentViewer = segmentViewer;
     this.built = false;
     this.selectedSegment = null;
     this.cellEls = [];
     this.segEls = [];
+    this.commands = new Commands($('cmd-list'));
+    // Same machinery, filtered: on the charging page only the charging command
+    // makes sense, and it is where someone standing at the handcart is looking.
+    this.chargeCommands = new Commands($('chg-cmd-list'), { only: ['charging'] });
     this.chart = new Sparkline($('chart'), [
       // Current gets the accent; voltage a cool tone that cannot be mistaken
       // for any of the ok/warn/fault status colours.
@@ -68,6 +93,18 @@ export class Dashboard {
       min: 0, max: 70, warnAt: 50, unit: '°C', decimals: 0,
     });
 
+
+    // Which anchor families are drawn on the segment model. Both on to start:
+    // the page is about seeing everything, and hiding is the exception.
+    this.segShow = { v: true, t: true };
+    for (const btn of document.querySelectorAll('.seg-toggle')) {
+      btn.addEventListener('click', () => {
+        const kind = btn.dataset.kind;
+        this.segShow[kind] = !this.segShow[kind];
+        btn.classList.toggle('on', this.segShow[kind]);
+        this._applySegToggles();
+      });
+    }
 
     this.vTable = new ValueTable($('table-voltage'), {
       cols: 0, rowLabel: (r) => `Segmento ${r + 1}`, extra: ['mín', 'máx', 'Δ'],
@@ -128,9 +165,14 @@ export class Dashboard {
           <span class="ro" title="Grupo mais alto"><b>↑</b><span data-f="vmax"></span></span>
         </div>`;
       card.addEventListener('click', () => {
-        this.selectedSegment = this.selectedSegment === seg.id ? null : seg.id;
+        // Um clique escolhe o segmento e abre a página dele. Voltar a clicar no
+        // mesmo cartão fecha, para não ficar preso numa página que já não
+        // interessa.
+        const same = this.selectedSegment === seg.id && this.page === 'segment';
+        this.selectedSegment = same ? null : seg.id;
         this.segEls.forEach((e, i) =>
           e.card.classList.toggle('sel', state.segments[i].id === this.selectedSegment));
+        this.showPage(same ? 'overview' : 'segment');
       });
       segList.appendChild(card);
       this.segEls.push({
@@ -147,7 +189,11 @@ export class Dashboard {
     const safety = $('safety-grid');
     safety.innerHTML = '';
     this.safetyEls = {};
-    for (const [key, label] of SAFETY_LABELS) {
+    // Only what this car reports. An empty list would mean a decoder that says
+    // nothing about safety, and an empty panel is the right answer there too.
+    for (const key of state.safety.available || []) {
+      const label = SAFETY_LABELS[key];
+      if (!label) continue;
       const el = document.createElement('div');
       el.className = 'safety-item';
       el.innerHTML = `<span class="dot"></span><span>${label}</span>`;
@@ -217,9 +263,13 @@ export class Dashboard {
       : `${state.link.rx_rate.toFixed(0)} Hz`;
     $('dash-dot').className = `dot ${state.stale ? 'fault' : 'ok'}`;
 
-    $('s-iso').textContent = state.safety.insulation_resistance
-      ? `${(state.safety.insulation_resistance / 1000).toFixed(0)} kΩ` : '—';
-    $('s-soh').textContent = `${p.soh.toFixed(1)} %`;
+    // Estado das duas máquinas do AMS, com os nomes que a DBC lhes dá. Substitui
+    // o bloco de isolamento: a resistência não é medida por este BMS, e o SOH
+    // não vem em sinal nenhum -- eram os dois números fixos.
+    const st = $('s-state');
+    if (st) st.textContent = state.safety.master_state || '—';
+    const pc = $('s-precharge');
+    if (pc) pc.textContent = state.safety.precharge_state || '—';
 
     state.segments.forEach((seg, i) => {
       const e = this.segEls[i];
@@ -245,11 +295,38 @@ export class Dashboard {
       if (!el) return;
       el.style.background = cellColor(c.voltage, c.status);
       el.dataset.sev = c.status;
-      el.classList.toggle('balancing', c.balancing);
+      el.classList.toggle('open-wire', !!c.open_wire);
       const dim = this.selectedSegment && c.segment !== this.selectedSegment;
       el.style.opacity = dim ? '0.28' : '1';
-      el.title = `${c.id}  ${c.voltage.toFixed(3)} V  ${c.temperature?.toFixed(1)} °C`;
+      // No per-cell temperature on this bus, and no per-cell balancing either:
+      // showing "undefined °C" was worse than showing nothing.
+      const where = `Seg ${c.segment} · Slave ${c.slave} · Célula ${c.slave_channel}`;
+      el.title = c.open_wire
+        ? `${where}\nFio de medição solto (${c.voltage.toFixed(3)} V)`
+        : `${where}\n${c.voltage.toFixed(3)} V`;
     });
+
+    // Balancing renders from the shape of the data, not from a setting.
+    //
+    // Today the AMS publishes one pack-wide state, so every cell carries the
+    // same flag and a single badge is the honest way to show it. The firmware
+    // is due to send a per-cell bitmask; the day it does, the cells stop
+    // agreeing and the marks appear on the ones actually discharging, with no
+    // change here.
+    const balancing = state.cells.filter((c) => c.balancing).length;
+    const perCell = balancing > 0 && balancing < state.cells.length;
+    const bal = $('bal-badge');
+    if (bal) bal.hidden = !(balancing > 0 && !perCell);
+    if (perCell !== this._perCellBalancing) {
+      this._perCellBalancing = perCell;
+      if (!perCell) this.cellEls.forEach((el) => el && el.classList.remove('balancing'));
+    }
+    if (perCell) {
+      state.cells.forEach((c, i) => {
+        const el = this.cellEls[i];
+        if (el) el.classList.toggle('balancing', c.balancing);
+      });
+    }
 
     const faults = $('fault-list');
     if (!state.faults.length) {
@@ -271,7 +348,197 @@ export class Dashboard {
     }
 
     this._updateHotspots(state);
+    this._updateSegmentPage(state);
+    this.commands.setCommands(state.car.commands);
+    this.commands.setLink(state);
+    this.chargeCommands.setCommands(state.car.commands);
+    this.chargeCommands.setLink(state);
+    this._updateCharger(state);
     this._updatePages(state);
+  }
+
+  /**
+   * Segment page.
+   *
+   * One generic model serves all six: the segments are physically identical,
+   * so the geometry is shared and only the values hung on the anchors change.
+   * That means 36 anchors picked once (24 parallel groups + 12 NTCs) instead
+   * of six models with 216 anchors between them.
+   */
+  _updateSegmentPage(state) {
+    const seg = state.segments.find((s) => s.id === this.selectedSegment);
+    const tab = $('tab-segment');
+    if (tab) {
+      tab.hidden = !seg;
+      tab.textContent = seg ? seg.name : 'Segmento';
+      if (!seg && this.page === 'segment') this.showPage('overview');
+    }
+    if (!seg || this.page !== 'segment') return;
+
+    const cells = state.cells.filter((c) => c.segment === seg.id);
+    const ntcs = state.thermistors.filter((t) => t.segment === seg.id);
+
+    $('seg-title').textContent = seg.name;
+    $('seg-v').textContent = seg.voltage.toFixed(2);
+    $('seg-sub').textContent =
+      `${cells.length} grupos × ${state.parallel_strings}p · ${ntcs.length} NTC`;
+
+    const volts = cells.filter((c) => c.status !== 'unknown').map((c) => c.voltage);
+    const temps = ntcs.map((t) => t.temperature).filter((t) => t != null);
+    const v3 = (x) => (x == null ? '—' : `${x.toFixed(3)} V`);
+    $('seg-vmin').textContent = volts.length ? v3(Math.min(...volts)) : '—';
+    $('seg-vmax').textContent = volts.length ? v3(Math.max(...volts)) : '—';
+    $('seg-vdelta').textContent = volts.length
+      ? `${((Math.max(...volts) - Math.min(...volts)) * 1000).toFixed(0)} mV` : '—';
+    $('seg-tmax').textContent = temps.length ? `${Math.max(...temps).toFixed(1)} °C` : '—';
+    $('seg-tavg').textContent = temps.length
+      ? `${(temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1)} °C` : '—';
+    $('seg-groups-sub').textContent = `${volts.length}/${cells.length} a reportar`;
+    $('seg-ntc-sub').textContent = `${temps.length}/${ntcs.length} a reportar`;
+
+    // The anchors. `index` is the group's position inside the segment, which is
+    // exactly what grp-N was numbered by.
+    for (const c of cells) {
+      this.segmentViewer.setHotspotState(`grp-${c.index}`, {
+        label: c.open_wire ? 'fio aberto' : `${c.voltage.toFixed(3)} V`,
+        sev: c.status === 'unknown' ? 'idle' : c.status,
+        hot: c.balancing,
+      });
+    }
+    // NTCs are numbered 1..12 across the segment's two slaves.
+    ntcs.forEach((t, i) => {
+      this.segmentViewer.setHotspotState(`ntc-${i + 1}`, {
+        label: t.temperature == null ? 'sem leitura' : `${t.temperature.toFixed(1)} °C`,
+        sev: t.temperature == null ? 'idle' : t.status,
+      });
+    });
+
+    this._applySegToggles(cells.length, ntcs.length);
+    this._paintSegmentTable(state, cells, ntcs);
+  }
+
+  /** Hide or show each anchor family on the segment model. */
+  _applySegToggles(nGroups = 24, nNtc = 12) {
+    if (!this.segmentViewer) return;
+    for (let i = 1; i <= nGroups; i++) {
+      this.segmentViewer.setHotspotState(`grp-${i}`, { off: !this.segShow.v });
+    }
+    for (let i = 1; i <= nNtc; i++) {
+      this.segmentViewer.setHotspotState(`ntc-${i}`, { off: !this.segShow.t });
+    }
+  }
+
+  /**
+   * Two rows: the segment's groups and its NTCs. They are different lengths
+   * (24 against 12), so the table is sized to the longer and the short row
+   * simply runs out -- padding it with dashes would suggest twelve sensors
+   * that do not exist.
+   */
+  _paintSegmentTable(state, cells, ntcs) {
+    const box = $('seg-table');
+    if (!box) return;
+    if (!this.segTable) {
+      this.segTable = new ValueTable(box, {
+        cols: 0,
+        rowLabel: (r) => (r === 0 ? 'V' : 'NTC'),
+        extra: ['mín', 'máx', 'Δ'],
+      });
+    }
+    const width = Math.max(cells.length, ntcs.length);
+    this.segTable.cols = width;
+    const sub = $('seg-table-sub');
+    if (sub) sub.textContent = `${cells.length} grupos · ${ntcs.length} NTC`;
+
+    const row = (items, fmt) => {
+      const vals = items.map((i) => i.value).filter((v) => v != null);
+      const lo = vals.length ? Math.min(...vals) : null;
+      const hi = vals.length ? Math.max(...vals) : null;
+      const body = Array.from({ length: width }, (_, i) => {
+        const it = items[i];
+        if (!it) return { text: '', cls: '' };
+        return { text: it.value == null ? '—' : fmt(it.value),
+                 cls: it.status && it.status !== 'ok' ? it.status : '' };
+      });
+      return [...body,
+        { text: lo == null ? '—' : fmt(lo), cls: 'stat-col' },
+        { text: hi == null ? '—' : fmt(hi), cls: 'stat-col' },
+        { text: lo == null ? '—' : fmt(hi - lo), cls: 'stat-col' }];
+    };
+
+    this.segTable.render([
+      row(cells.map((c) => ({ value: c.status === 'unknown' ? null : c.voltage,
+                              status: c.status })), (v) => v.toFixed(3)),
+      row(ntcs.map((t) => ({ value: t.temperature, status: t.status })),
+          (v) => v.toFixed(1)),
+    ]);
+  }
+
+  /**
+   * Charging tab.
+   *
+   * The charger lives on the car's other CAN bus — the one that only exists
+   * while the accumulator is on the handcart. On the car bus there is nothing
+   * to show, so the tab appears only once a charger has actually been heard.
+   */
+  _updateCharger(state) {
+    const c = state.charger || {};
+
+    // Which bus we landed on, shown next to the link. Nobody chose it, so it
+    // is worth saying out loud what the app concluded.
+    const tag = $('mode-tag');
+    if (tag) {
+      const charging = state.mode === 'charger';
+      tag.hidden = !charging;
+      tag.textContent = state.charging ? 'a carregar' : 'handcart';
+    }
+
+    const tab = $('tab-charge');
+    if (tab) {
+      tab.hidden = !c.present;
+      // Leaving a hidden page selected would show an empty dashboard.
+      if (!c.present && this.page === 'charge') this.showPage('overview');
+    }
+    if (!c.present || this.page !== 'charge') return;
+
+    const v = (x, unit, digits = 1) =>
+      (typeof x === 'number' ? `${x.toFixed(digits)} ${unit}` : '—');
+
+    $('chg-v').textContent = v(c.output_voltage, 'V');
+    $('chg-i').textContent = v(c.output_current, 'A', 2);
+    $('chg-t').textContent = c.temperature == null ? '—' : v(c.temperature, '°C');
+    $('chg-req-v').textContent = v(c.requested_voltage, 'V');
+    $('chg-req-i').textContent = v(c.requested_current, 'A', 2);
+    $('chg-pack').textContent = v(state.pack.voltage, 'V');
+
+    $('chg-state').textContent = state.charging ? 'a carregar' : 'ligado, sem corrente';
+    // Control = 0 means "charge", 1 means "stop" (confirmed in the firmware).
+    $('chg-cmd').textContent = c.enabled ? 'carregar' : 'parar';
+
+    // Session counter. kWh because a full charge of this pack is a few of
+    // them, and Wh would run to five digits.
+    $('chg-energy').textContent = ((c.energy_wh || 0) / 1000).toFixed(3);
+    $('chg-session').textContent = fmtDuration(c.session_s || 0);
+    const watts = (c.output_voltage || 0) * (c.output_current || 0);
+    $('chg-power').textContent = watts > 1 ? `${(watts / 1000).toFixed(2)} kW` : 'sem corrente';
+
+    // Annotations on the handcart model, same binding style as the pack views.
+    if (this.chargeViewer) {
+      this.chargeViewer.setHotspotState('chg-precharge', state.safety.precharge_done
+        ? { label: 'HV_ON', sev: 'ok' }
+        : { label: 'Pré-carga aberta', sev: 'idle' });
+      this.chargeViewer.setHotspotState('chg-control', c.enabled
+        ? { label: state.charging ? 'A carregar' : 'Carregar pedido', sev: 'ok' }
+        : { label: 'Parado', sev: 'idle' });
+    }
+
+    const box = $('chg-faults');
+    if (box && box.dataset.n !== String((c.faults || []).length)) {
+      box.dataset.n = String((c.faults || []).length);
+      box.innerHTML = (c.faults || []).length
+        ? c.faults.map((f) => `<div class="fault-item" data-sev="fault">
+             <div class="fault-msg">${f}</div></div>`).join('')
+        : '<div class="empty-note">Sem avisos do carregador.</div>';
+    }
   }
 
   // ── extra pages ─────────────────────────────────────────────────────────

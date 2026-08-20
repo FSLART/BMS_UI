@@ -6,21 +6,61 @@ just use a browser (handy while iterating on CSS).
 from __future__ import annotations
 
 import argparse
+import os
 import socket
+import sys
 import threading
 import time
 from pathlib import Path
 
-import uvicorn
 
-from backend.main import app
+def _fix_missing_streams() -> None:
+    """Dar streams reais a uma build --windowed.
+
+    Um executavel sem consola arranca com sys.stdout e sys.stderr a None, e
+    qualquer print() ou biblioteca que lhes toque rebenta com
+    'NoneType' object has no attribute ...'. Tem de acontecer antes de
+    importar seja o que for que escreva para o ecra.
+    """
+    for name in ("stdout", "stderr"):
+        if getattr(sys, name, None) is None:
+            setattr(sys, name, open(os.devnull, "w", encoding="utf-8"))
+
+
+_fix_missing_streams()
+
+import uvicorn  # noqa: E402 - depois de _fix_missing_streams, ver acima
+
+from backend.main import app                    # noqa: E402
+from backend.resources import resource_path     # noqa: E402
 
 HOST = "127.0.0.1"
 
 # Icone da janela nativa. Tem de ser .ico: o winforms passa o caminho ao
 # construtor Icon do .NET, que rejeita PNG. Gerado do Simbolo_LART.png por
 # scratchpad/make_icon.py, com os tamanhos de 16 a 256.
-ICON = Path(__file__).resolve().parent / "frontend" / "pics" / "lart.ico"
+ICON = resource_path("frontend", "pics", "lart.ico")
+
+# Identidade da app para a barra de tarefas do Windows.
+APP_ID = "LART.BMS_UI"
+
+
+def claim_taskbar_identity() -> None:
+    """Desligar o botao da barra de tarefas do python.exe.
+
+    Sem isto o Windows agrupa a janela debaixo do executavel que a lancou e
+    mostra o icone do Python, por muito que a janela tenha o seu proprio. O
+    AppUserModelID tem de ser declarado ANTES de a janela existir -- depois
+    disso o botao ja foi criado e mantem a identidade herdada.
+    """
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
+    except Exception:  # noqa: BLE001 - um icone errado nao justifica falhar o arranque
+        pass
 
 
 def free_port() -> int:
@@ -47,7 +87,12 @@ def main() -> None:
     args = parser.parse_args()
 
     port = args.port or (8000 if args.web else free_port())
-    config = uvicorn.Config(app, host=HOST, port=port, log_level="warning")
+    # log_config=None: a configuracao por omissao do uvicorn monta formatadores
+    # coloridos que perguntam sys.stdout.isatty() ao serem construidos, e numa
+    # build sem consola isso rebenta antes de a app chegar a arrancar. O
+    # logging desta app ja e nosso (backend/logbuffer.py, no root logger), por
+    # isso nao ha nada a perder em nao deixar o uvicorn configurar o seu.
+    config = uvicorn.Config(app, host=HOST, port=port, log_level="warning", log_config=None)
     server = uvicorn.Server(config)
 
     if args.web:
@@ -60,6 +105,8 @@ def main() -> None:
         raise SystemExit("servidor nao arrancou")
 
     import webview
+
+    claim_taskbar_identity()
 
     webview.create_window(
         "BMS UI",

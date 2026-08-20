@@ -2,44 +2,41 @@
 
 Dois ficheiros, exportados diretamente do SolidWorks (`Save As → glTF 2.0`):
 
-| Ficheiro | Configuração no SolidWorks | Tamanho | Em git? |
-|---|---|---|---|
-| `tek26e_closed.glb` | assembly fechado | 4,2 MB | sim |
-| `tek26e_open_light.glb` | tampa aberta, interiores à vista | 26 MB | sim |
-| `tek26e_open.glb` | o mesmo, export cru do CAD | 223 MB | **não** |
+| Ficheiro | Configuração no SolidWorks | Tamanho |
+|---|---|---|
+| `tek26e_closed.glb` | assembly fechado | 4,2 MB |
+| `tek26e_open_light.glb` | tampa aberta, interiores à vista | 26 MB |
+| `tek26e_charger.glb` | acumulador montado no handcart | **por exportar** |
 
-São estes dois primeiros que a app carrega (`CarProfile.model_closed` e
-`model_open`, em [`../../backend/cars.py`](../../backend/cars.py)). Ambos
+O terceiro ainda não existe. Já está declarado em `CarProfile.model_charger`
+com duas âncoras (`chg-precharge` e `chg-control`), e a página de Carregamento
+funciona sem ele — o viewer mostra o placeholder. Quando o exportares: passa-o
+por [`OTIMIZAR.md`](OTIMIZAR.md), põe-no aqui com esse nome, e apanha as
+posições reais das âncoras com o **modo âncora** da consola. As ligações
+(`binds`) já estão certas e não precisam de mudar.
+
+São estes que a app carrega (`CarProfile.model_closed` e `model_open`, em
+[`../../backend/cars.py`](../../backend/cars.py)), e ambos estão em git. Os dois
 passaram por `weld` + `quantize` — ver [`OTIMIZAR.md`](OTIMIZAR.md). Sem perder
 um triângulo: 20 MB → 4,2 MB e 223 MB → 26 MB.
-
-**O sufixo `_light` só existe onde o export cru ainda está ao lado.** O
-`tek26e_open.glb` de 223 MB fica de fora do git e serve de fonte para voltar a
-gerar o leve; o fechado foi substituído no sítio, porque o cru não traz nada
-que o CAD não volte a dar.
 
 Enquanto não existirem, a interface mostra um placeholder e continua 100%
 funcional — o 3D nunca é caminho crítico.
 
-## Onde ir buscar o `tek26e_open.glb`
+## Os exports crus não ficam aqui
 
-Tem 223 MB, e o GitHub recusa qualquer ficheiro acima de **100 MB**. Está no
-`.gitignore` e é distribuído como **asset de um Release** (limite de 2 GB por
-ficheiro, e não gasta a quota de LFS da organização).
+O export original da tampa aberta tinha 223 MB e foi apagado depois de gerar o
+leve. Para voltar a otimizar com outras definições é preciso exportar de novo
+do SolidWorks — o leve não dá para "des-quantizar".
 
-```bash
-# a partir da raiz do repositorio
-gh release download modelos-v1 -p tek26e_open.glb -D frontend/models/
-```
+O `.gitignore` continua a apanhar `tek26e_open.glb`, para que um export novo não
+seja commitado por engano: o GitHub recusa ficheiros acima de 100 MB. E o
+[`../../compile.py`](../../compile.py) só empacota os GLB que algum perfil
+referencia, por isso um export cru deixado nesta pasta não vai parar dentro do
+executável — que foi exatamente o que aconteceu da primeira vez.
 
-Depois de um clone novo, sem este ficheiro: o ecrã de ligação funciona
-normalmente (usa o modelo fechado) e o dashboard mostra o placeholder.
-
-Para publicar uma versão nova do modelo:
-
-```bash
-gh release create modelos-v1 frontend/models/tek26e_open.glb --title "Modelos 3D" --notes "GLB do acumulador, tampa aberta"
-```
+**O sufixo `_light`** ficou de quando o cru estava ao lado. Não quer dizer
+"versão reduzida do que devias usar": é o ficheiro bom.
 
 ## Limite de tamanho
 

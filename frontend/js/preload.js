@@ -58,7 +58,10 @@ export class Preloader {
     // Unique paths, available cars only. EVO/T-28 have no GLBs yet.
     const paths = [...new Set(
       cars.filter((c) => c.available)
-          .flatMap((c) => [c.model_closed, c.model_open])
+          // Every view a car declares. A model that does not exist yet (the
+          // handcart one) 404s and is skipped, which is why this can list them
+          // all without waiting for the CAD.
+          .flatMap((c) => [c.model_closed, c.model_open, c.model_charger, c.model_segment])
           .filter(Boolean),
     )];
 

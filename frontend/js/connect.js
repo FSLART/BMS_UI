@@ -14,12 +14,20 @@ const TRANSPORTS = [
     // decisions actually happen -- interface first, then the channel it exposes,
     // then the bitrate.
     stack: true,
+    // No bus picker: which bus this is gets worked out from the traffic, not
+    // asked. Charger frames on the wire mean the pack is on the handcart;
+    // their absence means it is in the car. The one thing that cannot be
+    // inferred is the bitrate, because at the wrong speed nothing arrives at
+    // all -- hence the hint on that field.
     fields: [
       // Changing the backend changes what a "channel" even is, so it rescans.
       { k: 'backend', label: 'Interface', type: 'select', from: 'can_backends', def: 'slcan', rescans: true },
       { k: 'channel', label: 'Canal', type: 'select', fromScan: true },
-      { k: 'bitrate', label: 'Bitrate', type: 'select', from: 'can_bitrates', def: 500000,
-        fmt: (v) => `${v / 1000} kbit/s` },
+      // 1 Mbit por omissão: é o barramento do carro, onde o acumulador passa a
+      // maior parte do tempo.
+      { k: 'bitrate', label: 'Bitrate', type: 'select', from: 'can_bitrates', def: 1000000,
+        fmt: (v) => (v >= 1e6 ? `${v / 1e6} Mbit/s` : `${v / 1000} kbit/s`),
+        hintFromCar: 'buses' },
       { k: 'dbc', label: 'Ficheiro DBC', type: 'file', accept: '.dbc',
         placeholder: 'Opcional: usa uma DBC diferente da do Git' },
     ],
@@ -151,7 +159,17 @@ export class ConnectScreen {
     if (f.type === 'select') {
       input = document.createElement('select');
       const values = f.values || this.options[f.from] || [];
-      if (f.fromScan) {
+      if (f.fromCar) {
+        // Options that belong to the chosen car, not to the app: the buses are
+        // a property of that car's wiring.
+        for (const item of (this.car && this.car[f.fromCar]) || []) {
+          const o = document.createElement('option');
+          o.value = item.id;
+          o.textContent = item.name;
+          o.title = item.detail || '';
+          input.appendChild(o);
+        }
+      } else if (f.fromScan) {
         input.innerHTML = '<option value="">a procurar…</option>';
         input.dataset.scanTarget = '1';
       } else {
@@ -172,6 +190,8 @@ export class ConnectScreen {
     if (f.def !== undefined) {
       input.value = f.def;
       this.config[t.id][f.k] = f.def;
+    } else if (f.fromCar && input.options && input.options.length) {
+      this.config[t.id][f.k] = input.value;
     }
     input.dataset.key = f.k;
 
@@ -204,7 +224,37 @@ export class ConnectScreen {
       wrap.appendChild(input);
     }
 
+    if (f.hintFromCar) {
+      const hint = this._bitrateHint(f);
+      if (hint) {
+        const note = document.createElement('span');
+        note.className = 'field-note';
+        note.textContent = hint;
+        wrap.appendChild(note);
+      }
+    }
+
     return wrap;
+  }
+
+  /**
+   * Which bus each speed belongs to.
+   *
+   * The only thing about the two buses the app cannot work out for itself: at
+   * the wrong bitrate nothing arrives, so there is no traffic to infer from.
+   * Said once, under the field, instead of as a mode to choose.
+   */
+  _bitrateHint(f) {
+    const buses = (this.car && this.car[f.hintFromCar]) || [];
+    if (!buses.length) return '';
+    const speed = (b) => (b >= 1e6 ? `${b / 1e6} Mbit` : `${b / 1000}k`);
+    return buses.map((b) => `${speed(b.bitrate)} = ${b.name.toLowerCase()}`).join(' · ');
+  }
+
+  /** The chosen car, so car-specific options (its buses) can be offered. */
+  async setCar(car) {
+    this.car = car;
+    await this.mount();
   }
 
   /**
@@ -283,6 +333,11 @@ export class ConnectScreen {
   _wireDemoToggle() {
     const toggle = document.getElementById('demo-toggle');
     const sw = document.getElementById('demo-switch');
+    // mount() runs again whenever the car changes, and the switch lives outside
+    // the rows it rebuilds. Wiring twice made every click toggle twice, which
+    // looks exactly like the switch not working.
+    if (toggle.dataset.wired) return;
+    toggle.dataset.wired = '1';
     toggle.addEventListener('click', () => {
       this.demo = !this.demo;
       sw.classList.toggle('on', this.demo);

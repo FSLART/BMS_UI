@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .logbuffer import buffer as log_buffer, install as install_logging
+from .resources import resource_path
 
 # Before anything imports `can`: that import is where the vendor-driver probe
 # messages are emitted, and we want them in the buffer.
@@ -21,7 +22,7 @@ from .cars import CARS                                    # noqa: E402
 from .manager import SELECTABLE, manager                   # noqa: E402
 from .transports import discovery                          # noqa: E402
 
-FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
+FRONTEND = resource_path("frontend")
 
 app = FastAPI(title="BMS UI")
 
@@ -112,6 +113,21 @@ async def connect(req: ConnectRequest) -> dict[str, Any]:
 @app.post("/api/disconnect")
 async def disconnect() -> dict[str, Any]:
     return await manager.disconnect()
+
+
+class CommandRequest(BaseModel):
+    id: str
+    on: bool = True
+
+
+@app.post("/api/command")
+async def command(req: CommandRequest) -> dict[str, Any]:
+    """Send one of the car's declared CAN commands to the BMS.
+
+    Every guard lives in the manager: demo never transmits, the link has to be
+    live, and only commands declared in the car profile exist at all.
+    """
+    return await manager.send_command(req.id, req.on)
 
 
 # 8 MB. The two real databases are 87 KB and 30 KB; anything near this ceiling

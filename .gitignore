@@ -3,6 +3,11 @@ __pycache__/
 .venv/
 venv/
 
+# PyInstaller (compile.py)
+build/
+dist/
+*.spec
+
 # Modelo aberto: 222 MB, acima do limite de 100 MB por ficheiro do GitHub.
 # Distribuido como asset de um Release - ver frontend/models/README.md.
 # O modelo fechado (20 MB) fica versionado, para um clone limpo ter logo 3D
