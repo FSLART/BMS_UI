@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Modelo aberto: 222 MB, acima do limite de 100 MB por ficheiro do GitHub.
+# Distribuido como asset de um Release - ver frontend/models/README.md.
+# O modelo fechado (20 MB) fica versionado, para um clone limpo ter logo 3D
+# no ecra de ligacao.
+frontend/models/tek26e_open.glb

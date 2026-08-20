@@ -1,0 +1,11 @@
+# --- core ---
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9
+pywebview>=5.3
+
+# --- transports (optional: install what you need) ---
+pyserial>=3.5
+python-can>=4.4
+cantools>=39.4
+bleak>=0.22

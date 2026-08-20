@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bms-ui",
+      "runtimeExecutable": "C:\\Users\\jpser\\AppData\\Local\\Microsoft\\WindowsApps\\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\\python.exe",
+      "runtimeArgs": ["app.py", "--web", "--port", "8123"],
+      "port": 8123
+    }
+  ]
+}

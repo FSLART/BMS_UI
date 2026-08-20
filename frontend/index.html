@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BMS UI</title>
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="preload" href="/fonts/poppins-600-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/source-sans-3-500-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <!-- model-viewer. If offline it simply fails and the viewer falls back to a
+       styled placeholder — the app stays fully usable. See frontend/models/. -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+</head>
+<body>
+
+<!-- =====================================================================
+     SCREEN -1 — preload splash
+     ===================================================================== -->
+<div id="screen-loading" class="screen active">
+  <div class="splash">
+    <img class="splash-logo" src="/pics/lart_logo.png" alt="LART" />
+    <div class="splash-title">Accumulator Monitor</div>
+
+    <div class="splash-track"><div class="splash-bar" data-role="bar"></div></div>
+
+    <div class="splash-meta">
+      <span data-role="file">A carregar…</span>
+      <span class="mono" data-role="bytes"></span>
+      <span class="mono" data-role="pct">0%</span>
+    </div>
+    <div class="splash-note" data-role="note"></div>
+  </div>
+</div>
+
+<!-- =====================================================================
+     SCREEN 0 — car selection
+     ===================================================================== -->
+<div id="screen-car" class="screen">
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="/pics/lart_logo.png" alt="LART" />
+      <div>
+        <div class="brand-title">Accumulator Monitor</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="console-btn" data-console-toggle title="Consola (Esc para fechar)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="5,8 9,12 5,16"/><line x1="12" y1="16" x2="19" y2="16"/></svg>
+        <span class="console-badge" data-console-badge></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="car-layout">
+    <div class="car-intro">
+      <div class="eyebrow">Passo 1</div>
+      <h1>Escolhe o carro</h1>
+      <p>Define de que repositório vêm as DBCs de descodificação CAN, a topologia
+         do acumulador e os limites de célula.</p>
+    </div>
+    <div class="car-grid" id="car-grid"></div>
+  </div>
+</div>
+
+<!-- =====================================================================
+     SCREEN 1 — connection
+     ===================================================================== -->
+<div id="screen-connect" class="screen">
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="/pics/lart_logo.png" alt="LART" />
+      <div>
+        <div class="brand-title">Accumulator Monitor</div>
+        <div class="brand-sub" id="connect-car">—</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="btn-ghost btn-neutral" id="btn-change-car">Trocar carro</button>
+      <span class="pill"><span class="dot" id="conn-dot"></span><span id="conn-pill-text">Desligado</span></span>
+      <button class="console-btn" data-console-toggle title="Consola (Esc para fechar)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="5,8 9,12 5,16"/><line x1="12" y1="16" x2="19" y2="16"/></svg>
+        <span class="console-badge" data-console-badge></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- full-bleed closed battery, with the transports floating over its centre -->
+  <div class="connect-stage">
+    <div class="viewer" id="viewer-connect"></div>
+
+    <section class="conn-overlay">
+      <div class="conn-head">
+        <div class="eyebrow">Passo 2</div>
+        <h2>Ligação ao BMS</h2>
+        <p class="muted">Seleciona o círculo à esquerda para ligar automaticamente.
+           As opções de cada meio aparecem à direita.</p>
+      </div>
+
+      <div class="transport-list" id="transport-list"></div>
+
+      <div class="status-line" id="status-line">
+        <span class="dot"></span><span>À espera de seleção</span>
+      </div>
+    </section>
+
+    <div class="demo-corner">
+      <div class="switch-row" id="demo-toggle">
+        <div>
+          <div class="switch-label">Modo demo</div>
+          <div class="switch-desc">Alimenta a interface com o simulador quando não há hardware ligado.</div>
+        </div>
+        <div class="switch" id="demo-switch"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================================
+     SCREEN 2 — dashboard
+     ===================================================================== -->
+<div id="screen-dash" class="screen">
+  <header class="dash-top">
+    <div class="brand">
+      <img class="brand-logo" src="/pics/lart_logo.png" alt="LART" />
+      <div>
+        <div class="brand-title" id="dash-car">Accumulator Monitor</div>
+        <div class="brand-sub">
+          <span class="link-tag" id="dash-link-type"></span><span id="dash-link"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="kpi" title="Tensão do pack"><span class="kpi-v" id="k-voltage">—<small>V</small></span></div>
+    <div class="kpi" title="Corrente"><span class="kpi-v" id="k-current">—<small>A</small></span></div>
+    <div class="kpi" title="Potência"><span class="kpi-v" id="k-power">—<small>kW</small></span></div>
+    <div class="kpi" title="Estado de carga"><span class="kpi-v" id="k-soc">—<small>%</small></span></div>
+    <div class="kpi" id="kpi-temp" title="Temperatura máxima"><span class="kpi-v" id="k-temp">—<small>°C</small></span></div>
+    <div class="kpi" id="kpi-delta" title="Desvio entre grupos"><span class="kpi-v" id="k-delta">—<small>mV</small></span></div>
+
+    <div class="spacer"></div>
+
+    <span class="pill"><span class="dot" id="dash-dot"></span><span id="dash-rate">—</span></span>
+    <button class="btn-ghost" id="btn-disconnect">Desligar</button>
+    <button class="console-btn" data-console-toggle title="Consola (Esc para fechar)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="5,8 9,12 5,16"/><line x1="12" y1="16" x2="19" y2="16"/></svg>
+      <span class="console-badge" data-console-badge></span>
+    </button>
+  </header>
+
+  <nav class="dash-tabs" id="dash-tabs">
+    <button class="tab active" data-page="overview">Visão geral</button>
+    <button class="tab" data-page="cells">Células</button>
+    <button class="tab" data-page="tables">Tabelas</button>
+  </nav>
+
+  <div class="dash-pages">
+  <section class="page active" id="page-overview">
+  <div class="dash-mid">
+    <aside class="side">
+      <h3>Segmentos</h3>
+      <div id="segment-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    </aside>
+
+    <section style="position:relative;min-height:0">
+      <div class="viewer" id="viewer-dash"></div>
+      <button class="view-reset" id="btn-reset-view" title="Repor vista inicial">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <polyline points="4,9 4,4 9,4" /><polyline points="15,4 20,4 20,9" />
+          <polyline points="20,15 20,20 15,20" /><polyline points="9,20 4,20 4,15" />
+          <circle cx="12" cy="12" r="2.5" />
+        </svg>
+        <span>Repor vista</span>
+      </button>
+    </section>
+
+    <aside class="side right">
+      <h3>Segurança</h3>
+      <div class="safety-grid" id="safety-grid"></div>
+      <h3 style="margin-top:8px">Isolamento</h3>
+      <div class="readouts">
+        <span class="ro" title="Resistência de isolamento"><b>R</b><span id="s-iso">—</span></span>
+        <span class="ro" title="Estado de saúde"><b>SOH</b><span id="s-soh">—</span></span>
+      </div>
+      <h3 style="margin-top:8px">Faltas</h3>
+      <div class="fault-list" id="fault-list"></div>
+    </aside>
+  </div>
+
+  <div class="dash-bottom">
+    <div class="cells-pane">
+      <div class="cells-head">
+        <h3>Células</h3>
+        <span class="cells-topo" id="cells-topo"></span>
+        <div class="legend">
+          <span><i class="dot ok"></i>ok</span>
+          <span><i class="dot warn"></i>aviso</span>
+          <span><i class="dot fault"></i>falta</span>
+          <span style="color:var(--text-dim)">• balanceamento</span>
+        </div>
+      </div>
+      <div class="cell-grid" id="cell-grid"></div>
+    </div>
+    <div class="chart-pane">
+      <h3>Corrente &amp; tensão</h3>
+      <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    </div>
+  </div>
+  </section>
+
+  <!-- ── Células: tensões em cima, temperaturas em baixo ───────────────── -->
+  <section class="page" id="page-cells">
+    <div class="chart-block">
+      <div class="panel-head compact">
+        <h3>Tensão por grupo série</h3>
+        <span class="panel-sub" id="v-sub"></span>
+        <div class="stat-row">
+          <span class="stat up"><b>▲</b><span id="v-max">—</span><i id="v-max-at"></i></span>
+          <span class="stat down"><b>▼</b><span id="v-min">—</span><i id="v-min-at"></i></span>
+          <span class="stat delta"><b>Δ</b><span id="v-delta">—</span></span>
+        </div>
+      </div>
+      <div class="chart-wrap grow"><canvas id="chart-voltage"></canvas></div>
+    </div>
+
+    <div class="chart-block">
+      <div class="panel-head compact">
+        <h3>NTC</h3>
+        <span class="panel-sub" id="t-sub"></span>
+        <div class="stat-row">
+          <span class="stat up"><b>▲</b><span id="t-max">—</span><i id="t-max-at"></i></span>
+          <span class="stat down"><b>▼</b><span id="t-min">—</span><i id="t-min-at"></i></span>
+          <span class="stat delta"><b>Δ</b><span id="t-delta">—</span></span>
+        </div>
+      </div>
+      <div class="chart-wrap grow"><canvas id="chart-temps"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ── Tabelas ────────────────────────────────────────────────────────── -->
+  <section class="page" id="page-tables">
+    <div class="table-block">
+      <div class="panel-head compact">
+        <h3>Tensões por slave</h3>
+        <span class="panel-sub" id="tbl-v-sub"></span>
+      </div>
+      <div class="table-wrap" id="table-voltage"></div>
+    </div>
+    <div class="table-block">
+      <div class="panel-head compact">
+        <h3>NTC por slave</h3>
+        <span class="panel-sub" id="tbl-t-sub"></span>
+      </div>
+      <div class="table-wrap" id="table-temps"></div>
+    </div>
+  </section>
+  </div>
+</div>
+
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>

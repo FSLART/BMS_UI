@@ -1,0 +1,491 @@
+VERSION ""
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: BMS EV_Europe_Charger Handcart_Controller IVT_S HV500_Inverter Host IVT_Mod BMS Charger
+
+
+VAL_TABLE_ _B9_Voltage_Channels 3 "3 Channels" 0 "0 Channels" ;
+VAL_TABLE_ _B9_Supply_Voltage 1 "12 / 24 V nominal supply voltage" ;
+VAL_TABLE_ _B9_Current 2500 "2500 A" 1000 "1000 A" 500 "500 A" 300 "300 A" 100 "100 A" ;
+VAL_TABLE_ _B9_Device_Type 2 "IVT-S" 1 "IVT-Mod" ;
+VAL_TABLE_ VtDevice_Com 2 "CAN 2 - not terminated" 1 "CAN 1 - terminated" 0 "none" ;
+VAL_TABLE_ VtDevice_TOI 3 "I" ;
+VAL_TABLE_ VtResetErrorLogdata 7 "Reset error current implausible" 6 "Reset error Vref" 5 "Reset error Underflow ADC ch2" 4 "Reset error Overflow ADC ch2" 3 "Reset error Underflow ADC ch1" 2 "Reset error Overflow ADC ch1" 1 "Reset error ADC interrupt" 0 "Reset all measurement errors" ;
+VAL_TABLE_ VtID_Result 0 "Vt_Result_inaktive" 8 "Vt_Result_Wh" 7 "Vt_Result_Ah" 6 "Vt_Result_W" 5 "Vt_Result_T" 4 "Vt_Result_U3" 3 "Vt_Result_U2" 2 "Vt_Result_U1" 1 "Vt_Result_I" ;
+VAL_TABLE_ VtID_Cmd 54 "Set_THRESHOLD_neg" 53 "Set_THRESHOLD_pos" 32 "Set_MODE_Result_I" 16 "Set_CAN_ID_Result_I" 52 "Set_MODE" 51 "START_OC_TEST" 50 "STORE" 49 "TRIGGER" 48 "Reset_Err_Log" 39 "Set_MODE_Result_Wh" 38 "Set_MODE_Result_Ah" 37 "Set_MODE_Result_W" 23 "Set_CAN_ID_Result_Wh" 22 "Set_CAN_ID_Result_Ah" 21 "Set_CAN_ID_Result_W" 20 "Set_CAN_ID_Result_T" 35 "Set_MODE_Result_U3" 31 "Set_CAN_ID_Cmd" 29 "Set_CAN_ID_Response" 19 "Set_CAN_ID_Result_U3" 18 "Set_CAN_ID_Result_U2" 36 "Set_MODE_Result_T" 34 "Set_MODE_Result_U2" 33 "Set_MODE_Result_U1" 17 "Set_CAN_ID_Result_U1" ;
+VAL_TABLE_ VtTriggerMode 2 "CYCLIC" 1 "TRIGGERED" 0 "DISABLED" ;
+VAL_TABLE_ VtRunMode 1 "START" 0 "STOP" ;
+VAL_TABLE_ VtID_Response 149 "ARTICLE_NUMBER" 148 "SERIAL NUMBER" 147 "SW_VERSION" 146 "DEVICE_ID" 145 "STATUS" 143 "CAN_ID" 142 "STORE_to_default" 134 "START_OC_TEST" 133 "Description for the value '0x85'" 132 "THRESHOLD" 131 "CONFIG" 130 "MODE" 129 "STORE" 128 "TRIGGER" ;
+
+
+
+BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
+ SG_ _B1_Resp_Trigger_Mask : 0|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B9_Resp_Device_spare : 0|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ OutputVoltage : 7|16@0+ (0.1,0) [0|6553.5] "V"  BMS,Handcart_Controller
+ SG_ OutputCurrent : 23|16@0+ (0.1,0) [0|6553.5] "A"  BMS,Handcart_Controller
+ SG_ HardwareFault : 32|1@1+ (1,0) [0|1] ""  BMS,Handcart_Controller
+ SG_ TemperatureFault : 33|1@1+ (1,0) [0|1] ""  BMS,Handcart_Controller
+ SG_ InputVoltageFault : 34|1@1+ (1,0) [0|1] ""  BMS,Handcart_Controller
+ SG_ ChargerOff : 35|1@1+ (1,0) [0|1] ""  BMS,Handcart_Controller
+ SG_ CommunicationTimeout : 36|1@1+ (1,0) [0|1] ""  BMS,Handcart_Controller
+ SG_ MaxChargingVoltage : 7|16@0+ (0.1,0) [0|6553.5] "V"  EV_Europe_Charger
+ SG_ MaxChargingCurrent : 23|16@0+ (0.1,0) [0|6553.5] "A"  EV_Europe_Charger
+ SG_ ChargingControl : 32|8@1+ (1,0) [0|1] ""  EV_Europe_Charger
+
+BO_ 20 HV500_ERPM_Duty_InputVoltage: 8 Handcart_Controller
+ SG_ Actual_ERPM : 7|32@0- (1,0) [-2147483648|2147483647] "rpm"  HV500_Inverter
+ SG_ Actual_Duty_Raw : 39|16@0- (1,0) [-32768|32767] "raw"  HV500_Inverter
+ SG_ Actual_InputVoltage : 55|16@0+ (1,0) [0|65535] "V"  HV500_Inverter
+
+BO_ 1314 IVT_Result_U1: 8 IVT_S
+ SG_ IVT_Result_U1 : 23|32@0- (1,0) [-2147483648|2147483647] "mV"  Handcart_Controller,BMS
+
+BO_ 131 BMS_Contactor_Command: 1 Handcart_Controller
+ SG_ ContactorCommand : 0|8@1+ (1,0) [0|1] ""  BMS
+
+BO_ 132 Handcart_Switch_Feedback: 1 Handcart_Controller
+ SG_ SwitchFeedback : 0|1@1+ (1,0) [0|1] ""  BMS
+
+BO_ 1320 IVT_Msg_Result_Wh: 6 IVT_Mod
+ SG_ IVT_Result_Wh_System_Error : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_Wh_OCS : 12|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_Wh_Measurement_Error : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_Wh_Channel_Error : 13|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_Wh : 23|32@0- (1,0) [-2147483648|2147483647] "Wh"  Host
+ SG_ IVT_MsgCount_Result_Wh : 11|4@0+ (1,0) [0|0] ""  Host
+ SG_ IVT_ID_Result_Wh : 7|8@0+ (1,0) [7|7] ""  Host
+
+BO_ 1319 IVT_Msg_Result_As: 6 IVT_Mod
+ SG_ IVT_Result_As_System_Error : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_As_OCS : 12|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_As_Measurement_Error : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_As_Channel_Error : 13|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_As : 23|32@0- (1,0) [-21474836478|2147483647] "As"  Host
+ SG_ IVT_MsgCount_Result_As : 11|4@0+ (1,0) [0|0] ""  Host
+ SG_ IVT_ID_Result_As : 7|8@0+ (1,0) [6|6] ""  Host
+
+BO_ 1318 IVT_Msg_Result_W: 6 IVT_Mod
+ SG_ IVT_Result_W_System_Error : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_W_OCS : 12|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_W_Measurement_Error : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_W_Channel_Error : 13|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_W : 23|32@0- (1,0) [-2147483648|2147483647] "W"  Host
+ SG_ IVT_MsgCount_Result_W : 11|4@0+ (1,0) [0|0] ""  Host
+ SG_ IVT_ID_Result_W : 7|8@0+ (1,0) [5|5] ""  Host
+
+BO_ 1297 IVT_Msg_Response: 8 IVT_Mod
+ SG_ _B1_Trigger_spare m177 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B1_07_Trigger_WH m177 : 23|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B1_06_Trigger_As m177 : 22|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B1_05_Trigger_W m177 : 21|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B1_04_Trigger_T m177 : 20|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B1_03_Trigger_U3 m177 : 19|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B1_02_Trigger_U2 m177 : 18|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B1_01_Trigger_U1 m177 : 17|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B1_00_Trigger_I m177 : 16|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B2_Resp_Store_Device_SN m178 : 23|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _FF_Wrong_Command m255 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BF_Restart_Alive_SN m191 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BF_Restart_Alive_Cmd_ID m191 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BA_Resp_SW_Ver_Vear m186 : 39|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BA_Resp_SW_Ver_Revision m186 : 31|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BA_Resp_SW_Ver_Month m186 : 40|8@1- (1,0) [0|0] "" Vector__XXX
+ SG_ _BA_Resp_SW_Ver_Minor m186 : 23|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BA_Resp_SW_Ver_Internal m186 : 63|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BA_Resp_SW_Ver_Day m186 : 55|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B9_Resp_Device_Com m185 : 47|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B9_Resp_Device_current m185 : 23|12@0+ (1,0) [0|0] "A" Vector__XXX
+ SG_ _B9_Resp_Device_TOI m185 : 39|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B9_Resp_Device_V_supply m185 : 55|8@0+ (1,0) [0|0] "V" Vector__XXX
+ SG_ _B9_Resp_Device_Voltage_chan m185 : 27|4@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _80_Resp_MeasError_Item m128 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _80_Resp_MeasError_Count_Mask m128 : 16|16@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ _81_Resp_SystemError_Item m129 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _81_Resp_SystemError_Count_Mask m129 : 16|16@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ _82_Resp_AllLogData_Item m130 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _82_Resp_AllLogData_Counter m130 : 23|48@0- (1,0) [-1.4073748836E+14|1.4073748836E+14] "" Vector__XXX
+ SG_ _83_Resp_LogData_Item m131 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _83_Resp_LogData_Counter m131 : 23|48@0- (1,0) [-1.4073748836E+14|1.4073748836E+14] "" Vector__XXX
+ SG_ _90_Resp_Can_ID_SN_I m144 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _90_Resp_Can_ID_val_I m144 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _91_Resp_Can_ID_SN_U1 m145 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _91_Resp_Can_ID_val_U1 m145 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _92_Resp_Can_ID_SN_U2 m146 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _92_Resp_Can_ID_val_U2 m146 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _93_Resp_Can_ID_SN_U3 m147 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _93_Resp_Can_ID_val_U3 m147 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _94_Resp_Can_ID_SN_T m148 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _94_Resp_Can_ID_val_T m148 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _95_Resp_Can_ID_SN_W m149 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _95_Resp_Can_ID_val_W m149 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _96_Resp_Can_ID_SN_As m150 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _96_Resp_Can_ID_val_As m150 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _97_Resp_Can_ID_SN_Wh m151 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _97_Resp_Can_ID_val_Wh m151 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _9D_Resp_Can_ID_SN_Command m157 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _9D_Resp_Can_ID_val_Command m157 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _9F_Resp_Can_ID_SN_Response m159 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _9F_Resp_Can_ID_val_Response m159 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A0_Resp_CycleTime_I m160 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _A0_Resp_Endianess_I m160 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A0_Resp_Sign_I m160 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A0_Resp_TriggerMode_I m160 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _A1_Resp_CycleTime_U1 m161 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _A1_Resp_Endianess_U1 m161 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A1_Resp_Sign_U1 m161 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A1_Resp_TriggerMode_U1 m161 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _A2_Resp_CycleTime_U2 m162 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _A2_Resp_Endianess_U2 m162 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A2_Resp_Sign_U2 m162 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A2_Resp_TriggerMode_U2 m162 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _A3_Resp_CycleTime_U3 m163 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _A3_Resp_Endianess_U3 m163 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A3_Resp_Sign_U3 m163 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A3_Resp_TriggerMode_U3 m163 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _A4_Resp_CycleTime_T m164 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _A4_Resp_Endianess_T m164 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A4_Resp_Sign_T m164 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A4_Resp_TriggerMode_T m164 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _A5_Resp_CycleTime_W m165 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _A5_Resp_Endianess_W m165 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A5_Resp_Sign_W m165 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A5_Resp_TriggerMode_W m165 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _A6_Resp_CycleTime_As m166 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _A6_Resp_Endianess_As m166 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A6_Resp_Sign_As m166 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A6_Resp_TriggerMode_As m166 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _A7_Resp_CycleTime_WH m167 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _A7_Resp_Endianess_WH m167 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A7_Resp_Sign_WH m167 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _A7_Resp_TriggerMode_WH m167 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _B0_Resp_Reset_Item m176 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B0_Resp_Reset_Device_SN m176 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B2_Resp_Store_dummy m178 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B3_Resp_Oc_Test_Time m179 : 15|16@0+ (1,0) [0|65535] "ms" Vector__XXX
+ SG_ _B4_Resp_Actual_Mode m180 : 8|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B4_Resp_Code_Level m180 : 31|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B4_Resp_Startup_Mode m180 : 16|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _B5_Resp_OC_Pos_Reset_Threshold m181 : 31|16@0- (1,0) [0|0] "" Vector__XXX
+ SG_ _B5_Resp_OC_Pos_Set_Threshold m181 : 15|16@0- (1,0) [0|0] "" Vector__XXX
+ SG_ _B6_Resp_OC_Neg_Reset_Threshold m182 : 31|16@0- (1,0) [0|0] "" Vector__XXX
+ SG_ _B6_Resp_OC_Neg_Set_Threshold m182 : 15|16@0- (1,0) [0|0] "" Vector__XXX
+ SG_ _B9_Resp_Device_type m185 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BA_Resp_SW_Ver_Major_HW m186 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BB_Resp_Serien_Nr m187 : 15|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _BC_Resp_Art_N m188 : 15|56@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_ID_Response M : 7|8@0+ (1,0) [0|0] ""  Host
+
+BO_ 1317 IVT_Msg_Result_T: 6 IVT_Mod
+ SG_ IVT_Result_T_System_Error : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_T_OCS : 12|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_T_Measurement_Error : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_T_Channel_Error : 13|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_ID_Result_T : 7|8@0+ (1,0) [4|4] ""  Host
+ SG_ IVT_Result_T : 23|32@0- (0.1,0) [-2147483648|2147483647] "°C"  Host
+ SG_ IVT_MsgCount_Result_T : 11|4@0+ (1,0) [0|0] ""  Host
+
+BO_ 1316 IVT_Msg_Result_U3: 6 IVT_Mod
+ SG_ IVT_Result_U3_System_Error : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_U3_OCS : 12|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_U3_Measurement_Error : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_U3_Channel_Error : 13|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_ID_Result_U3 : 7|8@0+ (1,0) [3|3] ""  Host
+ SG_ IVT_Result_U3 : 23|32@0- (1,0) [-2147483648|2147483647] "mV"  Host
+ SG_ IVT_MsgCount_Result_U3 : 11|4@0+ (1,0) [0|0] ""  Host
+
+BO_ 1315 IVT_Msg_Result_U2: 6 IVT_Mod
+ SG_ IVT_Result_U2_System_Error : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_U2_OCS : 12|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_U2_Measurement_Error : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_U2_Channel_Error : 13|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_ID_Result_U2 : 7|8@0+ (1,0) [2|2] ""  Host
+ SG_ IVT_MsgCount_Result_U2 : 11|4@0+ (1,0) [0|0] ""  Host
+ SG_ IVT_Result_U2 : 23|32@0- (1,0) [-2147483648|2147483647] "mV"  Host
+
+BO_ 1314 IVT_Msg_Result_U1: 6 IVT_Mod
+ SG_ IVT_Result_U1_System_Error : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_U1_Measurement_Error : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_U1_Channel_Error : 13|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_U1_OCS : 12|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_ID_Result_U1 : 7|8@0+ (1,0) [1|1] ""  Host
+ SG_ IVT_Result_U1 : 23|32@0- (1,0) [-2147483648|2147483647] "mV"  Host
+ SG_ IVT_MsgCount_Result_U1 : 11|4@0+ (1,0) [0|0] ""  Host
+
+BO_ 1313 IVT_Msg_Result_I: 6 IVT_Mod
+ SG_ IVT_Result_I_System_Error : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_I_OCS : 12|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_I_Measurement_Error : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_Result_I_Channel_Error : 13|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_ID_Result_I : 7|8@0+ (1,0) [0|0] ""  Host
+ SG_ IVT_MsgCount_Result_I : 11|4@0+ (1,0) [0|0] ""  Host
+ SG_ IVT_Result_I : 23|32@0- (1,0) [-2147483648|2147483647] "mA"  Host
+
+BO_ 1041 IVT_Msg_Cmd: 8 Host
+ SG_ _31_01_Trigger_U1 m49 : 17|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _31_07_Trigger_WH m49 : 23|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _31_06_Trigger_As m49 : 22|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _31_05_Trigger_W m49 : 21|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _31_04_Trigger_T m49 : 20|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _31_03_Trigger_U3 m49 : 19|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _31_Trigger_spare m49 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _31_02_Trigger_U2 m49 : 18|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _10_Set_Can_ID_SN_I m16 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _10_Set_Can_ID_val_I m16 : 15|16@0+ (1,0) [0|2047] ""  IVT_Mod
+ SG_ _11_Set_Can_ID_SN_U1 m17 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _11_Set_Can_ID_val_U1 m17 : 15|16@0+ (1,0) [0|2047] "" Vector__XXX
+ SG_ _12_Set_Can_ID_SN_U2 m18 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _12_Set_Can_ID_val_U2 m18 : 15|16@0+ (1,0) [0|2047] "" Vector__XXX
+ SG_ _13_Set_Can_ID_SN_U3 m19 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _13_Set_Can_ID_val_U3 m19 : 15|16@0+ (1,0) [0|2047] "" Vector__XXX
+ SG_ _14_Set_Can_ID_SN_T m20 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _14_Set_Can_ID_val_T m20 : 15|16@0+ (1,0) [0|2047] "" Vector__XXX
+ SG_ _15_Set_Can_ID_SN_W m21 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _15_Set_Can_ID_val_W m21 : 15|16@0+ (1,0) [0|2047] "" Vector__XXX
+ SG_ _16_Set_Can_ID_SN_As m22 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _16_Set_Can_ID_val_As m22 : 15|16@0+ (1,0) [0|2047] "" Vector__XXX
+ SG_ _17_Set_Can_ID_SN_Wh m23 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _17_Set_Can_ID_val_Wh m23 : 15|16@0+ (1,0) [0|2047] "" Vector__XXX
+ SG_ _1D_Set_Can_ID_SN_Command m29 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _1D_Set_Can_ID_val_Command m29 : 15|16@0+ (1,0) [0|2047] "" Vector__XXX
+ SG_ _1F_Set_Can_ID_SN_Response m31 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _1F_Set_Can_ID_val_Response m31 : 15|16@0+ (1,0) [0|2047] "" Vector__XXX
+ SG_ _20_Conf_CycleTime_I m32 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _20_Conf_Endianess_I m32 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _20_Conf_Sign_I m32 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _20_Conf_TriggerMode_I m32 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _21_Conf_CycleTime_U1 m33 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _21_Conf_Endianess_U1 m33 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _21_Conf_Sign_U1 m33 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _21_Conf_TriggerMode_U1 m33 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _22_Conf_CycleTime_U2 m34 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _22_Conf_Endianess_U2 m34 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _22_Conf_Sign_U2 m34 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _22_Conf_TriggerMode_U2 m34 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _23_Conf_CycleTime_U3 m35 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _23_Conf_Endianess_U3 m35 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _23_Conf_Sign_U3 m35 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _23_Conf_TriggerMode_U3 m35 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _24_Conf_CycleTime_T m36 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _24_Conf_Endianess_T m36 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _24_Conf_Sign_T m36 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _24_Conf_TriggerMode_T m36 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _25_Conf_CycleTime_W m37 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _25_Conf_Endianess_W m37 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _25_Conf_Sign_W m37 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _25_Conf_TriggerMode_W m37 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _26_Conf_CycleTime_As m38 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _26_Conf_Endianess_As m38 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _26_Conf_Sign_As m38 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _26_Conf_TriggerMode_As m38 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _27_Conf_CycleTime_WH m39 : 23|16@0+ (1,0) [0|0] "ms" Vector__XXX
+ SG_ _27_Conf_Endianess_WH m39 : 14|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _27_Conf_Sign_WH m39 : 15|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _27_Conf_TriggerMode_WH m39 : 9|2@0+ (1,0) [0|2] "" Vector__XXX
+ SG_ _30_Reset_Item m48 : 15|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _30_Reset_Device_SN m48 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _31_00_Trigger_I m49 : 16|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _32_Store_dummy m50 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _33_Oc_Test_Time m51 : 15|16@0+ (1,0) [0|65535] "ms" Vector__XXX
+ SG_ _34_Actual_Mode m52 : 8|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _34_Code_Level m52 : 31|16@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _34_Startup_Mode m52 : 16|1@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _35_OC_Pos_Reset_Threshold m53 : 31|16@0- (1,0) [0|0] "A" Vector__XXX
+ SG_ _35_OC_Pos_Set_Threshold m53 : 15|16@0- (1,0) [0|0] "A" Vector__XXX
+ SG_ _36_OC_Neg_Reset_Threshold m54 : 31|16@0- (1,0) [0|0] "A" Vector__XXX
+ SG_ _36_OC_Neg_Set_Threshold m54 : 15|16@0- (1,0) [0|0] "A" Vector__XXX
+ SG_ _3A_RESTART_to_Bitrate m58 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _3D_Restart_Default_Dummy m61 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _3F_Restart_Dummy m63 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _40_Get_MeasError_Item m64 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _41_Get_SystemError_Item m65 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _42_Get_AllLogData_Item m66 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _43_Get_LogData_Item m67 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _50_Get_Can_ID_SN_I m80 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _51_Get_Can_ID_SN_U1 m81 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _52_Get_Can_ID_SN_U2 m82 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _53_Get_Can_ID_SN_U3 m83 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _54_Get_Can_ID_SN_T m84 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _55_Get_Can_ID_SN_W m85 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _56_Get_Can_ID_SN_As m86 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _57_Get_Can_ID_SN_Wh m87 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _5D_Get_Can_ID_SN_Command m93 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _5F_Get_Can_ID_SN_Response m95 : 31|32@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _60_Get_Result_dummy_I m96 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _61_Get_Result_dummy_U1 m97 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _62_Get_Result_dummy_U2 m98 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _63_Get_Result_dummy_U3 m99 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _64_Get_Result_dummy_T m100 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _65_Get_Result_dummy_W m101 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _66_Get_Result_dummy_As m102 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _67_Get_Result_dummy_Wh m103 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _73_Get_OC_Test_dummy m115 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _74_Get_Mode_dummy m116 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _75_Get_OC_Pos_dummy m117 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _76_Get_OC_Neg_dummy m118 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _79_Get_Device_Id_dummy m121 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _7A_Get_SW_Version_dummy m122 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _7B_Get_Serien_Nr_dummy m123 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ _7C_Get_Art_Nr_dummy m124 : 15|8@0+ (1,0) [0|0] "" Vector__XXX
+ SG_ IVT_ID_Cmd M : 7|8@0+ (1,0) [0|0] ""  IVT_Mod
+
+BO_ 2550589684 BMS_ChargingRequest: 8 BMS
+ SG_ Max_Charging_Voltage : 7|16@0+ (0.1,0) [0|6553.5] "V"  Charger
+ SG_ Max_Charging_Current : 23|16@0+ (0.1,0) [0|6553.5] "A"  Charger
+ SG_ Control : 32|8@1+ (1,0) [0|255] ""  Charger
+
+BO_ 2566869224 Charger_Status: 8 Charger
+ SG_ Output_Voltage : 7|16@0+ (0.1,0) [0|6553.5] "V"  BMS
+ SG_ Output_Current : 23|16@0+ (0.1,0) [0|6553.5] "A"  BMS
+ SG_ HW_Failure : 32|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Temp_OTP : 33|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Input_Voltage_Fault : 34|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Starting_State_Fault : 35|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Comm_Timeout : 36|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Charger_Temperature : 40|8@1+ (1,-40) [-40|215] "degC"  BMS
+
+BO_ 2550589428 BMS_ChargingRequest_P998: 8 BMS
+ SG_ Max_Charging_Voltage : 7|16@0+ (0.1,0) [0|6553.5] "V"  Charger
+ SG_ Max_Charging_Current : 23|16@0+ (0.1,0) [0|6553.5] "A"  Charger
+ SG_ Control : 32|8@1+ (1,0) [0|255] ""  Charger
+
+BO_ 2566869223 Charger_Status_P998: 8 Charger
+ SG_ Output_Voltage : 7|16@0+ (0.1,0) [0|6553.5] "V"  BMS
+ SG_ Output_Current : 23|16@0+ (0.1,0) [0|6553.5] "A"  BMS
+ SG_ HW_Failure : 32|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Temp_OTP : 33|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Input_Voltage_Fault : 34|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Starting_State_Fault : 35|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Comm_Timeout : 36|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Charger_Temperature : 40|8@1+ (1,-40) [-40|215] "degC"  BMS
+
+BO_ 2550588916 BMS_ChargingRequest_P1000: 8 BMS
+ SG_ Max_Charging_Voltage : 7|16@0+ (0.1,0) [0|6553.5] "V"  Charger
+ SG_ Max_Charging_Current : 23|16@0+ (0.1,0) [0|6553.5] "A"  Charger
+ SG_ Control : 32|8@1+ (1,0) [0|255] ""  Charger
+
+BO_ 2566869221 Charger_Status_P1000: 8 Charger
+ SG_ Output_Voltage : 7|16@0+ (0.1,0) [0|6553.5] "V"  BMS
+ SG_ Output_Current : 23|16@0+ (0.1,0) [0|6553.5] "A"  BMS
+ SG_ HW_Failure : 32|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Temp_OTP : 33|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Input_Voltage_Fault : 34|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Starting_State_Fault : 35|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Comm_Timeout : 36|1@1+ (1,0) [0|1] ""  BMS
+ SG_ Charger_Temperature : 40|8@1+ (1,-40) [-40|215] "degC"  BMS
+
+
+
+CM_ "Combined 250 kbit/s CAN database for the EV Europe/Elcon charger, charger handcart bridge, IVT-S voltage message and HV500 voltage bridge.";
+CM_ BU_ BMS "Battery Management System";
+CM_ BU_ Charger "EV Europe AC/DC Charger";
+CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
+CM_ SG_ 3221225472 HardwareFault "0 = hardware OK; 1 = hardware fault.";
+CM_ SG_ 3221225472 TemperatureFault "0 = charger temperature OK; 1 = temperature fault.";
+CM_ SG_ 3221225472 InputVoltageFault "0 = AC/input voltage OK; 1 = input voltage fault.";
+CM_ SG_ 3221225472 ChargerOff "0 = charger active/charging; 1 = charger off.";
+CM_ SG_ 3221225472 CommunicationTimeout "0 = BMS communication OK; 1 = BMS command timeout.";
+CM_ SG_ 3221225472 ChargingControl "0 starts/enables charging; 1 stops/disables charging.";
+CM_ BO_ 20 "Standard CAN ID 0x014. Handcart bridge message sent every 200 ms. The code sends ERPM and duty as zero and forwards IVT pack voltage as integer volts.";
+CM_ SG_ 20 Actual_Duty_Raw "Scaling is not defined by the supplied code, so this signal is intentionally left as signed raw counts.";
+CM_ BO_ 1314 "Standard CAN ID 0x522. IVT-S U1 voltage result. Bytes 2 to 5 contain a signed big-endian value in millivolts.";
+CM_ BO_ 131 "Standard CAN ID 0x083. Charger handcart command to the BMS. The current firmware transmits it every 5 ms.";
+CM_ BO_ 132 "Standard CAN ID 0x084. Raw feedback from Teensy pin 25, independent of the charger state machine and shutdown input. Transmitted every 100 ms.";
+CM_ SG_ 132 SwitchFeedback "Direct digital state of Teensy pin 25: 0 = LOW/OFF; 1 = HIGH/ON.";
+CM_ BO_ 2550589684 "BMS to Charger: charging setpoints. CAN ID 0x1806E8F4 (Protocol 997/1197). Cycle 1000ms.";
+CM_ SG_ 2550589684 Max_Charging_Voltage "Max allowable charging terminal voltage. Resolution 0.1V/bit";
+CM_ SG_ 2550589684 Max_Charging_Current "Max allowable charging current. Resolution 0.1A/bit";
+CM_ SG_ 2550589684 Control "";
+CM_ BO_ 2566869224 "Charger to BMS: actual output status. CAN ID 0x18FF50E8 (Protocol 997/1197). Cycle 1000ms.";
+CM_ SG_ 2566869224 Output_Voltage "Actual charger output voltage. Resolution 0.1V/bit. e.g. Vout=3201 -> 320.1V";
+CM_ SG_ 2566869224 Output_Current "Actual charger output current. Resolution 0.1A/bit. e.g. Iout=582 -> 58.2A. Highest byte mark: 0=Charging, 1=Discharging";
+CM_ SG_ 2566869224 HW_Failure "Bit0 STATUS: Hardware failure flag";
+CM_ SG_ 2566869224 Temp_OTP "Bit1 STATUS: Temperature of charger flag";
+CM_ SG_ 2566869224 Input_Voltage_Fault "Bit2 STATUS: Input voltage flag";
+CM_ SG_ 2566869224 Starting_State_Fault "Bit3 STATUS: Starting state (battery connection)";
+CM_ SG_ 2566869224 Comm_Timeout "Bit4 STATUS: Communication timeout flag";
+CM_ SG_ 2566869224 Charger_Temperature "Charger internal temperature. Offset -40 degC.";
+CM_ BO_ 2550589428 "BMS to Charger: charging setpoints. CAN ID 0x1806E7F4 (Protocol 998/1198). Cycle 1000ms.";
+CM_ BO_ 2566869223 "Charger to BMS: actual output status. CAN ID 0x18FF50E7 (Protocol 998/1198). Cycle 1000ms.";
+CM_ BO_ 2550588916 "BMS to Charger: charging setpoints. CAN ID 0x1806E5F4 (Protocol 1000/1200). Cycle 1000ms.";
+CM_ BO_ 2566869221 "Charger to BMS: actual output status. CAN ID 0x18FF50E5 (Protocol 1000/1200). Cycle 1000ms.";
+BA_DEF_ BO_  "GenMsgCycleTime" INT 0 65535;
+BA_DEF_ BO_  "VFrameFormat" ENUM  "StandardCAN","ExtendedCAN","reserved","J1939PG";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_  "DatabaseCompiler" STRING ;
+BA_DEF_  "DatabaseVersion" STRING ;
+BA_DEF_  "CANBusBitrate" INT 0 1000000;
+BA_DEF_DEF_  "GenMsgCycleTime" 0;
+BA_DEF_DEF_  "VFrameFormat" "StandardCAN";
+BA_DEF_DEF_  "BusType" "CAN";
+BA_DEF_DEF_  "DatabaseCompiler" "OpenAI ChatGPT";
+BA_DEF_DEF_  "DatabaseVersion" "1.1";
+BA_DEF_DEF_  "CANBusBitrate" 250000;
+BA_ "BusType" "CAN";
+BA_ "DatabaseCompiler" "OpenAI ChatGPT";
+BA_ "DatabaseVersion" "1.1";
+BA_ "CANBusBitrate" 250000;
+BA_ "VFrameFormat" BO_ 20 0;
+BA_ "GenMsgCycleTime" BO_ 20 200;
+BA_ "VFrameFormat" BO_ 1314 0;
+BA_ "VFrameFormat" BO_ 131 0;
+BA_ "GenMsgCycleTime" BO_ 131 5;
+BA_ "VFrameFormat" BO_ 132 0;
+BA_ "GenMsgCycleTime" BO_ 132 100;
+BA_ "GenMsgCycleTime" BO_ 2550589684 1000;
+BA_ "GenMsgCycleTime" BO_ 2566869224 1000;
+BA_ "GenMsgCycleTime" BO_ 2550589428 1000;
+BA_ "GenMsgCycleTime" BO_ 2566869223 1000;
+BA_ "GenMsgCycleTime" BO_ 2550588916 1000;
+BA_ "GenMsgCycleTime" BO_ 2566869221 1000;
+VAL_ 131 ContactorCommand 0 "OPEN_CONTACTORS" 1 "CLOSE_CONTACTORS" ;
+VAL_ 132 SwitchFeedback 0 "SWITCH_OFF" 1 "SWITCH_ON" ;
+VAL_ 2550589684 Control 0 "Starting to charg" 1 "Battery protection, charger close output" ;
+VAL_ 2566869224 HW_Failure 0 "Normal" 1 "Hardware_Failure" ;
+VAL_ 2566869224 Temp_OTP 0 "Normal" 1 "Over_Temperature_Protection" ;
+VAL_ 2566869224 Input_Voltage_Fault 0 "Normal_Input_Voltage" 1 "Incorrect_Input_Voltage_Charger_Stop" ;
+VAL_ 2566869224 Starting_State_Fault 0 "Normal_Battery_Connected" 1 "Battery_Disconnecting_or_Reverse" ;
+VAL_ 2566869224 Comm_Timeout 0 "Normal_Communication" 1 "Receiving_Timeout" ;
+VAL_ 2566869223 HW_Failure 0 "Normal" 1 "Hardware_Failure" ;
+VAL_ 2566869223 Temp_OTP 0 "Normal" 1 "Over_Temperature_Protection" ;
+VAL_ 2566869223 Input_Voltage_Fault 0 "Normal_Input_Voltage" 1 "Incorrect_Input_Voltage_Charger_Stop" ;
+VAL_ 2566869223 Starting_State_Fault 0 "Normal_Battery_Connected" 1 "Battery_Disconnecting_or_Reverse" ;
+VAL_ 2566869223 Comm_Timeout 0 "Normal_Communication" 1 "Receiving_Timeout" ;
+VAL_ 2566869221 HW_Failure 0 "Normal" 1 "Hardware_Failure" ;
+VAL_ 2566869221 Temp_OTP 0 "Normal" 1 "Over_Temperature_Protection" ;
+VAL_ 2566869221 Input_Voltage_Fault 0 "Normal_Input_Voltage" 1 "Incorrect_Input_Voltage_Charger_Stop" ;
+VAL_ 2566869221 Starting_State_Fault 0 "Normal_Battery_Connected" 1 "Battery_Disconnecting_or_Reverse" ;
+VAL_ 2566869221 Comm_Timeout 0 "Normal_Communication" 1 "Receiving_Timeout" ;
+

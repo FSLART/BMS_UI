@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python --version)",
+      "PowerShell(pip --version)",
+      "PowerShell(python -m pip install --quiet fastapi \"uvicorn[standard]\" pydantic pywebview pyserial 2>&1 | Select-Object -Last 15; Write-Output \"EXIT=$LASTEXITCODE\")",
+      "Bash(python -)",
+      "Bash(python -c ' *)",
+      "PowerShell($p = \"C:\\\\Users\\\\jpser\\\\Documents\\\\GitHub\\\\BMS_UI\\\\frontend\\\\assets\"; Get-ChildItem -Recurse -File $p | Select-Object -ExpandProperty FullName; Remove-Item -Recurse -Force $p; Write-Output \"removido: $\\(-not \\(Test-Path $p\\)\\)\")",
+      "Bash(python -c \"import PIL, PIL.Image; print\\('Pillow', PIL.__version__\\)\")",
+      "Read(//c/Users/jpser/Documents/GitHub/T26_DBC/**)",
+      "Bash(awk '/^BO_ 15\\(3[6-9]|4[0-2]\\) /,/^$/' powertrain_t26.dbc)",
+      "Bash(awk '{print $2}')",
+      "PowerShell(python \"C:\\\\Users\\\\jpser\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-jpser-Documents-GitHub-BMS-UI\\\\c33bad99-cab8-4956-bb45-b27421f66817\\\\scratchpad\\\\rename_open.py\")",
+      "PowerShell(python \"C:\\\\Users\\\\jpser\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-jpser-Documents-GitHub-BMS-UI\\\\c33bad99-cab8-4956-bb45-b27421f66817\\\\scratchpad\\\\get_fonts.py\")",
+      "PowerShell(python \"C:\\\\Users\\\\jpser\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-jpser-Documents-GitHub-BMS-UI\\\\c33bad99-cab8-4956-bb45-b27421f66817\\\\scratchpad\\\\anchors.py\")",
+      "Bash(python \"C:/Users/jpser/AppData/Local/Temp/claude/C--Users-jpser-Documents-GitHub-BMS-UI/c33bad99-cab8-4956-bb45-b27421f66817/scratchpad/anchors.py\")",
+      "Bash(python \"C:/Users/jpser/AppData/Local/Temp/claude/C--Users-jpser-Documents-GitHub-BMS-UI/c33bad99-cab8-4956-bb45-b27421f66817/scratchpad/open_anchors.py\")",
+      "Bash(cd \"C:/Users/jpser/Documents/GitHub/BMS_UI\" && mkdir -p backend/dbc && cp \"C:/Users/jpser/Documents/GitHub/T26_DBC/powertrain_t26.dbc\" backend/dbc/ && ls -la backend/dbc/)",
+      "Bash(curl -s -X POST http://localhost:8123/api/car -H \"Content-Type: application/json\" -d '{\"car_id\":\"tek26e\"}' -o /dev/null -w \"select %{http_code}\\\\n\")",
+      "Bash(curl -s -X POST http://localhost:8123/api/connect -H \"Content-Type: application/json\" -d '{\"link_type\":\"can\",\"config\":{\"backend\":\"slcan\",\"channel\":\"COM99\",\"bitrate\":500000},\"demo_fallback\":false}')",
+      "Bash(curl -s \"http://localhost:8123/api/logs\")",
+      "Bash(curl -s -X POST http://localhost:8123/api/disconnect -o /dev/null)",
+      "Bash(curl -s -X POST http://localhost:8123/api/car -H \"Content-Type: application/json\" -d '{\"id\":\"tek26e\"}' -o /dev/null)",
+      "Bash(curl -s -X POST http://localhost:8123/api/connect -H \"Content-Type: application/json\" -d '{\"type\":\"can\",\"config\":{\"backend\":\"slcan\",\"channel\":\"COM99\",\"bitrate\":500000},\"demo_fallback\":true}')",
+      "Bash(ls -la ~/AppData/Local/BMS_UI/dbc/ 2>&1)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\BMS_UI\\\\dbc\" | Select-Object Name, Length, LastWriteTime)",
+      "Bash(ls -la /c/SPB_Data/AppData/Local/BMS_UI/dbc/ 2>&1; echo \"HOME=$HOME\")",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\BMS_UI\\\\dbc\" -ErrorAction SilentlyContinue | Select-Object Name, Length)"
+    ]
+  }
+}
