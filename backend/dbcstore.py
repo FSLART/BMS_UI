@@ -181,7 +181,44 @@ def _read(path: Path):
     raise RuntimeError(f"Falha a descodificar {path}: {last}")
 
 
-def load(src: DbcSource, refresh: bool = True):
+def custom_dir() -> Path:
+    """DBCs the user picked by hand, kept apart from the ones the repo owns so
+    a refresh from GitHub can never overwrite them."""
+    d = cache_dir().parent / "custom"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def accept_upload(name: str, data: bytes) -> dict:
+    """Store a user-supplied DBC, but only if it parses.
+
+    Returns a dict for the API: `path` is what to pass back in the connection
+    config. The name is reduced to its final component and stripped of anything
+    that is not a plain filename character, so a crafted name cannot write
+    outside `custom_dir()`.
+    """
+    import cantools
+
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", Path(name).name) or "custom.dbc"
+    if not safe.lower().endswith(".dbc"):
+        safe += ".dbc"
+    dest = custom_dir() / safe
+
+    tmp = dest.with_suffix(dest.suffix + ".part")
+    tmp.write_bytes(data)
+    try:
+        db = _read(tmp)
+    except Exception as exc:  # noqa: BLE001 - report the parser's own complaint
+        tmp.unlink(missing_ok=True)
+        log.warning("DBC rejeitada (%s): %s", safe, exc)
+        return {"ok": False, "error": f"Nao e uma DBC valida: {exc}"}
+
+    tmp.replace(dest)
+    log.info("DBC do utilizador aceite: %s - %d mensagens", safe, len(db.messages))
+    return {"ok": True, "path": str(dest), "name": safe, "messages": len(db.messages)}
+
+
+def load(src: DbcSource, refresh: bool = True, extra: list[str] | None = None):
     """Resolve every file for this car and merge them into one database.
 
     Returns (database, [DbcFile]). Raises only when nothing at all was found:
@@ -191,10 +228,19 @@ def load(src: DbcSource, refresh: bool = True):
     import cantools
 
     files = src.files or []
-    if not files:
+    if not files and not extra:
         raise FileNotFoundError("Este carro nao tem nenhuma DBC configurada")
 
     found: list[DbcFile] = []
+    # A DBC the user picked wins over the car's own: they chose it on purpose,
+    # usually because the repository copy is behind the firmware on the bench.
+    for path in extra or []:
+        p = Path(path)
+        if p.is_file():
+            found.append(DbcFile(p.name, p, "local"))
+        else:
+            log.warning("DBC indicada pelo utilizador nao existe: %s", p)
+
     for rel in files:
         f = resolve_one(src, rel, refresh=refresh)
         if f is not None:
@@ -223,8 +269,8 @@ def load(src: DbcSource, refresh: bool = True):
                  f" ({shadowed} ignoradas, ja definidas por uma DBC anterior)" if shadowed else "")
     db.refresh()
 
-    if len(found) < len(files):
-        missing = [r for r in files if r not in {f.rel for f in found}]
+    missing = [r for r in files if r not in {f.rel for f in found}]
+    if missing:
         log.warning("DBC em falta, a continuar sem ela: %s", ", ".join(missing))
 
     return db, found

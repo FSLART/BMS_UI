@@ -197,8 +197,11 @@ class ConnectionManager:
         transport = CanTransport(config)
         detail = transport.describe
 
+        # A DBC the operator picked in the connection screen, if any.
+        picked = [p for p in [str(config.get("dbc") or "").strip()] if p]
+
         try:
-            db, files = await asyncio.to_thread(dbcstore.load, car.dbc)
+            db, files = await asyncio.to_thread(dbcstore.load, car.dbc, True, picked)
         except Exception as exc:  # noqa: BLE001
             msg = f"DBC indisponivel: {exc}"
             log.error("%s", msg)

@@ -4,8 +4,19 @@ Dois ficheiros, exportados diretamente do SolidWorks (`Save As → glTF 2.0`):
 
 | Ficheiro | Configuração no SolidWorks | Tamanho | Em git? |
 |---|---|---|---|
-| `tek26e_closed.glb` | assembly fechado | 20 MB | sim |
-| `tek26e_open.glb` | tampa aberta, interiores à vista | 223 MB | **não** |
+| `tek26e_closed.glb` | assembly fechado | 4,2 MB | sim |
+| `tek26e_open_light.glb` | tampa aberta, interiores à vista | 26 MB | sim |
+| `tek26e_open.glb` | o mesmo, export cru do CAD | 223 MB | **não** |
+
+São estes dois primeiros que a app carrega (`CarProfile.model_closed` e
+`model_open`, em [`../../backend/cars.py`](../../backend/cars.py)). Ambos
+passaram por `weld` + `quantize` — ver [`OTIMIZAR.md`](OTIMIZAR.md). Sem perder
+um triângulo: 20 MB → 4,2 MB e 223 MB → 26 MB.
+
+**O sufixo `_light` só existe onde o export cru ainda está ao lado.** O
+`tek26e_open.glb` de 223 MB fica de fora do git e serve de fonte para voltar a
+gerar o leve; o fechado foi substituído no sítio, porque o cru não traz nada
+que o CAD não volte a dar.
 
 Enquanto não existirem, a interface mostra um placeholder e continua 100%
 funcional — o 3D nunca é caminho crítico.
@@ -66,9 +77,7 @@ visto **fechado**.
 
 ## Otimização
 
-```bash
-npx @gltf-transform/cli optimize tek26e_open.glb tek26e_open.glb --compress draco --texture-compress webp
-```
+Ver [`OTIMIZAR.md`](OTIMIZAR.md) — dois comandos, sem apagar geometria.
 
 ## Cores
 

@@ -416,9 +416,12 @@ button, input, select, textarea {
    selection. Four bordered boxes in a column is the generated-dashboard look. */
 .transport {
   display: grid;
-  grid-template-columns: 26px 168px 1fr;
+  /* Name column sized to the longest label ("USB Serial (UART)", 130px) plus a
+     little slack. Anything wider is dead space in front of the fields, which
+     are the part that actually needs room. */
+  grid-template-columns: 24px 136px 1fr;
   align-items: start;
-  gap: 16px;
+  gap: 14px;
   padding: 11px 16px;
   border-radius: var(--r-md);
   background: transparent;
@@ -473,7 +476,12 @@ button, input, select, textarea {
   max-height: 0; opacity: 0; overflow: hidden;
   transition: max-height .35s var(--ease-out), opacity .25s var(--ease);
 }
-.transport.selected .transport-config { max-height: 340px; opacity: 1; }
+/* One field per line. For CAN the values are long -- a COM port carries its
+   description, a Vector channel its index -- and two columns truncate them
+   exactly where they stop being distinguishable. */
+.transport-config.stack { grid-template-columns: 1fr; }
+
+.transport.selected .transport-config { max-height: 420px; opacity: 1; }
 
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field label { font-size: 12px; color: var(--text-mute); }
@@ -506,6 +514,47 @@ button, input, select, textarea {
 }
 .btn-scan:hover { background: #32323A; color: var(--text); }
 .btn-scan.busy { opacity: .5; pointer-events: none; }
+
+/* File picker: a button plus the state of the choice, not a native file input.
+   The native control renders differently in every browser and its "no file
+   chosen" text cannot be replaced with something that explains the default. */
+.file-picker { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.btn-file {
+  flex: none;
+  background: var(--surface-3);
+  border: 0;
+  color: var(--text);
+  border-radius: var(--r-sm);
+  padding: 9px 14px;
+  font-size: 13px; font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .18s var(--ease);
+}
+.btn-file:hover { background: #32323A; }
+
+.file-name {
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.file-name.empty { font-family: inherit; color: var(--text-mute); }
+.file-name.ok  { color: var(--ok); }
+.file-name.err { color: var(--fault); }
+
+.btn-file-clear {
+  flex: none;
+  background: transparent; border: 0;
+  color: var(--text-mute);
+  font-size: 13px; line-height: 1;
+  padding: 6px; cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: color .18s, background .18s;
+}
+.btn-file-clear:hover { color: var(--text); background: var(--surface-3); }
 
 .hint { grid-column: 1 / -1; font-size: 12.5px; color: var(--text-mute); }
 .hint.err { color: var(--fault); }

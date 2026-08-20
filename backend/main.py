@@ -5,7 +5,7 @@ import contextlib
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -16,6 +16,7 @@ from .logbuffer import buffer as log_buffer, install as install_logging
 # messages are emitted, and we want them in the buffer.
 install_logging()
 
+from . import dbcstore                                     # noqa: E402
 from .cars import CARS                                    # noqa: E402
 from .manager import SELECTABLE, manager                   # noqa: E402
 from .transports import discovery                          # noqa: E402
@@ -111,6 +112,31 @@ async def connect(req: ConnectRequest) -> dict[str, Any]:
 @app.post("/api/disconnect")
 async def disconnect() -> dict[str, Any]:
     return await manager.disconnect()
+
+
+# 8 MB. The two real databases are 87 KB and 30 KB; anything near this ceiling
+# is not a DBC and should not be parsed.
+MAX_DBC_BYTES = 8 * 1024 * 1024
+
+
+@app.post("/api/dbc/upload")
+async def upload_dbc(request: Request, name: str = "custom.dbc") -> dict[str, Any]:
+    """Take a DBC the user picked on their machine.
+
+    Raw body rather than multipart: the browser cannot hand over a real
+    filesystem path, so the bytes have to travel anyway, and doing it this way
+    avoids depending on python-multipart in an app that ships offline.
+
+    The file is parsed before being accepted — a DBC that does not load is
+    rejected here, with the parser's own message, rather than at connect time.
+    """
+    data = await request.body()
+    if not data:
+        return {"ok": False, "error": "Ficheiro vazio"}
+    if len(data) > MAX_DBC_BYTES:
+        return {"ok": False, "error": f"Ficheiro demasiado grande ({len(data) // 1024} KB)"}
+
+    return await asyncio.to_thread(dbcstore.accept_upload, name, data)
 
 
 @app.websocket("/ws")

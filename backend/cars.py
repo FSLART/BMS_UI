@@ -221,7 +221,10 @@ CARS: list[CarProfile] = [
         temps_per_slave=6,
         limits=CellLimits(v_min=2.50, v_max=4.20, v_warn_low=2.80, v_warn_high=4.15),
         model_closed="/models/tek26e_closed.glb",
-        model_open="/models/tek26e_open.glb",
+        # Export do SolidWorks passado por weld + quantize: 223 MB -> 26 MB com
+        # os 5,8M triangulos e a bounding box intactos, por isso as ancoras dos
+        # hotspots aqui em baixo continuam validas. Ver models/README.md.
+        model_open="/models/tek26e_open_light.glb",
         # De frente, quase ao nivel: mostra o lado das ventoinhas e conectores.
         view_closed=CameraView(orbit="180deg 80deg 60%", fov="30deg"),
         # De topo: os segmentos e a placa master leem-se como planta.

@@ -26,7 +26,30 @@
       "Bash(ls -la ~/AppData/Local/BMS_UI/dbc/ 2>&1)",
       "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\BMS_UI\\\\dbc\" | Select-Object Name, Length, LastWriteTime)",
       "Bash(ls -la /c/SPB_Data/AppData/Local/BMS_UI/dbc/ 2>&1; echo \"HOME=$HOME\")",
-      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\BMS_UI\\\\dbc\" -ErrorAction SilentlyContinue | Select-Object Name, Length)"
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\BMS_UI\\\\dbc\" -ErrorAction SilentlyContinue | Select-Object Name, Length)",
+      "Bash(npm --version)",
+      "Bash(npx --version)",
+      "Bash(cd \"C:/Users/jpser/AppData/Local/Temp/claude/C--Users-jpser-Documents-GitHub-BMS-UI/c33bad99-cab8-4956-bb45-b27421f66817/scratchpad\" && until [ -f step2_quant.glb ] || grep -qi \"error\" ../../tasks/bcx8p6bi5.output 2>/dev/null; do sleep 10; done; ls -l step1_weld.glb step2_quant.glb 2>&1)",
+      "Bash(npx --yes @gltf-transform/cli@4 inspect step2_quant.glb)",
+      "Bash(npx --yes @gltf-transform/cli@4 quantize step1_weld.glb step2_n10.glb --quantize-position 14 --quantize-normal 10)",
+      "Bash(cd \"C:/Users/jpser/AppData/Local/Temp/claude/C--Users-jpser-Documents-GitHub-BMS-UI/c33bad99-cab8-4956-bb45-b27421f66817/scratchpad\" && until [ -f step2_n10.glb ]; do sleep 10; done; sleep 3; stat -c \"%s %n\" step2_quant.glb step2_n10.glb)",
+      "Bash(curl -s \"http://localhost:8123/api/cars\")",
+      "Bash(curl -sI \"http://localhost:8123/models/tek26e_open_light.glb\")",
+      "Bash(cp tek26e_closed.glb __TRACKED_VAR__/tek26e_closed_ORIGINAL_backup.glb)",
+      "Bash(cp __TRACKED_VAR__/closed_light.glb tek26e_closed.glb)",
+      "Read(//c/Users/jpser/Documents/GitHub/BMS_UI/**)",
+      "Bash(python -c \"import multipart; print\\('python-multipart', multipart.__version__\\)\")",
+      "Bash(curl -s -X POST \"http://localhost:8123/api/dbc/upload?name=lixo.dbc\" -H \"Content-Type: application/octet-stream\" --data-binary \"isto nao e uma dbc\")",
+      "Bash(curl -s -X POST \"http://localhost:8123/api/dbc/upload?name=handcart_t26.dbc\" -H \"Content-Type: application/octet-stream\" --data-binary \"@backend/dbc/handcart_t26.dbc\")",
+      "Bash(curl -s -X POST \"http://localhost:8123/api/dbc/upload?name=../../../evil.dbc\" -H \"Content-Type: application/octet-stream\" --data-binary \"@backend/dbc/handcart_t26.dbc\")",
+      "Bash(rm -f ~/AppData/Local/BMS_UI/custom/evil.dbc)",
+      "Bash(curl -s -X POST http://localhost:8123/api/connect -H \"Content-Type: application/json\" -d \"{\\\\\"type\\\\\":\\\\\"can\\\\\",\\\\\"config\\\\\":{\\\\\"backend\\\\\":\\\\\"slcan\\\\\",\\\\\"channel\\\\\":\\\\\"COM99\\\\\",\\\\\"bitrate\\\\\":500000,\\\\\"dbc\\\\\":\\\\\"C:/Users/jpser/AppData/Local/BMS_UI/custom/handcart_t26.dbc\\\\\"},\\\\\"demo_fallback\\\\\":false}\")",
+      "Bash(python -c \"import webview; print\\(webview.__version__\\)\")",
+      "Bash(python -c \"import PIL; print\\('Pillow', PIL.__version__\\)\")",
+      "Bash(python \"C:/Users/jpser/AppData/Local/Temp/claude/C--Users-jpser-Documents-GitHub-BMS-UI/c33bad99-cab8-4956-bb45-b27421f66817/scratchpad/make_icon.py\")",
+      "Bash(curl -s -o /dev/null -w \"favicon.png %{http_code} %{content_type}\\\\n\" http://localhost:8123/pics/favicon.png)",
+      "Bash(curl -s -o /dev/null -w \"lart.ico    %{http_code} %{content_type}\\\\n\" http://localhost:8123/pics/lart.ico)",
+      "Bash(curl -s http://localhost:8123/)"
     ]
   }
 }

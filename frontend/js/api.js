@@ -14,6 +14,20 @@ export const api = {
       body: JSON.stringify({ type, config, demo_fallback }),
     }).then(json),
   disconnect: () => fetch('/api/disconnect', { method: 'POST' }).then(json),
+
+  /**
+   * Send a .dbc the user picked. Raw body, not multipart: the backend then
+   * needs no python-multipart, which matters for an app that ships offline.
+   * Resolves to { ok, path, name, messages } or { ok: false, error }.
+   */
+  uploadDbc: (file) =>
+    fetch(`/api/dbc/upload?name=${encodeURIComponent(file.name)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: file,
+    })
+      .then(json)
+      .catch((e) => ({ ok: false, error: String(e.message || e) })),
 };
 
 /** WebSocket with auto-reconnect. `onState` gets the parsed BmsState. */

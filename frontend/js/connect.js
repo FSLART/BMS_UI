@@ -10,13 +10,18 @@ const TRANSPORTS = [
     name: 'CAN Probe',
     scan: 'can',
     required: ['channel'],
+    // One field per line: the channel names are long and the order reads as the
+    // decisions actually happen -- interface first, then the channel it exposes,
+    // then the bitrate.
+    stack: true,
     fields: [
       // Changing the backend changes what a "channel" even is, so it rescans.
       { k: 'backend', label: 'Interface', type: 'select', from: 'can_backends', def: 'slcan', rescans: true },
       { k: 'channel', label: 'Canal', type: 'select', fromScan: true },
       { k: 'bitrate', label: 'Bitrate', type: 'select', from: 'can_bitrates', def: 500000,
         fmt: (v) => `${v / 1000} kbit/s` },
-      { k: 'dbc', label: 'Ficheiro DBC', type: 'text', wide: true, placeholder: 'bms.dbc (opcional)' },
+      { k: 'dbc', label: 'Ficheiro DBC', type: 'file', accept: '.dbc',
+        placeholder: 'Opcional: usa uma DBC diferente da do Git' },
     ],
   },
   {
@@ -104,7 +109,7 @@ export class ConnectScreen {
     id.innerHTML = `<span class="transport-name">${t.name}</span>`;
 
     const cfg = document.createElement('div');
-    cfg.className = 'transport-config';
+    cfg.className = `transport-config${t.stack ? ' stack' : ''}`;
     this.config[t.id] = {};
 
     for (const f of t.fields) cfg.appendChild(this._field(t, f));
@@ -136,6 +141,11 @@ export class ConnectScreen {
     const label = document.createElement('label');
     label.textContent = f.label;
     wrap.appendChild(label);
+
+    if (f.type === 'file') {
+      wrap.appendChild(this._filePicker(t, f));
+      return wrap;
+    }
 
     let input;
     if (f.type === 'select') {
@@ -195,6 +205,79 @@ export class ConnectScreen {
     }
 
     return wrap;
+  }
+
+  /**
+   * Pick a .dbc from the machine.
+   *
+   * The browser never exposes a real filesystem path, so the bytes are sent to
+   * the backend, which parses them to prove it is a DBC and keeps the file.
+   * What lands in the config is the path the backend wrote, which is what the
+   * decoder can actually open.
+   */
+  _filePicker(t, f) {
+    const box = document.createElement('div');
+    box.className = 'file-picker';
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = f.accept || '';
+    input.hidden = true;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-file';
+    btn.textContent = 'Escolher…';
+
+    const name = document.createElement('span');
+    name.className = 'file-name empty';
+    name.textContent = f.placeholder || 'Nenhum ficheiro escolhido';
+
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'btn-file-clear';
+    clear.textContent = '✕';
+    clear.title = 'Voltar às DBCs do carro';
+    clear.hidden = true;
+
+    const reset = () => {
+      input.value = '';
+      delete this.config[t.id][f.k];
+      name.className = 'file-name empty';
+      name.textContent = f.placeholder || 'Nenhum ficheiro escolhido';
+      clear.hidden = true;
+    };
+
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); input.click(); });
+    clear.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      reset();
+      if (this.selected === t.id) this._reconnectSoon();
+    });
+
+    input.addEventListener('change', async () => {
+      const file = input.files && input.files[0];
+      if (!file) return reset();
+
+      name.className = 'file-name';
+      name.textContent = `${file.name} — a validar…`;
+      clear.hidden = false;
+
+      const res = await api.uploadDbc(file);
+      if (!res.ok) {
+        name.className = 'file-name err';
+        name.textContent = res.error || 'Falhou';
+        delete this.config[t.id][f.k];
+        return;
+      }
+      name.className = 'file-name ok';
+      name.textContent = `${res.name} — ${res.messages} mensagens`;
+      this.config[t.id][f.k] = res.path;
+      if (this.selected === t.id) this._reconnectSoon();
+    });
+
+    box.append(btn, name, clear, input);
+    return box;
   }
 
   _wireDemoToggle() {

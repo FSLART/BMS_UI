@@ -9,12 +9,18 @@ import argparse
 import socket
 import threading
 import time
+from pathlib import Path
 
 import uvicorn
 
 from backend.main import app
 
 HOST = "127.0.0.1"
+
+# Icone da janela nativa. Tem de ser .ico: o winforms passa o caminho ao
+# construtor Icon do .NET, que rejeita PNG. Gerado do Simbolo_LART.png por
+# scratchpad/make_icon.py, com os tamanhos de 16 a 256.
+ICON = Path(__file__).resolve().parent / "frontend" / "pics" / "lart.ico"
 
 
 def free_port() -> int:
@@ -63,7 +69,8 @@ def main() -> None:
         min_size=(1200, 760),
         background_color="#0B0F14",
     )
-    webview.start()
+    # Um icone em falta nao vale rebentar com a app: sem ele fica o do Python.
+    webview.start(icon=str(ICON) if ICON.is_file() else None)
     server.should_exit = True
 
 
