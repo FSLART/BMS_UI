@@ -176,10 +176,19 @@ async def ws(sock: WebSocket) -> None:
 @app.middleware("http")
 async def no_cache(request, call_next):
     """The browser happily serves a stale js/css module after an edit, which
-    looks exactly like a bug that will not die. Not worth it for a local tool."""
+    looks exactly like a bug that will not die. Not worth it for a local tool.
+
+    Models get `no-cache` rather than `no-store`: they are tens of megabytes,
+    so the copy is worth keeping, but it has to be revalidated. Without this a
+    re-exported GLB silently does not appear -- which is exactly how a freshly
+    baked fan animation went missing while the file on disk had it all along.
+    """
     response = await call_next(request)
-    if request.url.path.startswith(("/js/", "/css/")) or request.url.path == "/":
+    path = request.url.path
+    if path.startswith(("/js/", "/css/")) or path == "/":
         response.headers["Cache-Control"] = "no-store"
+    elif path.startswith("/models/"):
+        response.headers["Cache-Control"] = "no-cache"
     return response
 
 

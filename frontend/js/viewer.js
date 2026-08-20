@@ -400,6 +400,9 @@ export class Viewer {
     // Here the model IS the screen, and lazily never firing looks like a hang.
     mv.setAttribute('loading', 'eager');
     mv.setAttribute('reveal', 'auto');
+    // The fans carry the only animation these files have. Autoplay so it is
+    // running from the start; setFanSpeed pauses it when the PWM is zero.
+    mv.setAttribute('autoplay', '');
     mv.setAttribute('camera-controls', '');
     mv.setAttribute('interaction-prompt', 'none');
     mv.setAttribute('shadow-intensity', RENDER.shadowIntensity);
@@ -542,6 +545,30 @@ export class Viewer {
       view: this.current,
       snippet: `view_${this.current}=CameraView(${parts.join(', ')}),`,
     };
+  }
+
+  /**
+   * Spin the fans at the speed the AMS is commanding them.
+   *
+   * The rotation is baked into the GLB (scratchpad/add_fan_anim.py) because
+   * model-viewer's scene graph exposes materials and nothing else -- there is
+   * no way to turn a node from script. What it does expose is `timeScale`, so
+   * the file carries one turn per second and this scales it.
+   *
+   * @param {number|null} pwm 0..100, or null when the AMS is not reporting.
+   */
+  setFanSpeed(pwm) {
+    const mv = this.mv[this.current];
+    if (!mv || !mv.loaded || !mv.availableAnimations.length) return;
+    // Stopped fans are stopped, not slowed to a crawl: below its threshold the
+    // firmware simply does not drive them.
+    const spinning = pwm != null && pwm > 0.5;
+    // Well under one turn per frame at 10 Hz, so the blades read as turning
+    // rather than strobing backwards.
+    const scale = spinning ? Math.max(0.15, (pwm / 100) * 3.0) : 0;
+    if (mv.timeScale !== scale) mv.timeScale = scale;
+    if (spinning && mv.paused) mv.play();
+    else if (!spinning && !mv.paused) mv.pause();
   }
 
   idle(on) {

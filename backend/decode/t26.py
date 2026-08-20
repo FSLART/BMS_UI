@@ -41,6 +41,7 @@ from typing import Any
 from ..cars import CarProfile
 from ..logbuffer import log
 from ..state import (
+    Ams,
     BmsState,
     Cell,
     Charger,
@@ -301,6 +302,7 @@ class T26Decoder:
         segments = self._build_segments(cells, thermistors)
         pack = self._build_pack(cells, thermistors, now)
         safety = self._build_safety(now)
+        ams = self._build_ams(now)
         charger = self._build_charger(now)
         self._update_faults(now, pack, charger, cells)
 
@@ -310,6 +312,7 @@ class T26Decoder:
             link=link,
             pack=pack,
             safety=safety,
+            ams=ams,
             charger=charger,
             # Hearing the charger is what says which bus this is. Nothing is
             # configured; plug in, and the app works out where it landed.
@@ -539,6 +542,28 @@ class T26Decoder:
             precharge_state=precharge,
         )
 
+    def _build_ams(self, now: float) -> Ams:
+        """Saude da placa master. Tudo isto vinha ja descodificado e nunca
+        chegava a lado nenhum -- incluindo o PWM das ventoinhas, que era a
+        unica coisa que faltava para o hotspot delas deixar de estar vazio."""
+        sig = self.sig
+
+        def s(name: str, ttl: float = SIGNAL_TTL_S) -> float | None:
+            t = sig.get(name)
+            return t.num(now, ttl=ttl) if t else None
+
+        pwm = s("master_fan_pwm")
+        return Ams(
+            # 8 bits a 0.392 dao 0..100: o cantools ja devolve percentagem.
+            fan_pwm=round(pwm, 1) if pwm is not None else None,
+            mcu_temperature=s("mcu_temperature"),
+            firmware=int(fw) if (fw := s("master_firmware_version")) is not None else None,
+            pec_error=bool(s("adbms_pec_error")),
+            fault_counter=int(s("fault_counter") or 0),
+            runtime_s=s("master_runtime", ttl=5.0),
+            slaves_detected=int(n) if (n := s("slaves_detected", ttl=5.0)) is not None else None,
+        )
+
     def _build_charger(self, now: float) -> Charger:
         sig = self.sig
 
@@ -653,5 +678,8 @@ class T26Decoder:
         known = {f.code for f in self._faults}
         for code, sev, msg in active:
             if code not in known:
+                # Anotar já: os dois slots de falta do master podem trazer o
+                # mesmo codigo na mesma passagem, e sem isto entrava duas vezes.
+                known.add(code)
                 self._faults.insert(0, Fault(code=code, severity=sev, message=msg, latched=True))
         del self._faults[16:]

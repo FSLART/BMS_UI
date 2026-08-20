@@ -12,6 +12,7 @@ import time
 
 from .cars import CarProfile
 from .state import (
+    Ams,
     Cell,
     Charger,
     Fault,
@@ -249,10 +250,23 @@ class Simulator:
             session_s=round(now - self.chg_started, 0) if self.chg_started else 0.0,
         )
 
+        # Ventoinhas a acompanhar a temperatura, como o firmware faz: sobem a
+        # partir dos 30 graus e saturam nos 55.
+        fan = max(0.0, min(100.0, (pack.temp_max - 30.0) / 25.0 * 100.0))
+
         return BmsState(
             ts=now,
             stale=False,
             pack=pack,
+            ams=Ams(
+                fan_pwm=round(fan, 1),
+                mcu_temperature=round(38.0 + heat * 0.12, 0),
+                firmware=3,
+                pec_error=False,
+                fault_counter=len(self._faults),
+                runtime_s=round(t, 0),
+                slaves_detected=car.slave_count,
+            ),
             mode="charger" if on_charge else "car",
             charging=on_charge and current < -0.5,
             charger=charger,

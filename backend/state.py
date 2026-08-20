@@ -131,6 +131,23 @@ class Safety(BaseModel):
     precharge_state: str = ""
 
 
+class Ams(BaseModel):
+    """Saúde da própria placa master, não do pack.
+
+    Vem quase toda de `Master_MSC_ID_1`, a mesma mensagem que traz o
+    `master_state`. São valores sobre o computador que faz a medição, e não
+    sobre as células — daí ficarem à parte do `Pack`.
+    """
+
+    fan_pwm: float | None = None        # 0..100 %, comando das ventoinhas
+    mcu_temperature: float | None = None
+    firmware: int | None = None
+    pec_error: bool = False             # erro de CRC no barramento dos ADBMS
+    fault_counter: int = 0
+    runtime_s: float | None = None
+    slaves_detected: int | None = None
+
+
 class Charger(BaseModel):
     """Charging session, when the pack is on the handcart.
 
@@ -238,6 +255,7 @@ class BmsState(BaseModel):
     link: LinkMeta = Field(default_factory=LinkMeta)
     pack: Pack = Field(default_factory=Pack)
     safety: Safety = Field(default_factory=Safety)
+    ams: Ams = Field(default_factory=Ams)
     # Which bus we turned out to be on, worked out from the traffic rather than
     # asked: charger frames present means the pack is on the handcart, their
     # absence means it is in the car. Never a setting.

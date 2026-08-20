@@ -271,6 +271,18 @@ export class Dashboard {
     const pc = $('s-precharge');
     if (pc) pc.textContent = state.safety.precharge_state || '—';
 
+    const a = state.ams || {};
+    $('s-fan').textContent = a.fan_pwm == null ? '—' : `${a.fan_pwm.toFixed(0)} %`;
+    $('s-mcu').textContent = a.mcu_temperature == null ? '—' : `${a.mcu_temperature.toFixed(0)} °C`;
+    // Menos slaves que o esperado é uma falta que o decoder já levanta; aqui
+    // fica só a contagem, a vermelho para não passar despercebida.
+    const expected = state.slave_count || 0;
+    $('s-slaves').textContent = a.slaves_detected == null
+      ? '—' : `${a.slaves_detected}/${expected}`;
+    $('s-slaves').style.color =
+      a.slaves_detected != null && expected && a.slaves_detected < expected
+        ? 'var(--fault)' : '';
+
     state.segments.forEach((seg, i) => {
       const e = this.segEls[i];
       if (!e) return;
@@ -700,7 +712,14 @@ export class Dashboard {
       label: `IVT  ${state.pack.current.toFixed(1)} A`,
       sev: state.stale ? 'fault' : 'ok',
     });
-    v.setHotspotState('fans', { label: 'Ventoinhas', sev: 'idle' });
+    // master_fan_pwm, do mesmo bloco que traz o master_state. Estava a ser
+    // descodificado e nunca chegava aqui, e o marcador ficava só com o nome.
+    const pwm = state.ams ? state.ams.fan_pwm : null;
+    v.setFanSpeed(pwm);
+    v.setHotspotState('fans', pwm == null
+      ? { label: 'Ventoinhas', sev: 'idle' }
+      // Paradas não é falha: abaixo do limiar térmico o firmware não as liga.
+      : { label: `Ventoinhas  ${pwm.toFixed(0)}%`, sev: pwm > 0 ? 'ok' : 'idle' });
   }
 
   _selectSegment(id, state) {

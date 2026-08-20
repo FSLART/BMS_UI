@@ -76,7 +76,11 @@
       "Bash(cd \"C:/Users/jpser/Documents/GitHub/BMS_UI\" && ls -la frontend/models/ && echo \"=== outros .glb no disco \\(recentes\\) ===\" && find /c/Users/jpser/Documents /c/Users/jpser/Downloads /c/Users/jpser/Desktop -iname \"*.glb\" -newermt \"-3 days\" 2>/dev/null | head -20)",
       "Bash(python seg_anchors.py)",
       "Bash(python -c \"import backend.main; from backend.cars import get_car; c=get_car\\('tek26e'\\); print\\(c.model_segment, '|', c.view_segment.orbit\\)\")",
-      "Bash(python -c \"from backend.cars import get_car; v=get_car\\('tek26e'\\).view_segment; print\\(v.orbit, '|', v.orientation\\)\")"
+      "Bash(python -c \"from backend.cars import get_car; v=get_car\\('tek26e'\\).view_segment; print\\(v.orbit, '|', v.orientation\\)\")",
+      "Bash(python -c \"import backend.decode.t26; print\\('ok'\\)\")",
+      "Bash(taskkill //F //PID 677496)",
+      "Bash(python add_fan_anim.py)",
+      "Bash(npx --yes @gltf-transform/cli@4 inspect \"C:/Users/jpser/Documents/GitHub/BMS_UI/frontend/models/tek26e_closed.glb\")"
     ]
   }
 }
