@@ -31,6 +31,8 @@
   --accent:      #FFC300;
   --accent-dim:  #6E5400;
   --accent-soft: rgba(255, 195, 0, .14);
+  --fault-soft:  rgba(255, 69, 58, .14);
+  --warn-soft:   rgba(255, 214, 10, .09);
 
   --ok:    #32D74B;
   --warn:  #FFD60A;
@@ -56,6 +58,90 @@
 
   --ease: cubic-bezier(.22, 1, .36, 1);
   --ease-out: cubic-bezier(.16, 1, .3, 1);
+
+  /* Cores dos canvas. Nao sao usadas por nenhuma regra CSS -- sao lidas do JS
+     com getComputedStyle, porque um canvas pinta pixeis e nao herda nada. Ficam
+     aqui na mesma para o tema claro ter um sitio unico onde as trocar. */
+  --c-grid:  #212127;
+  --c-panel: #141417;
+  --c-cool:  #9BB4D9;
+  --c-cell-fault: #8E2020;
+  --c-cell-warn:  #8A5310;
+  --c-blue:  #0A84FF;
+  --c-empty: rgba(120, 120, 128, .16);
+  --c-gridline: rgba(255, 255, 255, .07);
+  --c-axis:  rgba(255, 255, 255, .16);
+
+  /* Superficies translucidas por cima do 3D. Sao translucidas de proposito --
+     deixam ver o modelo por baixo -- por isso nao podem ser --surface, que e
+     opaca. Tem de trocar com o tema como tudo o resto: um painel escuro fixo
+     com texto que passou a escuro fica ilegivel. */
+  --glass:        rgba(20, 20, 23, .88);
+  --glass-soft:   rgba(20, 20, 23, .80);
+  --glass-strong: rgba(20, 20, 23, .92);
+  --glass-chip:   rgba(28, 28, 32, .82);
+  --scrim:        rgba(0, 0, 0, .62);
+  --hatch:        rgba(255, 255, 255, .35);
+}
+
+/* ── Tema claro ───────────────────────────────────────────────────────────
+   So variaveis. Nenhuma regra abaixo deste bloco sabe que o tema existe: o
+   que muda de tema muda aqui, e tudo o resto continua a pedir var(--x).
+
+   Nao e o tema escuro invertido. Num fundo claro a mesma saturacao pesa mais,
+   por isso o amarelo da LART escurece para se ler sobre branco, e as sombras
+   passam de pretos densos a cinzentos leves -- uma sombra escura sobre branco
+   parece sujidade.                                                          */
+:root[data-theme="light"] {
+  --bg:        #F2F2F5;
+  --surface:   #FFFFFF;
+  --surface-2: #F0F0F3;
+  --surface-3: #E2E2E7;
+  --line:      #D8D8DE;
+  --line-soft: #E8E8ED;
+
+  --text:      #16161A;
+  --text-dim:  #45454E;   /* ~9:1 sobre --bg */
+  --text-mute: #6B6B76;   /* ~5.5:1 */
+
+  /* O #FFC300 tem 1.5:1 sobre branco -- ilegivel como texto. Este escurecido
+     mantem a livery reconhecivel e passa o contraste. */
+  --accent:      #A17400;
+  --accent-dim:  #E8C86A;
+  --accent-soft: rgba(161, 116, 0, .12);
+  --fault-soft:  rgba(200, 39, 28, .12);
+  --warn-soft:   rgba(154, 107, 0, .12);
+
+  --ok:    #1E8E34;
+  --warn:  #9A6B00;
+  --fault: #C8271C;
+  --idle:  #C4C4CC;
+
+  --shadow-1: 0 1px 2px rgba(16, 16, 24, .08);
+  --shadow-2: 0 4px 16px -6px rgba(16, 16, 24, .16);
+  --shadow-3: 0 24px 60px -24px rgba(16, 16, 24, .28);
+
+  --c-grid:  #E2E2E7;
+  --c-panel: #FFFFFF;
+  --c-cool:  #3C5F94;
+  --c-cell-fault: #F3C0BC;
+  --c-cell-warn:  #F6DCA8;
+  --c-blue:  #0B63C5;
+  /* Sobre claro estas tres invertem o sinal: o que no escuro era branco a
+     desvanecer tem de passar a preto a desvanecer, senao a grelha e os eixos
+     desaparecem no fundo. */
+  --c-empty: rgba(16, 16, 24, .10);
+  --c-gridline: rgba(16, 16, 24, .08);
+  --c-axis:  rgba(16, 16, 24, .22);
+
+  /* Mais opacas que as escuras. O modelo 3D e claro e de baixo contraste, e um
+     branco a 88% por cima dele nao chegava para o texto se destacar. */
+  --glass:        rgba(255, 255, 255, .94);
+  --glass-soft:   rgba(255, 255, 255, .90);
+  --glass-strong: rgba(255, 255, 255, .96);
+  --glass-chip:   rgba(255, 255, 255, .90);
+  --scrim:        rgba(40, 40, 48, .45);
+  --hatch:        rgba(16, 16, 24, .35);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -66,6 +152,15 @@
    aconteceu com o diálogo de confirmação, que ficou visível e vazio por cima de
    todos os ecrãs. Isto fecha a classe de erro de uma vez. */
 [hidden] { display: none !important; }
+
+/* Posta pelo theme.js so durante a troca de tema. Ver o comentario la: sem
+   isto a interface inteira faz cross-fade e fica a meio se a janela nao
+   estiver a desenhar. O proprio botao esta de fora -- a lua a deslizar para
+   sol e a unica animacao que se quer ver aqui. */
+:root.theme-switching *:not(.tdnn):not(.tdnn *) {
+  transition: none !important;
+  animation: none !important;
+}
 
 html, body {
   height: 100%;
@@ -175,7 +270,7 @@ button, input, select, textarea {
   transition: background .2s var(--ease), color .2s var(--ease);
 }
 .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
-#btn-disconnect:hover { background: rgba(255, 69, 58, .16); color: var(--fault); }
+#btn-disconnect:hover { background: var(--fault-soft); color: var(--fault); }
 .btn-neutral:hover { color: var(--text) !important; }
 
 /* ==========================================================================
@@ -231,6 +326,73 @@ button, input, select, textarea {
   transition: background .2s var(--ease), color .2s var(--ease);
 }
 .console-btn:hover { background: var(--surface-2); color: var(--text); }
+
+/* ── Alternador de tema ───────────────────────────────────────────────────
+   Lua/sol de RefractedColor (codepen.io/RefractedColor/pen/mdWZRPQ). O
+   original nao tem imagem nenhuma: a lua e um circulo com uma sombra interior
+   que lhe corta o gomo, e as crateras e os raios do sol sao mais sombras do
+   mesmo elemento. Por isso escala com `font-size` -- tudo la dentro esta em
+   `em` -- e por isso nao precisa de ficheiro nenhum para funcionar offline.
+
+   O CodePen usa jQuery so para trocar classes num clique; aqui isso e uma
+   linha de JS e o jQuery nao entra no projeto.                              */
+.tdnn {
+  flex: none;
+  /* 16em de altura: a 1.9px por em dao 30px, a mesma altura da pill ao lado. */
+  font-size: 1.9px;
+  position: relative;
+  height: 16em;
+  width: 30em;
+  border: 0;
+  padding: 0;
+  border-radius: 16em;
+  cursor: pointer;
+  transition: background 500ms ease-in-out;
+  background: #423966;
+}
+.tdnn.day { background: #FFBF71; }
+.tdnn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.tdnn .moon {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  transition: all 400ms ease-in-out;
+  top: 3em;
+  left: 3em;
+  transform: rotate(-75deg);
+  width: 10em;
+  height: 10em;
+  background: #423966;
+  box-shadow:
+    3em 2.5em 0 0em #D9FBFF inset,
+    rgba(255, 255, 255, .1) 0em -7em 0 -4.5em,
+    rgba(255, 255, 255, .1) 3em 7em 0 -4.5em,
+    rgba(255, 255, 255, .1) 2em 13em 0 -4em,
+    rgba(255, 255, 255, .1) 6em 2em 0 -4.1em,
+    rgba(255, 255, 255, .1) 8em 8em 0 -4.5em,
+    rgba(255, 255, 255, .1) 6em 13em 0 -4.5em,
+    rgba(255, 255, 255, .1) -4em 7em 0 -4.5em,
+    rgba(255, 255, 255, .1) -1em 10em 0 -4.5em;
+}
+.tdnn .moon.sun {
+  top: 4.5em;
+  left: 18em;
+  transform: rotate(0deg);
+  width: 7em;
+  height: 7em;
+  background: #fff;
+  box-shadow:
+    3em 3em 0 5em #fff inset,
+    0 -5em 0 -2.7em #fff,
+    3.5em -3.5em 0 -3em #fff,
+    5em 0 0 -2.7em #fff,
+    3.5em 3.5em 0 -3em #fff,
+    0 5em 0 -2.7em #fff,
+    -3.5em 3.5em 0 -3em #fff,
+    -5em 0 0 -2.7em #fff,
+    -3.5em -3.5em 0 -3em #fff;
+}
 .console-btn svg {
   width: 17px; height: 17px;
   fill: none; stroke: currentColor;
@@ -418,7 +580,7 @@ button, input, select, textarea {
   padding: 28px;
   border-radius: var(--r-lg);
   /* Slightly translucent so the model stays readable behind the panel. */
-  background: rgba(20, 20, 23, .88);
+  background: var(--glass);
   backdrop-filter: blur(24px) saturate(1.4);
   box-shadow: var(--shadow-3);
   overflow-y: auto;
@@ -447,7 +609,7 @@ button, input, select, textarea {
 }
 .transport:hover { background: var(--surface-2); }
 .transport.selected { background: var(--surface-2); }
-.transport.error { background: rgba(255, 69, 58, .1); }
+.transport.error { background: var(--fault-soft); }
 
 .selector {
   width: 20px; height: 20px; margin-top: 3px;
@@ -593,7 +755,7 @@ button, input, select, textarea {
   max-width: 340px;
   padding: 14px 16px;
   border-radius: var(--r-md);
-  background: rgba(20, 20, 23, .8);
+  background: var(--glass-soft);
   backdrop-filter: blur(18px);
 }
 .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
@@ -651,7 +813,7 @@ button, input, select, textarea {
 .ph-box .ph-title { font-size: 14px; color: var(--text-dim); }
 .ph-box .ph-path  { font-size: 12px; color: var(--text-mute); font-family: var(--mono); margin-top: 8px; line-height: 1.7; }
 .ph-box .ph-note  { font-size: 12.5px; color: var(--text-mute); margin-top: 12px; line-height: 1.5; max-width: 300px; }
-.ph-box.ph-warn { background: rgba(255, 214, 10, .07); }
+.ph-box.ph-warn { background: var(--warn-soft); }
 .ph-box.ph-warn .ph-title { color: var(--warn); }
 
 .view-reset {
@@ -662,7 +824,7 @@ button, input, select, textarea {
   padding: 9px 13px;
   border: 0;
   border-radius: var(--r-pill);
-  background: rgba(28, 28, 32, .82);
+  background: var(--glass-chip);
   backdrop-filter: blur(14px);
   color: var(--text-dim);
   font-size: 13px; font-weight: 600;
@@ -682,7 +844,10 @@ button, input, select, textarea {
   --hs: var(--idle);
   width: 14px; height: 14px; border-radius: 50%;
   border: 3px solid var(--hs);
-  background: #000;
+  /* Miolo da cor do fundo, para o anel de estado ler como anel e nao como
+     bola. Era #000 fixo, o que no tema claro dava um ponto preto no meio de
+     um modelo claro. */
+  background: var(--bg);
   padding: 0; cursor: pointer;
   transition: transform .2s var(--ease-out);
 }
@@ -699,7 +864,7 @@ button, input, select, textarea {
   white-space: nowrap;
   padding: 5px 10px;
   border-radius: var(--r-sm);
-  background: rgba(20, 20, 23, .92);
+  background: var(--glass-strong);
   backdrop-filter: blur(14px);
   box-shadow: var(--shadow-2);
   color: var(--text);
@@ -761,11 +926,19 @@ button, input, select, textarea {
 .hs-standoff[data-corner="bottom-left"]  { bottom: 22px; left: 24px; }
 
 /* The label reuses .hotspot-label's look, but is placed by its parent rather
-   than offset from a marker. */
+   than offset from a marker.
+
+   Twice the size of a marker label on purpose: this one is read from across the
+   room, parked in a corner away from the thing it names, with only a leader
+   line tying it back. The small type that works beside a marker disappears
+   here. */
 .hs-standoff .hotspot-label {
   position: static;
   transform: none;
   display: inline-block;
+  font-size: 24px;
+  padding: 10px 20px;
+  border-radius: var(--r-md);
 }
 .hs-standoff[data-sev="idle"]  .hotspot-label { color: var(--text-dim); }
 .hs-standoff[data-sev="warn"]  .hotspot-label { color: var(--warn); }
@@ -775,7 +948,7 @@ button, input, select, textarea {
 .hotspot-card {
   position: absolute; left: 22px; top: -12px;
   min-width: 156px;
-  background: rgba(20, 20, 23, .92);
+  background: var(--glass-strong);
   border-radius: var(--r-sm);
   padding: 10px 12px;
   backdrop-filter: blur(16px);
@@ -837,6 +1010,10 @@ button, input, select, textarea {
   transition: background .2s var(--ease), color .2s var(--ease);
 }
 .tab:hover { background: var(--surface); color: var(--text-dim); }
+/* Empurrado para a outra ponta da barra. Como esta `hidden` enquanto nenhum
+   segmento estiver escolhido, e `[hidden]` e `display:none`, nao deixa a
+   margem automatica a ocupar espaco quando nao ha nada para mostrar. */
+.tab.tab-end { margin-left: auto; }
 .tab.active { background: var(--surface-2); color: var(--text); }
 
 .dash-pages { position: relative; min-height: 0; }
@@ -1036,7 +1213,7 @@ button, input, select, textarea {
 /* Ligar/desligar famílias de anotações, canto superior direito do modelo. */
 .seg-toggles { position: absolute; right: 14px; top: 12px; display: flex; gap: 6px; }
 .seg-toggle {
-  background: rgba(20, 20, 23, .82);
+  background: var(--glass-chip);
   backdrop-filter: blur(12px);
   border: 0; color: var(--text-mute);
   border-radius: var(--r-sm);
@@ -1047,7 +1224,7 @@ button, input, select, textarea {
 }
 .seg-toggle:hover { color: var(--text-dim); }
 /* Ligado é o estado normal, por isso é o realçado. */
-.seg-toggle.on { color: var(--accent); background: rgba(255, 195, 0, .14); }
+.seg-toggle.on { color: var(--accent); background: var(--accent-soft); }
 
 /* Legenda por cima do modelo do segmento, canto inferior esquerdo. */
 .seg-legend {
@@ -1077,6 +1254,133 @@ button, input, select, textarea {
   overflow-wrap: anywhere;
   line-height: 1.35;
 }
+
+/* ── Configuração ───────────────────────────────────────────────────────
+   Segue o ecrã de ligação: linhas, não caixas. Quatro cartões lado a lado
+   obrigavam a varrer o ecrã na horizontal para ler uma lista; empilhados
+   lêem-se de cima a baixo, e as curvas ficam ao lado do número que as move. */
+.cfg-layout { padding: 16px 22px 24px; overflow-y: auto; min-height: 0; }
+.cfg-intro { max-width: 760px; margin-bottom: 18px; }
+.cfg-intro p { font-size: 13px; color: var(--text-dim); line-height: 1.55; }
+.cfg-intro p + p { margin-top: 6px; }
+
+.cfg-cols {
+  display: grid;
+  grid-template-columns: minmax(380px, 480px) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .cfg-cols { grid-template-columns: 1fr; }
+}
+
+.cfg-banner {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px;
+  padding: 12px 16px; border-radius: var(--r-md); margin-bottom: 14px;
+  font-size: 13px;
+}
+.cfg-banner b { font-size: 13.5px; }
+.cfg-banner-sub { color: var(--text-mute); font-size: 12.5px; }
+.cfg-banner.lock { background: var(--fault-soft); box-shadow: inset 3px 0 0 var(--fault); }
+.cfg-banner.lock b { color: var(--fault); }
+.cfg-banner.warn { background: var(--warn-soft); box-shadow: inset 3px 0 0 var(--warn); }
+.cfg-banner.warn b { color: var(--warn); }
+
+/* Uma secção abaixo da outra, separadas por um título e uma hairline. */
+.cfg-sections { display: flex; flex-direction: column; }
+.cfg-card { padding: 0 0 6px; }
+.cfg-card + .cfg-card { margin-top: 22px; padding-top: 18px; box-shadow: inset 0 1px 0 var(--line-soft); }
+.cfg-card.is-future { opacity: .55; }
+.cfg-note { font-size: 12.5px; color: var(--text-mute); line-height: 1.5; margin-top: 6px; max-width: 62ch; }
+
+.cfg-grid { display: flex; flex-direction: column; margin-top: 10px; }
+
+/* A linha de definição, com o mesmo comportamento das linhas de transporte:
+   fundo só ao passar por cima. */
+.cfg-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 16px;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: var(--r-md);
+  transition: background .18s var(--ease);
+}
+.cfg-field:hover { background: var(--surface-2); }
+.cfg-k { font-size: 13px; }
+.cfg-input { display: inline-flex; align-items: baseline; gap: 7px; }
+.cfg-input input {
+  width: 104px; text-align: right;
+  background: var(--surface-3); border: 0; color: var(--text);
+  border-radius: var(--r-sm); padding: 8px 10px;
+  font-family: var(--mono); font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: box-shadow .18s var(--ease);
+}
+.cfg-input input:focus { box-shadow: 0 0 0 2px var(--accent); }
+.cfg-input input:disabled { opacity: .5; cursor: not-allowed; }
+.cfg-input input.invalid { box-shadow: 0 0 0 2px var(--fault); }
+.cfg-unit { font-size: 11.5px; color: var(--text-mute); min-width: 34px; }
+.cfg-help {
+  grid-column: 1 / -1;
+  font-size: 11.5px; color: var(--text-mute); line-height: 1.45;
+  padding-right: 130px;
+}
+
+/* Curvas: gráfico por cima, tabela de pontos por baixo quando é editável. */
+.cfg-curves { display: flex; flex-direction: column; gap: 16px; }
+.curve-card {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: 14px 16px 16px;
+}
+.curve-card + .curve-card { margin-top: 0; padding-top: 14px; box-shadow: none; }
+.curve-canvas { position: relative; height: 220px; margin-top: 10px; }
+.curve-canvas canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* A tabela de pontos mostra-se INTEIRA, sem rolar. Rolava dentro de 190 px e
+   deixava 4 dos 12 pontos à vista: quem olhava via um gráfico com doze
+   marcas e uma tabela com quatro linhas, e concluía que discordavam. As
+   linhas são compactas para os doze pontos caberem ao lado do gráfico. */
+.curve-table { margin-top: 12px; }
+.curve-table .vtable { width: 100%; }
+.curve-table th { padding: 5px 4px; }
+.curve-table td { padding: 2px 4px; }
+.curve-table input {
+  width: 100%; min-width: 62px; text-align: right;
+  background: var(--surface-2); border: 0; color: var(--text);
+  border-radius: var(--r-sm); padding: 3px 7px;
+  font-family: var(--mono); font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.curve-table input:focus { box-shadow: 0 0 0 2px var(--accent); }
+.curve-table input:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Controlos do ajuste: grau, numero de linhas e o erro que dai resulta. */
+.fit-bar {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+.fit-field { display: flex; align-items: center; gap: 8px; }
+.fit-field span { font-size: 12px; color: var(--text-dim); }
+.fit-field input {
+  width: 58px; text-align: right;
+  background: var(--surface-2); border: 0; color: var(--text);
+  border-radius: var(--r-sm); padding: 4px 7px;
+  font-family: var(--mono); font-size: 12px; outline: none;
+}
+.fit-field input:focus { box-shadow: 0 0 0 2px var(--accent); }
+.fit-field input:disabled { opacity: .5; cursor: not-allowed; }
+.fit-quality {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 11px; color: var(--text-mute);
+}
+/* Nao monotona nao e um aviso de estilo: a estimativa de SOC inverte esta
+   curva, e uma curva que sobe e desce nao tem inversa. */
+.fit-quality.bad { color: var(--fault); }
 
 /* ── Comandos ─────────────────────────────────────────────────────────────
    A única parte da app que sai para o hardware. Fica visualmente sóbria de
@@ -1109,7 +1413,7 @@ button, input, select, textarea {
 .cmd-confirm {
   position: fixed; inset: 0; z-index: 200;
   display: grid; place-items: center;
-  background: rgba(0, 0, 0, .62);
+  background: var(--scrim);
   backdrop-filter: blur(3px);
 }
 .cmd-dialog {
@@ -1123,7 +1427,7 @@ button, input, select, textarea {
 .cmd-dialog h3 { font-size: 17px; }
 .cmd-danger-tag {
   padding: 2px 8px; border-radius: var(--r-pill);
-  background: rgba(255, 69, 58, .16); color: var(--fault);
+  background: var(--fault-soft); color: var(--fault);
   font-size: 11px; font-weight: 600; letter-spacing: .02em;
 }
 .cmd-detail { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-top: 10px; }
@@ -1250,7 +1554,7 @@ button, input, select, textarea {
 .cell.open-wire {
   box-shadow: inset 0 0 0 1.5px var(--fault);
   background-image: repeating-linear-gradient(
-    45deg, transparent 0 2px, rgba(255, 255, 255, .35) 2px 3px);
+    45deg, transparent 0 2px, var(--hatch) 2px 3px);
 }
 
 /* Pack-wide balancing. The AMS publishes no per-cell discharge status, so this
@@ -1258,7 +1562,7 @@ button, input, select, textarea {
 .bal-badge {
   padding: 2px 8px;
   border-radius: var(--r-pill);
-  background: rgba(255, 195, 0, .14);
+  background: var(--accent-soft);
   color: var(--accent);
   font-size: 11.5px; font-weight: 600;
   letter-spacing: .01em;

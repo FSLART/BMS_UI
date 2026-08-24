@@ -186,6 +186,16 @@ class T26Decoder:
         silently wrong, which is far worse than not decoding at all — so it is
         said out loud, in the console, once per connection.
         """
+        # Diferencas ja explicadas, que nao sao defeito. Se a unica coisa que
+        # separa um bloco dos irmaos for um destes sinais, o bloco esta certo:
+        # o over/undervoltage por modulo e configuracao do BMS, nao uma medida
+        # que cada mensagem tenha de trazer, e por isso so os slaves 1 e 2 o
+        # declaram. Nao entra em `UniversalBmsState` -- ver DBC_T26.md.
+        expected_extra = {
+            "MSC_ID_2": {"module_overvoltage", "module_undervoltage",
+                         "module_under_over_identifier"},
+        }
+
         kinds = ("Voltage_ID_1", "Voltage_ID_2", "Voltage_ID_3",
                  "Temperature_ID_1", "Temperature_ID_2", "MSC_ID_1", "MSC_ID_2")
         for kind in kinds:
@@ -201,7 +211,20 @@ class T26Decoder:
                 continue
             # The layout most slaves share is the reference; the rest are odd.
             ordered = sorted(layouts.items(), key=lambda kv: len(kv[1]), reverse=True)
-            odd = [n for _, slaves in ordered[1:] for n in slaves]
+            ref_names = {name for name, *_ in ordered[0][0]}
+            allowed = expected_extra.get(kind, set())
+            odd = []
+            for key, slaves in ordered[1:]:
+                names = {name for name, *_ in key}
+                # So conta como defeito o que nao seja um sinal a mais dos que
+                # ja se sabe que uns blocos trazem e outros nao: se um campo
+                # mudar de sitio ou de escala, a diferenca aparece na mesma.
+                shared = {t for t in key if t[0] in ref_names}
+                moved = shared - set(ordered[0][0])
+                if moved or (names ^ ref_names) - allowed:
+                    odd += slaves
+            if not odd:
+                continue
             log.warning(
                 "DBC inconsistente em %s: slaves %s diferem dos restantes - "
                 "esses valores vao descodificar mal",
@@ -451,11 +474,11 @@ class T26Decoder:
             current = ivt_ma / 1000.0
 
         # --- pack voltage: IVT, else the cell voltages added up --------------
-        # Not the sum of `module_voltage_sum`, even though that looks like the
-        # obvious shortcut: Slave_10_MSC_ID_1 declares its four fields as 8-bit
-        # instead of 16-bit in the DBC, so slave 10's module total decodes to at
-        # most 0.255 V and the sum comes out ~46 V short. The per-cell voltages
-        # are unaffected and add up to the same number.
+        # Not the sum of `module_voltage_sum`. That shortcut once came out ~46 V
+        # short because Slave_10_MSC_ID_1 declared its fields 8-bit instead of
+        # 16-bit; the DBC has been fixed, but adding the cells is the safer
+        # source either way -- a widened field in one of twelve blocks decodes
+        # silently wrong, while a missing cell voltage is visible.
         voltage = None
         ivt_mv = s("IVT_Result_U1")
         if ivt_mv is not None:
@@ -643,7 +666,7 @@ class T26Decoder:
             if c.open_wire:
                 active.append((
                     f"OPEN_WIRE_{c.slave}_{c.slave_channel}", Severity.FAULT,
-                    f"Fio de medicao solto: slave {c.slave}, celula {c.slave_channel}",
+                    f"Openwire: fio de medicao solto no slave {c.slave}, celula {c.slave_channel}",
                 ))
 
         # Without the shunt there is no current, no power and no coulomb count.
@@ -665,12 +688,14 @@ class T26Decoder:
             if self.slave_ts[si] and (now - self.slave_ts[si]) > AMS_TIMEOUT_S:
                 active.append((f"SLAVE_{si + 1}_MUTE", Severity.FAULT,
                                f"Slave {si + 1} sem transmitir"))
-            if self.module[si].get("module_overvoltage"):
-                active.append((f"SLAVE_{si + 1}_OV", Severity.FAULT,
-                               f"Sobretensao no slave {si + 1}"))
-            if self.module[si].get("module_undervoltage"):
-                active.append((f"SLAVE_{si + 1}_UV", Severity.FAULT,
-                               f"Subtensao no slave {si + 1}"))
+        # Sobre e subtensao por modulo NAO sao lidas daqui. So os slaves 1 e 2
+        # declaram `module_overvoltage`/`module_undervoltage` na DBC, e vai
+        # continuar assim: sao configuracao do BMS, nao uma medida que cada
+        # mensagem tenha de trazer. Levantar a falha com esses dois bits daria
+        # uma lista onde 2 dos 12 modulos podem avisar e os outros 10 nunca --
+        # pior do que nao avisar nenhum, porque parece cobertura. A sobre e
+        # subtensao real chega pelas falhas do master e pelos limites de
+        # celula, que valem para o pack todo.
 
         for label in charger.faults:
             active.append((f"CHARGER:{label}", Severity.FAULT, label))
@@ -678,7 +703,7 @@ class T26Decoder:
         known = {f.code for f in self._faults}
         for code, sev, msg in active:
             if code not in known:
-                # Anotar já: os dois slots de falta do master podem trazer o
+                # Anotar já: os dois slots de falha do master podem trazer o
                 # mesmo codigo na mesma passagem, e sem isto entrava duas vezes.
                 known.add(code)
                 self._faults.insert(0, Fault(code=code, severity=sev, message=msg, latched=True))

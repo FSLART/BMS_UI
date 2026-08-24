@@ -28,7 +28,7 @@ mantém a cache atualizada para o dia em que não houver.
 
 ## Slaves
 
-12 slaves, 2 por segmento, 12 grupos série cada. Blocos de **7 mensagens**,
+12 slaves, 2 por segmento, 12 paralelos cada. Blocos de **7 mensagens**,
 base `1536` (`0x600`), passo 7. IDs `1536`–`1619`.
 
 ```
@@ -42,8 +42,9 @@ slave_base(n) = 1536 + (n - 1) * 7        # n = 1..12
 +5  Slave_nn_MSC_ID_1          module_voltage_sum / avg / min / max
 +6  Slave_nn_MSC_ID_2          module_voltage_delta, module_ic_voltage,
                                module_open_wire (8b), module_ic_temperature,
-                               module_overvoltage (1b), module_undervoltage (1b),
-                               module_under_over_identifier (5b)
+                               [so slaves 1 e 2, nao usados: module_overvoltage
+                                (1b), module_undervoltage (1b),
+                                module_under_over_identifier (5b)]
 ```
 
 Todos little-endian sem sinal (`@1+`).
@@ -52,10 +53,10 @@ Todos little-endian sem sinal (`@1+`).
 
 ```
 segmento       = (n - 1) // slaves_per_segment + 1      # 2 slaves por segmento
-grupo_no_seg   = ((n - 1) % slaves_per_segment) * cells_per_slave + canal
+paralelo_no_seg= ((n - 1) % slaves_per_segment) * cells_per_slave + canal
 ```
 
-Com `slaves_per_segment=2` e `cells_per_slave=12`: o slave 1 cobre os grupos
+Com `slaves_per_segment=2` e `cells_per_slave=12`: o slave 1 cobre os paralelos
 1–12 do segmento 1, o slave 2 cobre 13–24, o slave 3 abre o segmento 2, etc.
 
 ## Master
@@ -101,28 +102,42 @@ regeneração**. É essa a regra em `BmsState.charging`.
   [lart_bms](https://github.com/FSLART/lart_bms/tree/beta-v2.1). Ainda por cima
   o firmware calcula-o como float com sinal e a DBC declara-o `unsigned`, por
   isso valores negativos dão a volta. Se o IVT estiver calado, a corrente é
-  desconhecida e é isso que se mostra, mais uma falta `IVT_MUTE`.
+  desconhecida e é isso que se mostra, mais uma falha `IVT_MUTE`.
 - **`pack.voltage` de reserva é a soma das tensões de célula**, não a soma de
-  `module_voltage_sum` — ver o defeito do slave 10 abaixo.
-- **A temperatura por célula fica vazia.** São 6 NTC por slave contra 12 grupos,
-  e o mapeamento NTC → grupo é um facto de hardware que este código não tem. As
+  `module_voltage_sum`. Uma largura errada num dos doze blocos passa
+  despercebida (foi o que aconteceu com o slave 10); uma tensão de célula em
+  falta vê-se.
+- **A temperatura por célula fica vazia.** São 6 NTC por slave contra 12 paralelos,
+  e o mapeamento NTC → paralelo é um facto de hardware que este código não tem. As
   temperaturas são reportadas por termístor, onde são verdadeiras.
 - **NTC avariados** (`CarProfile.broken_thermistors`, hoje `3:3` e `3:4`) são
   reportados sem leitura, em vez de repetirem o valor do vizinho como a bridge
   do Foxglove fazia. O UI já sabe mostrar "sem dados"; um número inventado não
   se distingue de um verdadeiro.
 
-## Defeitos conhecidos na DBC
+## Auditoria da DBC
 
-O descodificador audita os 12 blocos de slave no arranque e avisa na consola.
-Hoje encontra dois:
+O descodificador compara os 12 blocos de slave no arranque e avisa na consola
+onde a DBC discorda de si própria — campos com largura, posição ou escala
+diferentes entre blocos que correm o mesmo firmware. Esses descodificam
+silenciosamente errado, que é pior do que não descodificar.
 
-- **`Slave_10_MSC_ID_1` (ID 1604): os quatro campos estão declarados a 8 bits
-  em vez de 16.** `module_voltage_sum` do slave 10 descodifica para 0,255 V no
-  máximo. Corrigir no repositório da DBC.
-- **`Slave_03..12_MSC_ID_2` não têm `module_overvoltage`,
-  `module_undervoltage` nem `module_under_over_identifier`** — só os slaves 1 e
-  2 os declaram. As faltas de OV/UV por módulo só funcionam nesses dois.
+**Hoje não encontra nada.** O único defeito que havia — `Slave_10_MSC_ID_1`
+(ID 1604) com os quatro campos a 8 bits em vez de 16, que punha o total do
+slave 10 num máximo de 0,255 V — está corrigido no repositório da DBC
+(`103ffb0`) e a cópia em `backend/dbc/` foi atualizada.
+
+### Diferença que não é defeito
+
+`module_overvoltage`, `module_undervoltage` e `module_under_over_identifier`
+só existem nos slaves 1 e 2. **Fica assim de propósito**: são configuração do
+BMS, não uma medida que cada mensagem tenha de trazer.
+
+A auditoria sabe disso e não avisa — mas continua a avisar se algum destes
+campos mudar de sítio ou de escala. Os três não são lidos: levantar uma falha
+com dois bits de doze módulos daria uma lista onde 2 podem avisar e 10 nunca,
+o que parece cobertura sem ser. A sobre e subtensão real vem das falhas do
+master e dos limites de célula, que valem para o pack todo.
 
 ## Dois barramentos, não um
 
@@ -150,8 +165,8 @@ descodificador passar a lê-las em vez de as inferir.
 
 | Bitmask | O que substitui hoje | Onde ligar |
 |---|---|---|
-| Células em fio aberto | dedução por tensão `< v_open_wire` em `_build_cells` | pôr `open_wire` a partir do bit, e deixar o limiar só como reserva |
-| NTC em fio aberto | nada — hoje um NTC solto passa por leitura válida | `_build_thermistors`, marcar `status=UNKNOWN` e `temperature=None` |
+| Células em openwire | dedução por tensão `< v_open_wire` em `_build_cells` | pôr `open_wire` a partir do bit, e deixar o limite só como reserva |
+| NTC em openwire | nada — hoje um NTC solto passa por leitura válida | `_build_thermistors`, marcar `status=UNKNOWN` e `temperature=None` |
 | Células em balanceamento | `master_state == BALANCING` aplicado ao pack inteiro | `_balancing` deixa de ser global; `Cell.balancing` vem do bit |
 
 A interface não precisa de alteração nenhuma para o balanceamento: já decide
@@ -165,8 +180,8 @@ descarregar. Ver `_paintCells` em `frontend/js/dashboard.js`.
   montado ao contrário, inverter num sítio só (`_build_pack`).
 - O último slave da cadeia ADBMS6830 emite o sentinela `0x8000`, que descodifica
   como ≈ −3,42 V. O firmware mitiga com valor absoluto e trata `< 2,30 V` como
-  fio aberto. Os limites em `CellLimits` usam `v_min = 2,50`, portanto uma
-  leitura de fio aberto aparece aqui como subtensão — que manda alguém procurar
+  openwire. Os limites em `CellLimits` usam `v_min = 2,50`, portanto uma
+  leitura de openwire aparece aqui como subtensão — que manda alguém procurar
   o problema errado.
 
 **Confirmado no firmware:** `BMS_ChargingRequest.Control` é `0 = carregar`,

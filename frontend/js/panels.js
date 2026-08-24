@@ -6,25 +6,36 @@
  * DOM because they are text you want to select and search.
  */
 
-const COL = {
-  ok: '#32D74B',
-  warn: '#FFD60A',
-  fault: '#FF453A',
-  max: '#FF453A',
-  min: '#0A84FF',
-  empty: 'rgba(120,120,128,0.16)',
-  grid: 'rgba(255,255,255,0.07)',
-  axis: 'rgba(255,255,255,0.16)',
-  text: '#94949E',
-  textBright: '#C4C4CC',
-};
-
 const FONT = '11px "JetBrains Mono", ui-monospace, monospace';
 
 function css(name, fallback) {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
 }
+
+/**
+ * Cores lidas do CSS a cada uso, para os dois temas.
+ *
+ * Eram literais. Um canvas nao herda cor nenhuma, portanto valores fixos aqui
+ * davam graficos escuros dentro de uma pagina clara. O Proxy deixa `COL.fault`
+ * escrito como estava em todo o ficheiro.
+ */
+const TOKENS = {
+  ok: ['--ok', '#32D74B'],
+  warn: ['--warn', '#FFD60A'],
+  fault: ['--fault', '#FF453A'],
+  max: ['--fault', '#FF453A'],
+  min: ['--c-blue', '#0A84FF'],
+  empty: ['--c-empty', 'rgba(120,120,128,0.16)'],
+  grid: ['--c-gridline', 'rgba(255,255,255,0.07)'],
+  axis: ['--c-axis', 'rgba(255,255,255,0.16)'],
+  text: ['--text-mute', '#94949E'],
+  textBright: ['--text-dim', '#C4C4CC'],
+};
+
+const COL = new Proxy({}, {
+  get: (_, k) => (TOKENS[k] ? css(TOKENS[k][0], TOKENS[k][1]) : undefined),
+});
 
 /**
  * Bars grouped by SEGMENT -- the unit the pack is actually built and serviced

@@ -96,8 +96,8 @@ class ConnectionManager:
         await self.disconnect()
         self.car = car
         log.info(
-            "Carro selecionado: %s - %s: %d segmentos x %d grupos serie x %dp "
-            "= %d celulas%s | %d slaves (%d grupos cada) | %.1f Ah | %.1f V nominal",
+            "Carro selecionado: %s - %s: %d segmentos x %d paralelos x %dp "
+            "= %d celulas%s | %d slaves (%d paralelos cada) | %.1f Ah | %.1f V nominal",
             car.name, car.topology, car.n_segments, car.cells_per_segment,
             car.parallel_strings, car.total_cells,
             f" {car.cell_model}" if car.cell_model else "",

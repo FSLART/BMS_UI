@@ -286,7 +286,7 @@ STALE_AFTER_S = 2.0
 # ---------------------------------------------------------------------------
 # Thresholds. Single place where "is this value bad" is decided, so the 3D
 # hotspots, the cell grid and the fault list can never disagree. The actual
-# numbers come from the active car profile (backend/cars.py -> CellLimits).
+# numbers come from the active car profile (backend/cars/ -> CellLimits).
 # ---------------------------------------------------------------------------
 
 def classify_cell(voltage: float, temperature: float | None, limits) -> Severity:

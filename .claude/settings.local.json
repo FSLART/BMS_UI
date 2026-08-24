@@ -80,7 +80,23 @@
       "Bash(python -c \"import backend.decode.t26; print\\('ok'\\)\")",
       "Bash(taskkill //F //PID 677496)",
       "Bash(python add_fan_anim.py)",
-      "Bash(npx --yes @gltf-transform/cli@4 inspect \"C:/Users/jpser/Documents/GitHub/BMS_UI/frontend/models/tek26e_closed.glb\")"
+      "Bash(npx --yes @gltf-transform/cli@4 inspect \"C:/Users/jpser/Documents/GitHub/BMS_UI/frontend/models/tek26e_closed.glb\")",
+      "Bash(node --input-type=module -e \"import\\('./frontend/js/bms-settings.js'\\).then\\(m=>console.log\\('secoes',m.SECTIONS.length,'curvas',m.CURVES.length\\)\\).catch\\(e=>console.log\\('ERRO',e.message\\)\\)\")",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(echo \"rc=$?\")",
+      "Bash(mkdir -p compile)",
+      "Bash(mv build *)",
+      "Bash(git rm *)",
+      "Bash(python -c \"import backend.cars, compile\")",
+      "Bash(xargs -I{} sh -c 'printf \"%7.1f MB %s\\\\n\" $\\(du -m \"{}\" | cut -f1\\) \"{}\"')",
+      "Bash(cp \"C:/Users/jpser/Documents/GitHub/T26_DBC/powertrain_t26.dbc\" backend/dbc/powertrain_t26.dbc)",
+      "Bash(cd \"C:/Users/jpser/Documents/GitHub/BMS_UI\" && rm -f frontend/models/*.glb.pre-anim && ls frontend/models/)",
+      "Bash(grep -vc \"^$\")",
+      "Bash(node --input-type=module -e \"import\\('file:///C:/Users/jpser/Documents/GitHub/BMS_UI/frontend/js/bms-settings.js'\\).catch\\(e=>{console.log\\('ERRO:', e.message\\)}\\)\")",
+      "Bash(grep -n \"#[0-9a-fA-F]\\\\{3,8\\\\}\\\\b\" frontend/css/app.css)",
+      "Bash(grep -c \"#[0-9a-fA-F]\\\\{3,8\\\\}\" frontend/css/app.css)",
+      "Bash(node --check frontend/js/theme.js)",
+      "Bash(node --check frontend/js/main.js)"
     ]
   }
 }

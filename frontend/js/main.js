@@ -4,9 +4,16 @@ import { LogConsole } from './console.js';
 import { ConnectScreen } from './connect.js';
 import { Dashboard } from './dashboard.js';
 import { Preloader } from './preload.js';
+import * as theme from './theme.js';
 import { Viewer } from './viewer.js';
 
 const $ = (id) => document.getElementById(id);
+
+// Tema antes de tudo o resto: o splash e a primeira coisa a aparecer, e aplicar
+// depois dava um piscar de escuro para claro em cada arranque. Arranca no tema
+// do sistema, a nao ser que alguem ja tenha escolhido no botao.
+theme.apply(theme.initial(), { announce: false });
+theme.mount();
 
 const screens = {
   loading: $('screen-loading'),
@@ -84,6 +91,9 @@ const carScreen = new CarScreen($('car-grid'), {
     currentCar = car;
     // Rebuilds the transport rows: the CAN bus list belongs to this car.
     await connectScreen.setCar(car);
+    // Perfil completo, com limites e capacidade -- o CarMeta que vem no estado
+    // so traz o que a vista 3D precisa.
+    dashboard.config.setCar(car);
     $('connect-car').textContent = car.name;
     $('dash-car').textContent = car.name;
     const models = {
@@ -103,6 +113,10 @@ const carScreen = new CarScreen($('car-grid'), {
     showScreen('connect');
   },
 });
+
+// Trocar o tema muda variaveis CSS, e a pagina segue sozinha. Os canvas nao:
+// pintam pixeis e ficariam com a paleta anterior ate ao proximo estado.
+window.addEventListener('bms:theme', () => dashboard.repaint());
 
 $('btn-reset-view').addEventListener('click', () => dashViewer.resetCamera());
 $('btn-reset-segment').addEventListener('click', () => segmentViewer.resetCamera());
@@ -169,7 +183,7 @@ logConsole.onCaptureView = async () => {
   const got = currentViewer().captureView();
   if (!got) return logConsole.note('Sem modelo carregado nesta vista.', 'WARNING');
   try { await navigator.clipboard.writeText(got.snippet); } catch { /* clipboard may be blocked */ }
-  logConsole.note(`${got.snippet}   [copiado — colar em backend/cars.py]`);
+  logConsole.note(`${got.snippet}   [copiado — colar no perfil do carro (backend/cars/)]`);
 };
 
 let picking = false;

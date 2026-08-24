@@ -21,7 +21,7 @@ const DEFAULT_MODELS = {
 
 /**
  * Fallback framing, used only when the car profile does not define a view.
- * The real values live per car in backend/cars.py (`view_closed` / `view_open`)
+ * The real values live per car in backend/cars/ (`view_closed` / `view_open`)
  * because they depend on that car's geometry, not on the viewer.
  *
  * Empty orbit means "let model-viewer frame the model itself".
@@ -580,7 +580,7 @@ export class Viewer {
   }
 
   /**
-   * Anchors declared by the car profile (backend/cars.py -> hotspots), filtered
+   * Anchors declared by the car profile (backend/cars/ -> hotspots), filtered
    * to the view they belong to. Anchors are computed from GLB node bounds, so
    * they follow the geometry rather than being clicked in an editor.
    */

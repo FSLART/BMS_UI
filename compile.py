@@ -5,7 +5,14 @@
     python compile.py --console      # deixa a consola aberta, para ver erros de arranque
     python compile.py --keep         # nao limpa build/ antes (mais rapido a iterar)
 
-O resultado fica em `dist/`.
+Tudo o que a compilacao gera fica em `compile/`, fora do codigo:
+
+    compile/dist/BMS_UI.exe    o executavel a distribuir
+    compile/build/             ficheiros intermedios do PyInstaller
+    compile/BMS_UI.spec        a receita gerada
+
+A pasta inteira e descartavel: apagar `compile/` nao perde nada que este
+script nao volte a gerar.
 
 Ao contrario de um script solto, esta app leva dados atras: o frontend inteiro
 (HTML, CSS, JS, fontes, imagens e os GLB), as DBCs incluidas e o icone. Todos
@@ -27,10 +34,18 @@ NAME = "BMS_UI"
 ENTRY = ROOT / "app.py"
 ICON = ROOT / "frontend" / "pics" / "lart.ico"
 
-# Pastas levadas inteiras. `frontend/models` NAO esta aqui de proposito: os
-# exports crus do CAD vivem la ao lado dos otimizados (o tek26e_open.glb tem
-# 223 MB e nao e usado por nenhum carro), e leva-los duplicaria o executavel.
-# Os modelos vao um a um, escolhidos pelos perfis -- ver model_files().
+# Tudo o que a compilacao produz fica aqui dentro, para nao ficar misturado com
+# o codigo na raiz do projeto. O PyInstaller aceita as tres pastas separadas:
+# --distpath (o resultado), --workpath (intermedios) e --specpath (a receita).
+OUT = ROOT / "compile"
+DIST = OUT / "dist"
+WORK = OUT / "build"
+
+# Pastas levadas inteiras. `frontend/models` NAO esta aqui de proposito: ao
+# lado dos GLB usados vivem copias de trabalho (os `.pre-anim`, de antes de a
+# animacao das ventoinhas ser gravada no modelo), e leva-las duplicaria os
+# 30 MB de 3D dentro do executavel. Os modelos vao um a um, escolhidos pelos
+# perfis -- ver model_files().
 DATA = [
     ("frontend/css", "frontend/css"),
     ("frontend/js", "frontend/js"),
@@ -41,7 +56,6 @@ DATA = [
 
 FILES = [
     ("frontend/index.html", "frontend"),
-    ("frontend/models/seguemento.glb", "frontend/models"),
 ]
 
 
@@ -49,7 +63,10 @@ def model_files() -> list[tuple[str, str]]:
     """Os GLB que algum carro disponivel referencia, e mais nenhum.
 
     Lido dos perfis para nao haver uma segunda lista a envelhecer: um carro
-    novo traz os seus modelos para dentro da build sem tocar aqui.
+    novo traz os seus modelos para dentro da build sem tocar aqui. Sao os
+    quatro campos de modelo do perfil -- fechado, aberto, no carregador e o
+    segmento generico -- porque falta qualquer um deles e essa vista fica em
+    placeholder sem dizer porque.
     """
     sys.path.insert(0, str(ROOT))
     from backend.cars import CARS
@@ -59,7 +76,8 @@ def model_files() -> list[tuple[str, str]]:
     for car in CARS:
         if not car.available:
             continue
-        for ref in (car.model_closed, car.model_open):
+        for ref in (car.model_closed, car.model_open,
+                    car.model_charger, car.model_segment):
             # Os perfis guardam caminhos servidos ("/models/x.glb").
             rel = f"frontend{ref}" if ref.startswith("/") else ref
             if not ref or rel in seen:
@@ -120,6 +138,9 @@ def build_command(onefile: bool, console: bool) -> list[str]:
         "--console" if console else "--windowed",
         "--name", NAME,
         "--icon", str(ICON),
+        "--distpath", str(DIST),
+        "--workpath", str(WORK),
+        "--specpath", str(OUT),
     ]
     for src, dest in DATA + FILES + model_files():
         cmd += ["--add-data", f"{ROOT / src}{sep}{dest}"]
@@ -154,10 +175,9 @@ def main() -> int:
         return 1
 
     if not args.keep:
-        for d in ("build", "dist"):
-            shutil.rmtree(ROOT / d, ignore_errors=True)
-        (ROOT / f"{NAME}.spec").unlink(missing_ok=True)
-        print("build/ e dist/ apagados")
+        shutil.rmtree(OUT, ignore_errors=True)
+        print(f"{OUT.name}/ apagado")
+    OUT.mkdir(exist_ok=True)
 
     cmd = build_command(onefile=not args.onedir, console=args.console)
     print(" ".join(cmd), "\n")
@@ -168,12 +188,17 @@ def main() -> int:
         print(f"\nPyInstaller falhou (codigo {result.returncode})")
         return result.returncode
 
-    out = ROOT / "dist" / (f"{NAME}.exe" if sys.platform.startswith("win") else NAME)
-    if not args.onedir and out.is_file():
+    exe = f"{NAME}.exe" if sys.platform.startswith("win") else NAME
+    out = DIST / exe if not args.onedir else DIST / NAME / exe
+    took = time.time() - started
+    if out.is_file():
         size = out.stat().st_size / 1048576
-        print(f"\nPronto em {time.time() - started:.0f}s -> {out}  ({size:.0f} MB)")
+        print(f"\nPronto em {took:.0f}s -> {out}  ({size:.0f} MB)")
     else:
-        print(f"\nPronto em {time.time() - started:.0f}s -> {ROOT / 'dist' / NAME}")
+        # Nao devia acontecer com returncode 0, mas se acontecer e melhor
+        # dizer que nao se sabe onde esta do que apontar para um caminho falso.
+        print(f"\nPyInstaller acabou em {took:.0f}s mas {out} nao existe")
+        return 1
 
     print(
         "\nAntes de distribuir, abre o executavel e confirma:\n"

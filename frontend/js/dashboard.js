@@ -1,5 +1,6 @@
 import { Sparkline } from './chart.js';
 import { Commands } from './commands.js';
+import { ConfigPage } from './config.js';
 import { GroupedBarChart, ValueTable } from './panels.js';
 
 const $ = (id) => document.getElementById(id);
@@ -36,11 +37,23 @@ const SAFETY_LABELS = {
  * voltage; warn and fault break out into amber and red. The three states match
  * the legend under the grid and the --ok/--warn/--fault tokens in the CSS.
  */
-export function cellColor(v, sev) {
-  if (sev === 'fault') return '#8E2020';
-  if (sev === 'warn') return '#8A5310';
-  const t = Math.max(0, Math.min(1, (v - 3.0) / (4.15 - 3.0)));
-  const stops = [
+export function cellColor(v, sev, lo = 3.0, hi = 4.15) {
+  const light = document.documentElement.dataset.theme === 'light';
+  if (sev === 'fault') return light ? '#F3C0BC' : '#8E2020';
+  if (sev === 'warn') return light ? '#F6DCA8' : '#8A5310';
+  // A rampa vai do aviso de baixa ao de alta, que sao os limites configurados
+  // -- estavam aqui em numeros fixos e discordavam do resto da aplicacao.
+  const t = Math.max(0, Math.min(1, (v - lo) / ((hi - lo) || 1)));
+  // No tema claro a rampa inverte o sentido do brilho: escurece a subir, em vez
+  // de clarear. Manter a rampa escura sobre fundo branco dava uma grelha de
+  // blocos pesados, e a celula mais carregada -- a que se quer notar -- era a
+  // que menos contrastava com o fundo.
+  const stops = light ? [
+    [0.0, [206, 233, 216]],
+    [0.45, [166, 216, 187]],
+    [0.75, [110, 189, 148]],
+    [1.0, [46, 158, 110]],
+  ] : [
     [0.0, [20, 56, 42]],
     [0.45, [24, 84, 60]],
     [0.75, [32, 118, 84]],
@@ -65,6 +78,10 @@ export class Dashboard {
     this.cellEls = [];
     this.segEls = [];
     this.commands = new Commands($('cmd-list'));
+    // A pagina de configuracao manda nos limites que a interface desenha.
+    this.config = new ConfigPage($('cfg-sections'), {
+      onChange: () => this._applyConfig(),
+    });
     // Same machinery, filtered: on the charging page only the charging command
     // makes sense, and it is where someone standing at the handcart is looking.
     this.chargeCommands = new Commands($('chg-cmd-list'), { only: ['charging'] });
@@ -114,6 +131,47 @@ export class Dashboard {
     });
   }
 
+  /**
+   * Push the configured limits into everything the interface draws itself.
+   *
+   * These numbers used to be written three times -- in cellColor, in the two
+   * bar charts, and in the car profile -- and drifted apart. Now the config
+   * page is the one place, and this is where it lands.
+   */
+  _applyConfig() {
+    const l = this.config.limits();
+    if (l.v_min == null) return;
+    Object.assign(this.vChart.scale, {
+      // Um pouco de folga para lá dos limites, senão uma célula em falta fica
+      // encostada ao topo do gráfico e não se vê o quanto passou.
+      min: Math.min(l.v_min - 0.3, 2.5),
+      max: Math.max(l.v_max + 0.1, 4.3),
+      warnLow: l.v_warn_low,
+      warnHigh: l.v_warn_high,
+    });
+    Object.assign(this.tChart.scale, {
+      warnAt: l.temp_warn,
+      max: Math.max(l.temp_fault + 10, 70),
+    });
+    if (this.page === 'cells') {
+      this.vChart.draw();
+      this.tChart.draw();
+    }
+  }
+
+  /**
+   * Repinta o que e desenhado em canvas depois de o tema mudar.
+   *
+   * Os canvas nao herdam cor: ficariam com a paleta antiga ate ao proximo
+   * estado -- ou para sempre, se a ligacao estiver parada ou a pagina aberta
+   * for a de configuracao, que nao recebe estado nenhum.
+   */
+  repaint() {
+    for (const c of [this.vChart, this.tChart]) c?.draw();
+    this.config?.refresh();
+    if (this._last) this.update(this._last);
+  }
+
   showPage(name) {
     this.page = name;
     for (const tab of document.querySelectorAll('#dash-tabs .tab')) {
@@ -131,6 +189,7 @@ export class Dashboard {
         c._resize();
         c.draw();
       }
+      if (name === 'config') this.config.refresh();
     }, 0);
   }
 
@@ -161,8 +220,8 @@ export class Dashboard {
         <div class="seg-bar"><i data-f="bar"></i></div>
         <div class="readouts">
           <span class="ro" title="Temperatura máxima"><b>T</b><span data-f="tmax"></span></span>
-          <span class="ro" title="Grupo mais baixo"><b>↓</b><span data-f="vmin"></span></span>
-          <span class="ro" title="Grupo mais alto"><b>↑</b><span data-f="vmax"></span></span>
+          <span class="ro" title="Paralelo mais baixo"><b>↓</b><span data-f="vmin"></span></span>
+          <span class="ro" title="Paralelo mais alto"><b>↑</b><span data-f="vmax"></span></span>
         </div>`;
       card.addEventListener('click', () => {
         // Um clique escolhe o segmento e abre a página dele. Voltar a clicar no
@@ -234,7 +293,7 @@ export class Dashboard {
         topo.appendChild(tag);
       }
       // The long-form explanation belongs in a tooltip, not on the screen.
-      topo.title = `${state.cells.length} grupos série × ${p}p = ${state.cells.length * p} células`;
+      topo.title = `${state.cells.length} paralelos × ${p}p = ${state.cells.length * p} células`;
     }
 
     this.built = true;
@@ -242,6 +301,9 @@ export class Dashboard {
 
   update(state) {
     if (!state.segments.length) return;
+    // Guardado para o repaint do tema, que precisa de redesenhar sem esperar
+    // pelo proximo estado.
+    this._last = state;
     if (!this.built || this.topologySig !== Dashboard.topology(state)) this._build(state);
 
     document.getElementById('screen-dash').classList.toggle('stale', state.stale);
@@ -274,7 +336,7 @@ export class Dashboard {
     const a = state.ams || {};
     $('s-fan').textContent = a.fan_pwm == null ? '—' : `${a.fan_pwm.toFixed(0)} %`;
     $('s-mcu').textContent = a.mcu_temperature == null ? '—' : `${a.mcu_temperature.toFixed(0)} °C`;
-    // Menos slaves que o esperado é uma falta que o decoder já levanta; aqui
+    // Menos slaves que o esperado é uma falha que o decoder já levanta; aqui
     // fica só a contagem, a vermelho para não passar despercebida.
     const expected = state.slave_count || 0;
     $('s-slaves').textContent = a.slaves_detected == null
@@ -305,7 +367,8 @@ export class Dashboard {
     state.cells.forEach((c, i) => {
       const el = this.cellEls[i];
       if (!el) return;
-      el.style.background = cellColor(c.voltage, c.status);
+      const lim = this.config.limits();
+      el.style.background = cellColor(c.voltage, c.status, lim.v_warn_low, lim.v_warn_high);
       el.dataset.sev = c.status;
       el.classList.toggle('open-wire', !!c.open_wire);
       const dim = this.selectedSegment && c.segment !== this.selectedSegment;
@@ -314,7 +377,7 @@ export class Dashboard {
       // showing "undefined °C" was worse than showing nothing.
       const where = `Seg ${c.segment} · Slave ${c.slave} · Célula ${c.slave_channel}`;
       el.title = c.open_wire
-        ? `${where}\nFio de medição solto (${c.voltage.toFixed(3)} V)`
+        ? `${where}\nOpenwire: fio de medição solto (${c.voltage.toFixed(3)} V)`
         : `${where}\n${c.voltage.toFixed(3)} V`;
     });
 
@@ -342,7 +405,7 @@ export class Dashboard {
 
     const faults = $('fault-list');
     if (!state.faults.length) {
-      faults.innerHTML = '<div class="empty-note">Sem faltas registadas.</div>';
+      faults.innerHTML = '<div class="empty-note">Sem falhas registadas.</div>';
     } else if (faults.dataset.n !== String(state.faults.length)) {
       faults.dataset.n = String(state.faults.length);
       faults.innerHTML = state.faults.map((f) => `
@@ -360,6 +423,9 @@ export class Dashboard {
     }
 
     this._updateHotspots(state);
+    // setCar vem do perfil cru (/api/cars, via main.js): o CarMeta do
+    // websocket nao transporta limites nem capacidade.
+    this.config.setLive(state);
     this._updateSegmentPage(state);
     this.commands.setCommands(state.car.commands);
     this.commands.setLink(state);
@@ -374,7 +440,7 @@ export class Dashboard {
    *
    * One generic model serves all six: the segments are physically identical,
    * so the geometry is shared and only the values hung on the anchors change.
-   * That means 36 anchors picked once (24 parallel groups + 12 NTCs) instead
+   * That means 36 anchors picked once (24 parallels + 12 NTCs) instead
    * of six models with 216 anchors between them.
    */
   _updateSegmentPage(state) {
@@ -393,7 +459,7 @@ export class Dashboard {
     $('seg-title').textContent = seg.name;
     $('seg-v').textContent = seg.voltage.toFixed(2);
     $('seg-sub').textContent =
-      `${cells.length} grupos × ${state.parallel_strings}p · ${ntcs.length} NTC`;
+      `${cells.length} paralelos × ${state.parallel_strings}p · ${ntcs.length} NTC`;
 
     const volts = cells.filter((c) => c.status !== 'unknown').map((c) => c.voltage);
     const temps = ntcs.map((t) => t.temperature).filter((t) => t != null);
@@ -409,10 +475,10 @@ export class Dashboard {
     $('seg-ntc-sub').textContent = `${temps.length}/${ntcs.length} a reportar`;
 
     // The anchors. `index` is the group's position inside the segment, which is
-    // exactly what grp-N was numbered by.
+    // exactly what par-N was numbered by.
     for (const c of cells) {
-      this.segmentViewer.setHotspotState(`grp-${c.index}`, {
-        label: c.open_wire ? 'fio aberto' : `${c.voltage.toFixed(3)} V`,
+      this.segmentViewer.setHotspotState(`par-${c.index}`, {
+        label: c.open_wire ? 'openwire' : `${c.voltage.toFixed(3)} V`,
         sev: c.status === 'unknown' ? 'idle' : c.status,
         hot: c.balancing,
       });
@@ -433,7 +499,7 @@ export class Dashboard {
   _applySegToggles(nGroups = 24, nNtc = 12) {
     if (!this.segmentViewer) return;
     for (let i = 1; i <= nGroups; i++) {
-      this.segmentViewer.setHotspotState(`grp-${i}`, { off: !this.segShow.v });
+      this.segmentViewer.setHotspotState(`par-${i}`, { off: !this.segShow.v });
     }
     for (let i = 1; i <= nNtc; i++) {
       this.segmentViewer.setHotspotState(`ntc-${i}`, { off: !this.segShow.t });
@@ -459,7 +525,7 @@ export class Dashboard {
     const width = Math.max(cells.length, ntcs.length);
     this.segTable.cols = width;
     const sub = $('seg-table-sub');
-    if (sub) sub.textContent = `${cells.length} grupos · ${ntcs.length} NTC`;
+    if (sub) sub.textContent = `${cells.length} paralelos · ${ntcs.length} NTC`;
 
     const row = (items, fmt) => {
       const vals = items.map((i) => i.value).filter((v) => v != null);
@@ -606,7 +672,7 @@ export class Dashboard {
 
     const flat = state.cells.map((c) => ({ v: c.voltage, at: `S${c.segment}·G${c.index}` }));
     const st = this._stats(flat);
-    $('v-sub').textContent = `${state.cells.length} grupos · ${state.topology}`;
+    $('v-sub').textContent = `${state.cells.length} paralelos · ${state.topology}`;
     $('v-max').textContent = st.hi != null ? `${st.hi.toFixed(3)} V` : '—';
     $('v-min').textContent = st.lo != null ? `${st.lo.toFixed(3)} V` : '—';
     $('v-delta').textContent = st.delta != null ? `${(st.delta * 1000).toFixed(0)} mV` : '—';
@@ -657,7 +723,7 @@ export class Dashboard {
       build(this.segCells.map((cs) => cs.map((c) => ({ value: c.voltage, status: c.status }))),
         (v) => v.toFixed(3), (it) => (it.status === 'ok' ? '' : it.status)),
     );
-    $('tbl-v-sub').textContent = `${state.cells_per_segment} grupos por segmento · V`;
+    $('tbl-v-sub').textContent = `${state.cells_per_segment} paralelos por segmento · V`;
 
     this.tTable.cols = (state.temps_per_slave || 0) * (state.slave_count / state.n_segments || 1);
     this.tTable.render(
@@ -718,7 +784,7 @@ export class Dashboard {
     v.setFanSpeed(pwm);
     v.setHotspotState('fans', pwm == null
       ? { label: 'Ventoinhas', sev: 'idle' }
-      // Paradas não é falha: abaixo do limiar térmico o firmware não as liga.
+      // Paradas não é falha: abaixo do limite térmico o firmware não as liga.
       : { label: `Ventoinhas  ${pwm.toFixed(0)}%`, sev: pwm > 0 ? 'ok' : 'idle' });
   }
 

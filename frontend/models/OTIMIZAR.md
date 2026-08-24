@@ -37,7 +37,7 @@ npx @gltf-transform/cli inspect saida.glb
 Três coisas a confirmar contra o ficheiro original:
 
 - **`bboxMin` / `bboxMax` iguais** — se mudarem, as âncoras dos hotspots em
-  [`../../backend/cars.py`](../../backend/cars.py) deixam de apontar para o
+  [`../../backend/cars/`](../../backend/cars/) deixam de apontar para o
   sítio certo e é preciso apanhá-las outra vez
 - **mesmo número de materiais** — as regras de cor em
   [`../js/viewer.js`](../js/viewer.js) casam pela cor RGB original, e um

@@ -3,13 +3,9 @@ __pycache__/
 .venv/
 venv/
 
-# PyInstaller (compile.py)
-build/
-dist/
-*.spec
+# Tudo o que o compile.py gera (executavel, intermedios e .spec).
+compile/
 
-# Modelo aberto: 222 MB, acima do limite de 100 MB por ficheiro do GitHub.
-# Distribuido como asset de um Release - ver frontend/models/README.md.
-# O modelo fechado (20 MB) fica versionado, para um clone limpo ter logo 3D
-# no ecra de ligacao.
-frontend/models/tek26e_open.glb
+# Copias de trabalho de antes de a animacao das ventoinhas ser gravada nos
+# modelos. Nao sao usadas por nenhum carro nem entram no executavel.
+*.glb.pre-anim

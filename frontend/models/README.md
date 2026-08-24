@@ -1,11 +1,12 @@
 # Modelos 3D
 
-Dois ficheiros, exportados diretamente do SolidWorks (`Save As → glTF 2.0`):
+Exportados diretamente do SolidWorks (`Save As → glTF 2.0`):
 
 | Ficheiro | Configuração no SolidWorks | Tamanho |
 |---|---|---|
 | `tek26e_closed.glb` | assembly fechado | 4,2 MB |
 | `tek26e_open_light.glb` | tampa aberta, interiores à vista | 26 MB |
+| `seguemento.glb` | um segmento (os seis são iguais) | 5,3 MB |
 | `tek26e_charger.glb` | acumulador montado no handcart | **por exportar** |
 
 O terceiro ainda não existe. Já está declarado em `CarProfile.model_charger`
@@ -15,12 +16,16 @@ por [`OTIMIZAR.md`](OTIMIZAR.md), põe-no aqui com esse nome, e apanha as
 posições reais das âncoras com o **modo âncora** da consola. As ligações
 (`binds`) já estão certas e não precisam de mudar.
 
-São estes que a app carrega (`CarProfile.model_closed` e `model_open`, em
-[`../../backend/cars.py`](../../backend/cars.py)), e ambos estão em git. Os dois
-passaram por `weld` + `quantize` — ver [`OTIMIZAR.md`](OTIMIZAR.md). Sem perder
-um triângulo: 20 MB → 4,2 MB e 223 MB → 26 MB.
+São estes que a app carrega (os campos `model_*` do `CarProfile`, em
+[`../../backend/cars/`](../../backend/cars/)), e **todos estão em git**: depois
+de `weld` + `quantize` nenhum chega perto do limite de 100 MB por ficheiro do
+GitHub. Sem perder um triângulo: 20 MB → 4,2 MB, 223 MB → 26 MB e
+44,3 MB → 5,3 MB. Ver [`OTIMIZAR.md`](OTIMIZAR.md).
 
-Enquanto não existirem, a interface mostra um placeholder e continua 100%
+Um clone limpo tem 3D em todos os ecrãs sem descarregar mais nada — que é o que
+precisa de acontecer, já que a app tem de funcionar sem rede.
+
+Faltando um modelo, a interface mostra um placeholder e continua 100%
 funcional — o 3D nunca é caminho crítico.
 
 ## Os exports crus não ficam aqui
@@ -29,11 +34,15 @@ O export original da tampa aberta tinha 223 MB e foi apagado depois de gerar o
 leve. Para voltar a otimizar com outras definições é preciso exportar de novo
 do SolidWorks — o leve não dá para "des-quantizar".
 
-O `.gitignore` continua a apanhar `tek26e_open.glb`, para que um export novo não
-seja commitado por engano: o GitHub recusa ficheiros acima de 100 MB. E o
+Um export cru pode ter centenas de MB e o GitHub recusa ficheiros acima de
+100 MB, por isso otimiza **antes** de commitar. O
 [`../../compile.py`](../../compile.py) só empacota os GLB que algum perfil
-referencia, por isso um export cru deixado nesta pasta não vai parar dentro do
+referencia, por isso um cru deixado nesta pasta não vai parar dentro do
 executável — que foi exatamente o que aconteceu da primeira vez.
+
+Os `.glb.pre-anim` são cópias de antes de a animação das ventoinhas ser gravada
+nos modelos. Ficam no disco como rede de segurança, mas estão no `.gitignore` e
+fora do executável.
 
 **O sufixo `_light`** ficou de quando o cru estava ao lado. Não quer dizer
 "versão reduzida do que devias usar": é o ficheiro bom.
@@ -88,11 +97,11 @@ peças a que nunca foi atribuído material).
 ## Hotspots
 
 As âncoras vivem em `CarProfile.hotspots`, em
-[`../../backend/cars.py`](../../backend/cars.py), não no frontend.
+[`../../backend/cars/tek26e.py`](../../backend/cars/tek26e.py), não no frontend.
 
 Para apanhar uma âncora nova: abre a consola in-app (canto superior direito),
 carrega em **âncora**, e clica na peça no modelo que estiver no ecrã. A linha
-`Hotspot(...)` fica na área de transferência, pronta a colar em `cars.py`.
+`Hotspot(...)` fica na área de transferência, pronta a colar no perfil do carro.
 
 Bate o modo âncora ao editor do modelviewer.dev quando várias peças partilham um
 *node* do CAD — AIR+, AIR− e o pré-carga estão todos dentro de

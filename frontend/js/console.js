@@ -36,7 +36,7 @@ export class LogConsole {
         <span class="log-title">Consola</span>
         <span class="log-count" data-role="count"></span>
         <button class="log-btn" data-role="pick" title="Clicar no modelo devolve as coordenadas da âncora">âncora</button>
-        <button class="log-btn" data-role="frame" title="Guarda o enquadramento atual: devolve a linha CameraView para cars.py">vista</button>
+        <button class="log-btn" data-role="frame" title="Guarda o enquadramento atual: devolve a linha CameraView para o perfil do carro">vista</button>
         <button class="log-btn" data-role="clear" title="Limpar">limpar</button>
         <button class="log-btn" data-role="close" title="Fechar (Esc)">✕</button>
       </div>

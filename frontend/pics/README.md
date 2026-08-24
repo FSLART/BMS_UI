@@ -10,7 +10,7 @@ mostra o caminho em falta em texto ténue — o ecrã nunca fica partido.
 | `mystery_car.png`  | T-28        | 🕶 silhueta "?" provisória |
 
 Quando houver foto real, mete-a aqui e troca o `image=` do carro em
-`backend/cars.py`, apagando o `image_is_silhouette=True`.
+`backend/cars/tek26e.py`, apagando o `image_is_silhouette=True`.
 
 ## Logótipo
 
@@ -38,7 +38,7 @@ recortado. Preto sobre o fundo escuro da aplicação desaparecia, por isso o
 perfil marca `image_is_silhouette=True` e o CSS aplica `invert(1)`: o corpo fica
 cinzento-claro e o "?" lê-se recortado a escuro.
 
-Os caminhos vêm de `CarProfile.image` em [`../../backend/cars.py`](../../backend/cars.py).
+Os caminhos vêm de `CarProfile.image` em [`../../backend/cars/`](../../backend/cars/).
 Para acrescentar um carro, junta o perfil lá e mete o PNG aqui.
 
 ## Recomendações

@@ -10,6 +10,20 @@
   <link rel="icon" type="image/x-icon" href="/pics/lart.ico" />
   <link rel="stylesheet" href="/fonts/fonts.css" />
   <link rel="stylesheet" href="/css/app.css" />
+  <!-- Tema antes da primeira pintura. O theme.js e um modulo e so corre depois
+       de o documento estar analisado, o que dava um piscar de escuro para claro
+       em cada arranque de quem tem o sistema em claro. Sao tres linhas
+       repetidas de proposito -- a alternativa era duplicar a paleta inteira
+       num @media, que e muito mais para manter em sincronia. -->
+  <script>
+    try {
+      var t = localStorage.getItem('bms.theme');
+      if (t !== 'light' && t !== 'dark') {
+        t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      document.documentElement.dataset.theme = t;
+    } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+  </script>
   <link rel="preload" href="/fonts/poppins-600-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/source-sans-3-500-latin.woff2" as="font" type="font/woff2" crossorigin />
   <!-- model-viewer. If offline it simply fails and the viewer falls back to a
@@ -52,6 +66,7 @@
       </div>
     </div>
     <div class="topbar-right">
+      <button class="tdnn" data-theme-toggle title="Alternar entre escuro e claro" aria-label="Alternar tema"><span class="moon"></span></button>
       <button class="console-btn" data-console-toggle title="Consola (Esc para fechar)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="5,8 9,12 5,16"/><line x1="12" y1="16" x2="19" y2="16"/></svg>
         <span class="console-badge" data-console-badge></span>
@@ -88,6 +103,7 @@
     <div style="display:flex;align-items:center;gap:12px">
       <button class="btn-ghost btn-neutral" id="btn-change-car">Trocar carro</button>
       <span class="pill"><span class="dot" id="conn-dot"></span><span id="conn-pill-text">Desligado</span></span>
+      <button class="tdnn" data-theme-toggle title="Alternar entre escuro e claro" aria-label="Alternar tema"><span class="moon"></span></button>
       <button class="console-btn" data-console-toggle title="Consola (Esc para fechar)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="5,8 9,12 5,16"/><line x1="12" y1="16" x2="19" y2="16"/></svg>
         <span class="console-badge" data-console-badge></span>
@@ -157,6 +173,7 @@
 
     <div class="spacer"></div>
 
+    <button class="tdnn" data-theme-toggle title="Alternar entre escuro e claro" aria-label="Alternar tema"><span class="moon"></span></button>
     <span class="pill"><span class="dot" id="dash-dot"></span><span id="dash-rate">—</span></span>
     <button class="btn-ghost" id="btn-disconnect">Desligar</button>
     <button class="console-btn" data-console-toggle title="Consola (Esc para fechar)">
@@ -173,9 +190,13 @@
          carregador nenhum a falar, e um separador permanentemente vazio é
          ruído. Ver Dashboard._updateCharger. -->
     <button class="tab" data-page="charge" id="tab-charge" hidden>Carregamento</button>
+    <button class="tab" data-page="config">Configuração</button>
     <!-- Aparece ao clicar num segmento na barra lateral. O modelo é genérico:
-         os 6 segmentos são iguais, só muda a informação nas âncoras. -->
-    <button class="tab" data-page="segment" id="tab-segment" hidden>Segmento</button>
+         os 6 segmentos são iguais, só muda a informação nas âncoras.
+         Fica encostado à direita, separado dos outros: os restantes são
+         páginas fixas, este entra e sai conforme o segmento escolhido, e no
+         meio deles empurrava a barra toda de cada vez que aparecia. -->
+    <button class="tab tab-end" data-page="segment" id="tab-segment" hidden>Segmento</button>
   </nav>
 
   <div class="dash-pages">
@@ -224,7 +245,7 @@
       <h3 style="margin-top:8px">Comandos</h3>
       <div class="cmd-list" id="cmd-list"></div>
 
-      <h3 style="margin-top:8px">Faltas</h3>
+      <h3 style="margin-top:8px">Falhas</h3>
       <div class="fault-list" id="fault-list"></div>
     </aside>
   </div>
@@ -237,7 +258,7 @@
         <div class="legend">
           <span><i class="dot ok"></i>ok</span>
           <span><i class="dot warn"></i>aviso</span>
-          <span><i class="dot fault"></i>falta</span>
+          <span><i class="dot fault"></i>falha</span>
           <!-- Pack-wide, not per cell: the AMS publishes one balancing state
                for the whole pack and no per-cell discharge status. -->
           <span class="bal-badge" id="bal-badge" hidden
@@ -378,7 +399,7 @@
         <div class="seg-legend">
           <span><i class="dot ok"></i>ok</span>
           <span><i class="dot warn"></i>aviso</span>
-          <span><i class="dot fault"></i>falta</span>
+          <span><i class="dot fault"></i>falha</span>
         </div>
       </section>
 
@@ -390,7 +411,7 @@
         </div>
 
         <div class="charge-card">
-          <div class="panel-head compact"><h3>Grupos paralelos</h3>
+          <div class="panel-head compact"><h3>Paralelos</h3>
             <span class="panel-sub" id="seg-groups-sub"></span></div>
           <div class="readout-grid">
             <span class="ro-k">Mais baixo</span><span class="ro-v" id="seg-vmin">—</span>
@@ -418,6 +439,33 @@
         <span class="panel-sub" id="seg-table-sub"></span></div>
       <div class="table-wrap" id="seg-table"></div>
     </div>
+    </div>
+  </section>
+
+  <!-- ── Configuração ───────────────────────────────────────────────────── -->
+  <section class="page" id="page-config">
+    <div class="cfg-layout">
+      <!-- Bloqueio. Fica no topo e não se pode dispensar: com o pack
+           energizado, mexer em limites é o pior momento possível. -->
+      <!-- Texto e faixas preenchidos de bms-settings.js: TEXT. -->
+      <div class="cfg-banner lock" id="cfg-lock" hidden>
+        <b data-role="title"></b>
+        <span data-role="why"></span>
+        <span class="cfg-banner-sub" data-role="hint"></span>
+      </div>
+      <div class="cfg-banner warn" id="cfg-warn" hidden>
+        <b data-role="title"></b>
+        <span data-role="body"></span>
+      </div>
+
+      <div class="cfg-intro" id="cfg-intro"></div>
+
+      <!-- Definições à esquerda, curvas à direita: mexe-se num número e vê-se
+           a curva mudar sem trocar de sítio no ecrã. -->
+      <div class="cfg-cols">
+        <div class="cfg-sections" id="cfg-sections"></div>
+        <div class="cfg-curves" id="cfg-curves"></div>
+      </div>
     </div>
   </section>
   </div>
