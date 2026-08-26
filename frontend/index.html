@@ -26,9 +26,10 @@
   </script>
   <link rel="preload" href="/fonts/poppins-600-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/source-sans-3-500-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <!-- model-viewer. If offline it simply fails and the viewer falls back to a
-       styled placeholder — the app stays fully usable. See frontend/models/. -->
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+  <!-- model-viewer, servido daqui e não de um CDN: esta app tem de arrancar
+       sem rede, e era este o único ficheiro que ainda saía para fora. Sem ele
+       nenhum modelo 3D aparece. Ver frontend/js/vendor/README.md. -->
+  <script type="module" src="/js/vendor/model-viewer-4.0.0.min.js"></script>
 </head>
 <body>
 
