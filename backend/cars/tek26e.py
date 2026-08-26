@@ -57,8 +57,11 @@ CAR = CarProfile(
     view_closed=CameraView(orbit="232deg 70deg 0.748m", fov="26deg"),
     # De topo: os segmentos e a placa master leem-se como planta.
     view_open=CameraView(orbit="0deg 18deg 66%", fov="32deg"),
-    # Ainda por exportar. Quando existir, chamar-lhe assim e apanhar as
-    # ancoras com o modo ancora da consola, como se fez para o aberto.
+    # Acumulador fechado assente no handcart, 1,23 m de altura ao todo.
+    # Gerado por scratchpad/compose_charger.py a partir de handcart_t26.glb e
+    # tek26e_closed.glb -- o <model-viewer> mostra um modelo por elemento, por
+    # isso a montagem e feita em disco e nao com dois viewers sobrepostos.
+    # Reexportar qualquer um dos dois obriga a correr o script outra vez.
     model_charger="/models/tek26e_charger.glb",
     view_charger=CameraView(orbit="200deg 72deg 70%", fov="32deg"),
     model_segment="/models/seguemento.glb",
@@ -126,15 +129,18 @@ CAR = CarProfile(
                 position="0.212m 0.219m 1.650m", binds="segment:6"),
 
         # --- modelo no carregador ---------------------------------------
-        # Posicoes provisorias: reaproveitam as do modelo fechado, que tem a
-        # mesma geometria de acumulador. Quando o GLB do handcart existir,
-        # apanhar as reais com o modo ancora e substituir aqui -- as ligacoes
-        # (binds) ja estao certas e nao precisam de tocar.
+        # Ambas sao `standoff`: o rotulo vai para um canto e a posicao so decide
+        # onde a linha de chamada acaba. Apontam para a peca que a leitura
+        # descreve, e nao para um sitio qualquer do modelo.
         Hotspot(id="chg-precharge", view="charger", label="Pre-carga",
-                position="0.131m 0.241m 1.745m", normal="0.697m 0m -0.717m",
+                # Topo do acumulador, apanhado com o modo ancora da consola.
+                position="0.175m 0.819m 0.266m", normal="0m 1m 0m",
                 binds="precharge_done", standoff="top-right"),
         Hotspot(id="chg-control", view="charger", label="Carregador",
-                position="-0.128m 0.327m 1.755m", normal="0m 1m 0m",
+                # Face exterior da ventoinha de 120 mm, na lateral do carro:
+                # e ela que trabalha quando o carregamento esta a decorrer.
+                # Centro da face calculado do GLB (120 x 120 x 25 mm).
+                position="-0.198m 0.128m 0.584m", normal="-1m 0m 0m",
                 binds="charger_control", standoff="bottom-right"),
 
         # --- modelo do segmento (generico: os 6 sao iguais) -------------

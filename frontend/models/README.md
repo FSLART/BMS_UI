@@ -7,14 +7,31 @@ Exportados diretamente do SolidWorks (`Save As → glTF 2.0`):
 | `tek26e_closed.glb` | assembly fechado | 4,2 MB |
 | `tek26e_open_light.glb` | tampa aberta, interiores à vista | 26 MB |
 | `seguemento.glb` | um segmento (os seis são iguais) | 5,3 MB |
-| `tek26e_charger.glb` | acumulador montado no handcart | **por exportar** |
+| `handcart_t26.glb` | carro de carga, sozinho | 3,8 MB |
+| `tek26e_charger.glb` | **gerado** — acumulador em cima do handcart | 7,6 MB |
 
-O terceiro ainda não existe. Já está declarado em `CarProfile.model_charger`
-com duas âncoras (`chg-precharge` e `chg-control`), e a página de Carregamento
-funciona sem ele — o viewer mostra o placeholder. Quando o exportares: passa-o
-por [`OTIMIZAR.md`](OTIMIZAR.md), põe-no aqui com esse nome, e apanha as
-posições reais das âncoras com o **modo âncora** da consola. As ligações
-(`binds`) já estão certas e não precisam de mudar.
+## O modelo do carregamento é composto
+
+O `<model-viewer>` mostra **um** modelo por elemento. Dois viewers sobrepostos
+não partilham câmara nem iluminação, e qualquer arrasto desalinhava-os. Por
+isso a montagem é feita em disco:
+
+```bash
+python scratchpad/compose_charger.py
+```
+
+Lê `handcart_t26.glb` e `tek26e_closed.glb` e escreve `tek26e_charger.glb`. O
+encaixe sai das caixas envolventes, não de números escritos à mão: o acumulador
+é assente pela base no topo do chassis (y = 0,816 m) e centrado na plataforma.
+Reexportar qualquer um dos dois obriga a correr o script outra vez.
+
+O conjunto fica com 1,23 m de altura. O acumulador é 43 mm mais largo que a
+plataforma e fica com abas de fora — como no CAD.
+
+**As âncoras do acumulador deslocam-se com ele.** As do
+`view="charger"` são as do modelo fechado mais o vetor de encaixe,
+`(+0.0985, +0.7689, −1.1755)`. Se o encaixe mudar, aplicar a nova deslocação às
+duas linhas em [`../../backend/cars/tek26e.py`](../../backend/cars/tek26e.py).
 
 São estes que a app carrega (os campos `model_*` do `CarProfile`, em
 [`../../backend/cars/`](../../backend/cars/)), e **todos estão em git**: depois

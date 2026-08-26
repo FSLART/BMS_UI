@@ -578,6 +578,11 @@ export class Dashboard {
     }
     if (!c.present || this.page !== 'charge') return;
 
+    // LEDs do carro de carga: verde ate a alta fechar, vermelho a partir dai.
+    // A fonte e o estado de pre-carga do master, o mesmo que bloqueia a pagina
+    // de configuracao -- HV_ON quer dizer contactores fechados.
+    this.chargeViewer.setLeds((state.safety || {}).precharge_state === 'HV_ON');
+
     const v = (x, unit, digits = 1) =>
       (typeof x === 'number' ? `${x.toFixed(digits)} ${unit}` : '—');
 

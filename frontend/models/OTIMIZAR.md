@@ -8,8 +8,8 @@ ficheiro é desperdício, não detalhe.
 Dois comandos resolvem, **sem apagar um único triângulo**:
 
 ```bash
-npx @gltf-transform/cli weld     entrada.glb     tmp.glb
-npx @gltf-transform/cli quantize tmp.glb         saida.glb
+npx.cmd @gltf-transform/cli weld     entrada.glb     tmp.glb
+npx.cmd @gltf-transform/cli quantize tmp.glb         saida.glb
 ```
 
 | Passo | O que faz |
@@ -31,7 +31,7 @@ Sem descarregar nada.
 ## Verificar depois de otimizar
 
 ```bash
-npx @gltf-transform/cli inspect saida.glb
+npx.cmd @gltf-transform/cli inspect saida.glb
 ```
 
 Três coisas a confirmar contra o ficheiro original:
@@ -49,7 +49,7 @@ sombreamento de superfícies curvas e lisas (células, conectores): se aparecere
 faixas, sobe a precisão dos normais.
 
 ```bash
-npx @gltf-transform/cli quantize tmp.glb saida.glb --quantize-normal 12
+npx.cmd @gltf-transform/cli quantize tmp.glb saida.glb --quantize-normal 12
 ```
 
 ## Se ainda for pesado a renderizar
@@ -74,5 +74,5 @@ não de milhares.
 Em alternativa, decimar depois do export, com perda de detalhe controlada:
 
 ```bash
-npx @gltf-transform/cli simplify entrada.glb saida.glb --ratio 0.5 --error 0.001
+npx.cmd @gltf-transform/cli simplify entrada.glb saida.glb --ratio 0.5 --error 0.001
 ```

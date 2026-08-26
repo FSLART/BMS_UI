@@ -253,7 +253,7 @@ function matteMaterials(mv, src) {
   if (!mv.model) return 0;
   const key = (src.split('/').pop() || '').replace(/\.glb$/i, '');
   const overrides = OVERRIDES[key] || {};
-  const stats = { rules: 0, overrides: 0, matte: 0 };
+  const stats = { rules: 0, overrides: 0, matte: 0, glass: 0 };
 
   mv.model.materials.forEach((mat, i) => {
     const pbr = mat.pbrMetallicRoughness;
@@ -264,6 +264,31 @@ function matteMaterials(mv, src) {
       const c = pbr.baseColorFactor;
       const rgb = `${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)}`;
 
+      // Vidro fica fora de TUDO o que se segue, a comecar pela passagem matte.
+      // O CAD exporta-o com rugosidade 0.01 e o piso de 0.7 tornava-o fosco:
+      // um material transmissivo aspero difunde a luz em vez de a deixar
+      // passar, e a tampa deixava de se ver atraves. E ha ainda uma regra para
+      // branco que lhe daria cor base de PETG opaco. Nos dois casos o que ficava
+      // por baixo -- os LEDs -- desaparecia.
+      const glass = /glass|vidro|transparen/i.test(mat.name || '');
+      if (glass) {
+        // Chapa fina, sem volume. `thicknessFactor: 0` diz ao motor que isto e
+        // uma superficie e nao um solido: a luz passa direita, sem a lente que
+        // um volume introduz. O CAD exportava 1 -- e a unidade e o metro, ou
+        // seja um metro de vidro macico -- o que dava a refracao estranha e o
+        // aspeto leitoso.
+        mat.setThicknessFactor?.(0);
+        mat.setAttenuationDistance?.(Infinity);
+        mat.setTransmissionFactor?.(1);
+        // Indice de refracao quase a da ar. Em 1.5 a chapa deformava o que
+        // estava atras; em 1.0 exato desaparecia por completo, e uma protecao
+        // invisivel nao se percebe que esta la. Isto deixa so o brilho da
+        // superficie.
+        mat.setIor?.(1.05);
+        stats.glass++;
+        return;
+      }
+
       // 1. Global matte pass: anything unmatched at least loses the CAD gloss.
       if (MATERIAL.matte) {
         if (pbr.roughnessFactor < MATERIAL.minRoughness) pbr.setRoughnessFactor(MATERIAL.minRoughness);
@@ -271,8 +296,22 @@ function matteMaterials(mv, src) {
         stats.matte++;
       }
 
+      // Pecas do carro de carga: acabamento proprio, antes das regras gerais,
+      // para o chassis nao herdar o aluminio do acumulador.
+      const name = mat.name || '';
+      const f = name.startsWith(CART_PREFIX) && !glass
+        ? CART_FINISH.find((r) => r.match.test(name))
+        : null;
+      if (f) {
+        pbr.setBaseColorFactor(f.color);
+        pbr.setRoughnessFactor(f.roughness);
+        pbr.setMetallicFactor(f.metallic);
+        stats.overrides++;
+        return;
+      }
+
       // 2. Colour rule, if this appearance is one we recognise.
-      const rule = RULES_BY_RGB.get(rgb);
+      const rule = glass ? null : RULES_BY_RGB.get(rgb);
       if (rule) {
         if (rule.color) pbr.setBaseColorFactor(rule.color);
         if (rule.roughness !== undefined) pbr.setRoughnessFactor(rule.roughness);
@@ -295,9 +334,79 @@ function matteMaterials(mv, src) {
   });
 
   console.info(`[viewer] ${key}: ${stats.matte} materiais, ${stats.rules} por regra de cor, `
-             + `${stats.overrides} por override`);
+             + `${stats.overrides} por override, ${stats.glass} vidros intactos`);
   return stats;
 }
+
+/**
+ * Indicadores do carro de carga.
+ *
+ * Os dois LEDs sao identificados pela cor que trazem do CAD, nao pelo nome do
+ * no: o <model-viewer> so expoe materiais, nao a arvore de nos, e a exportacao
+ * junta numa so primitiva todas as pecas que partilham aparencia. Cada LED tem
+ * de ter uma aparencia PROPRIA no SolidWorks para ser separavel aqui -- e por
+ * isso que a chave e a cor.
+ *
+ * Aceso e apagado sao o mesmo material com emissivo diferente. O emissivo nao
+ * depende da luz da cena, portanto um LED aceso le-se como aceso mesmo na face
+ * que esta na sombra -- que e exatamente como um LED se comporta.
+ */
+const LEDS = {
+  // A cor faz o tom, a `emissiveStrength` faz o brilho -- sao coisas
+  // separadas. Levantar os canais secundarios para dar brilho lavava o tom ate
+  // branco; o brilho vem todo da forca, e a cor fica saturada.
+  red:   { rgb: '255,0,0', on: [1.0, 0.09, 0.05], off: [0, 0, 0],
+           base: [0.30, 0.02, 0.01, 1] },
+  green: { rgb: '0,255,0', on: [0.08, 1.0, 0.16], off: [0, 0, 0],
+           base: [0.02, 0.22, 0.06, 1] },
+};
+
+// O emissivo do glTF esta preso entre 0 e 1, e a cena corre com exposure 0.72
+// -- no maximo dava uma peca com cor, nunca uma luz. A extensao
+// KHR_materials_emissive_strength passa esse limite, e o <model-viewer>
+// expoe-a em setEmissiveStrength.
+//
+// O export vem com 0.3, que e mais escuro do que o emissivo sozinho: era essa
+// a razao de os LEDs mal se notarem.
+const LED_STRENGTH_ON = 6.0;
+const LED_STRENGTH_OFF = 0.0;
+
+// Meio periodo. Aceso 600 ms, apagado 600 ms.
+const LED_BLINK_MS = 600;
+
+/**
+ * Velocidade das ventoinhas no ecra, em voltas por segundo.
+ *
+ * O GLB carrega uma volta por segundo e o `timeScale` multiplica-a, portanto
+ * estes numeros SAO voltas por segundo.
+ *
+ * Nao correspondem as reais nem devem: uma SanAce de 12 V a 100% anda perto de
+ * 5000 rpm, ou seja 83 voltas por segundo. Nem sequer da para desenhar -- a 60
+ * imagens por segundo cada volta apanharia menos de uma imagem, e as pas
+ * apareciam paradas ou a rodar ao contrario. O que se quer aqui e ler o estado
+ * das ventoinhas de relance: paradas, devagar, depressa.
+ */
+const FAN_SPIN_MAX = 0.6;    // a 100% de PWM
+const FAN_SPIN_MIN = 0.06;   // minimo com que ainda se percebe que roda
+
+/**
+ * Acabamento do carro de carga.
+ *
+ * O compose_charger.py poe o prefixo `handcart:` nos materiais que vem do
+ * carro. Sem essa marca nao havia como os separar: o chassis e o aluminio do
+ * acumulador saem do CAD com o mesmo cinzento 228,228,228, e uma regra por cor
+ * apanharia os dois.
+ *
+ * Escovado, nao polido: metalico, mas com rugosidade alta o suficiente para o
+ * reflexo espalhar em vez de espelhar. Polido faria o carro parecer cromado.
+ */
+const CART_PREFIX = 'handcart:';
+// Pela APARENCIA que o CAD lhe deu, nao pela cor: o cinzento muda a cada
+// reexportacao, o nome da aparencia nao. Evita tambem a colisao com o
+// 228,228,228 do acumulador, que e outra peca com outro acabamento.
+const CART_FINISH = [
+  { match: /alumin/i, color: [0.72, 0.73, 0.74, 1], roughness: 0.52, metallic: 1.0 },
+];
 
 export class Viewer {
   /**
@@ -563,12 +672,104 @@ export class Viewer {
     // Stopped fans are stopped, not slowed to a crawl: below its threshold the
     // firmware simply does not drive them.
     const spinning = pwm != null && pwm > 0.5;
-    // Well under one turn per frame at 10 Hz, so the blades read as turning
-    // rather than strobing backwards.
-    const scale = spinning ? Math.max(0.15, (pwm / 100) * 3.0) : 0;
+    const scale = spinning
+      ? Math.max(FAN_SPIN_MIN, (pwm / 100) * FAN_SPIN_MAX)
+      : 0;
     if (mv.timeScale !== scale) mv.timeScale = scale;
     if (spinning && mv.paused) mv.play();
     else if (!spinning && !mv.paused) mv.pause();
+  }
+
+  /**
+   * Acende um dos dois LEDs do carro de carga e apaga o outro.
+   *
+   * Verde enquanto o pack NAO esta em HV_ON: seguro para mexer. Vermelho
+   * assim que entra em HV_ON: alta tensao nos terminais. Nunca os dois, e
+   * nunca nenhum -- um indicador apagado nao se distingue de um avariado.
+   *
+   * Devolve quantos LEDs encontrou. Zero quer dizer que a exportacao nao lhes
+   * deu aparencia propria e estao fundidos no corpo do carro; nesse caso nao
+   * se toca em nada, porque o material partilhado poria o carro inteiro a
+   * brilhar.
+   *
+   * @param {boolean} hvOn
+   */
+  setLeds(hvOn) {
+    const want = !!hvOn;
+    if (this._ledHv !== want) {
+      this._ledHv = want;
+      // Trocar de indicador comeca sempre por aceso, para a mudanca de estado
+      // se ver de imediato em vez de calhar no intervalo apagado.
+      this._ledPhase = true;
+      this._paintLeds();
+    }
+    this._ledSeen = performance.now();
+    if (!this._ledTimer) {
+      this._ledTimer = setInterval(() => this._blinkLeds(), LED_BLINK_MS);
+      this._paintLeds();
+    }
+    return this._ledCount || 0;
+  }
+
+  /**
+   * Um passo da intermitencia.
+   *
+   * setInterval e nao requestAnimationFrame: o rAF so corre enquanto a janela
+   * desenha, e com a janela tapada os LEDs ficariam congelados no meio de um
+   * ciclo -- possivelmente apagados, que e o estado que engana.
+   */
+  _blinkLeds() {
+    // O dashboard chama setLeds a cada trama. Se deixou de chamar, saiu-se da
+    // pagina de carregamento e nao ha nada a piscar.
+    if (performance.now() - (this._ledSeen || 0) > 2000) {
+      clearInterval(this._ledTimer);
+      this._ledTimer = null;
+      return;
+    }
+    this._ledPhase = !this._ledPhase;
+    this._paintLeds();
+  }
+
+  /** Escreve o estado atual nos materiais dos dois LEDs. */
+  _paintLeds() {
+    const mv = this.mv[this.current];
+    if (!mv || !mv.loaded || !mv.model) return;
+
+    let found = 0;
+    for (const mat of mv.model.materials) {
+      const pbr = mat.pbrMetallicRoughness;
+      if (!pbr) continue;
+      try {
+        const c = pbr.baseColorFactor;
+        const rgb = `${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)}`;
+        for (const [name, led] of Object.entries(LEDS)) {
+          // Comparar com a cor ORIGINAL do CAD na primeira passagem, e com a
+          // marca nas seguintes: setBaseColorFactor troca a chave.
+          if (rgb !== led.rgb && mat.__led !== name) continue;
+          if (mat.__led !== name) {
+            mat.__led = name;
+            pbr.setBaseColorFactor(led.base);
+            pbr.setRoughnessFactor(0.35);
+            pbr.setMetallicFactor(0);
+          }
+          // So o indicador do estado atual pisca; o outro fica apagado.
+          const lit = ((name === 'red') === this._ledHv) && this._ledPhase;
+          mat.setEmissiveFactor(lit ? led.on : led.off);
+          mat.setEmissiveStrength?.(lit ? LED_STRENGTH_ON : LED_STRENGTH_OFF);
+          found++;
+        }
+      } catch {
+        /* material sem bloco PBR mutavel */
+      }
+    }
+
+    this._ledCount = found;
+    if (!found && !this._ledWarned) {
+      this._ledWarned = true;
+      console.warn('[viewer] LEDs do carro de carga nao encontrados: o export '
+                 + 'fundiu-os no corpo. Dar a RED_LED e a LED_GREEN uma '
+                 + 'aparencia propria no SolidWorks (vermelho e verde puros).');
+    }
   }
 
   idle(on) {

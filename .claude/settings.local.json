@@ -96,7 +96,12 @@
       "Bash(grep -n \"#[0-9a-fA-F]\\\\{3,8\\\\}\\\\b\" frontend/css/app.css)",
       "Bash(grep -c \"#[0-9a-fA-F]\\\\{3,8\\\\}\" frontend/css/app.css)",
       "Bash(node --check frontend/js/theme.js)",
-      "Bash(node --check frontend/js/main.js)"
+      "Bash(node --check frontend/js/main.js)",
+      "Bash(PYTHONIOENCODING=utf-8 python -)",
+      "Bash(PYTHONIOENCODING=utf-8 python scratchpad/compose_charger.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
+      "Bash(node --check frontend/js/viewer.js)",
+      "Bash(node --check frontend/js/dashboard.js)"
     ]
   }
 }
