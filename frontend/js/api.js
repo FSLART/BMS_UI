@@ -26,12 +26,16 @@ export const api = {
       .catch((e) => ({ ok: false, error: String(e.message || e) })),
 
   /**
-   * Send a .dbc the user picked. Raw body, not multipart: the backend then
+   * Send a file the user picked. Raw body, not multipart: the backend then
    * needs no python-multipart, which matters for an app that ships offline.
-   * Resolves to { ok, path, name, messages } or { ok: false, error }.
+   *
+   * `kind` is 'dbc' or 'elf'. Both validate before storing, so what comes back
+   * is either a usable path or the reason the file was refused:
+   *   dbc -> { ok, path, name, messages }
+   *   elf -> { ok, path, name, symbol, address, size, extras, extras_total }
    */
-  uploadDbc: (file) =>
-    fetch(`/api/dbc/upload?name=${encodeURIComponent(file.name)}`, {
+  upload: (kind, file) =>
+    fetch(`/api/${kind}/upload?name=${encodeURIComponent(file.name)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: file,

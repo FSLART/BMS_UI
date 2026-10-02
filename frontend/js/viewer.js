@@ -473,6 +473,11 @@ export class Viewer {
     this.models = next;
     Object.values(this.mv).forEach((el) => el.remove());
     this.mv = {};
+    // Uma construcao a meio pertence aos modelos ANTIGOS. Deixa-la terminar
+    // punha o GLB do carro anterior dentro do viewer do novo; o contador de
+    // geracao faz o resultado ser deitado fora.
+    this._building = {};
+    this._gen = (this._gen || 0) + 1;
     this._setPlaceholder(this.current);
     this._build(this.current);
   }
@@ -486,6 +491,23 @@ export class Viewer {
 
   async _build(which) {
     if (this.mv[which]) return this.mv[which];
+    // Construcao ja a decorrer: devolver a mesma promessa em vez de comecar
+    // outra. O `setModels` dispara um _build sem esperar e o `warmUp` chama
+    // logo a seguir; sem esta guarda nasciam DOIS <model-viewer> para a mesma
+    // vista, o segundo ficava em `this.mv` e o primeiro ficava orfao no DOM --
+    // carregado, invisivel e a desenhar, que e o custo que se queria evitar.
+    if (this._building?.[which]) return this._building[which];
+    (this._building ||= {})[which] = this.__build(which).finally(() => {
+      delete this._building[which];
+    });
+    return this._building[which];
+  }
+
+  async __build(which) {
+    // Marca a que conjunto de modelos esta construcao pertence. Trocar de
+    // carro a meio incrementa isto, e o resultado e deitado fora em vez de ir
+    // parar ao viewer do carro novo.
+    const gen = this._gen || 0;
     const src = this.models[which];
     if (!customElements.get('model-viewer')) {
       await customElements.whenDefined('model-viewer').catch(() => {});
@@ -532,6 +554,11 @@ export class Viewer {
     mv.setAttribute('touch-action', 'none');
     mv.dataset.which = which;
 
+    if ((this._gen || 0) !== gen) {
+      // O carro mudou enquanto isto carregava.
+      mv.remove();
+      return null;
+    }
     this.root.appendChild(mv);
     this.mv[which] = mv;
 
@@ -548,6 +575,10 @@ export class Viewer {
       this._reveal(which);
       this._renderHotspots();
     }
+    // Acabado de nascer: o <model-viewer> arranca a desenhar. Se este viewer
+    // esta fora do ecra, para-lo agora -- senao ficava a renderizar invisivel
+    // ate alguem trocar de vista.
+    this._applyActive();
     return mv;
   }
 
@@ -569,6 +600,75 @@ export class Viewer {
     });
   }
 
+  /**
+   * Parar ou retomar o desenho deste viewer.
+   *
+   * Cada <model-viewer> tem o seu proprio contexto WebGL e continua a
+   * renderizar mesmo com `opacity: 0` ou tamanho zero -- nao ha nada que lhe
+   * diga que ninguem esta a olhar. Com quatro no documento, tres deles
+   * desenhavam modelos invisiveis a cada frame: o acumulador aberto sozinho
+   * sao 5,8 milhoes de triangulos.
+   *
+   * `pause()` para o ciclo; `play()` so e preciso se o modelo tiver animacao,
+   * e o setFanSpeed volta a mexer nisso conforme o PWM.
+   */
+  setActive(on) {
+    this._active = on;
+    this._applyActive();
+  }
+
+  /**
+   * Poe o estado desejado nos <model-viewer> que ja existam.
+   *
+   * Chamado tambem no fim do _build, e nao so pelo setActive: os elementos sao
+   * criados a primeira vez que a vista aparece, muito depois de alguem ter
+   * dito que este viewer esta fora do ecra. Sem isto, nasciam a desenhar e
+   * ficavam assim.
+   */
+  _applyActive() {
+    const on = this._active !== false;
+    for (const [k, mv] of Object.entries(this.mv)) {
+      if (!mv) continue;
+      try {
+        if (on && k === this.current) { if (mv.paused) mv.play(); }
+        else if (!mv.paused) mv.pause();
+      } catch { /* ainda sem modelo carregado */ }
+    }
+  }
+
+  /**
+   * Prepara o 3D antes de alguem precisar dele.
+   *
+   * O Preloader descarrega os BYTES do GLB; isto faz o resto do trabalho, que
+   * e o caro: criar o <model-viewer>, deixar o three.js analisar o ficheiro,
+   * enviar a geometria para o GPU e compilar os shaders. Esse trabalho corre
+   * na thread principal e nao se pode partir em bocados -- enquanto acontece,
+   * a janela nao responde a nada.
+   *
+   * Feito aqui, durante o ecra de carregamento, e tempo que ninguem sente.
+   * Feito a primeira vez que a vista aparecia, eram quase dois segundos de
+   * interface congelada entre escolher o carro e poder carregar num botao.
+   *
+   * @param {string[]} quais vistas a preparar; por omissao todas as declaradas
+   */
+  async warmUp(quais = null) {
+    const alvos = quais || Object.keys(this.models);
+    const feitas = [];
+    for (const which of alvos) {
+      if (this.mv[which]) { feitas.push(which); continue; }
+      // Uma de cada vez e nao em paralelo: sao todas trabalho de thread
+      // principal, e lancadas juntas o bloqueio seria o mesmo, so mais tarde.
+      const mv = await this._build(which);
+      if (mv) feitas.push(which);
+      // Devolver a thread entre modelos deixa o ecra de carregamento
+      // redesenhar a barra em vez de ficar parado nos mesmos 40%.
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    // Nenhum destes esta no ecra ainda.
+    this._applyActive();
+    return feitas;
+  }
+
   /** Crossfade to the other model. Falls back to swapping the placeholder text. */
   async show(which) {
     this.current = which;
@@ -579,6 +679,10 @@ export class Viewer {
       return;
     }
     this._reveal(which);
+    // O modelo que sai de cena para de desenhar. Sem isto os dois ficavam a
+    // renderizar, e a troca fechado -> aberto duplicava a carga em vez de a
+    // transferir.
+    this._applyActive();
     // Deliberately no auto-rotate: with a "reset view" button the model has to
     // stay where it is put, and a turntable drifting away from the default
     // makes that button look broken.
@@ -676,7 +780,11 @@ export class Viewer {
       ? Math.max(FAN_SPIN_MIN, (pwm / 100) * FAN_SPIN_MAX)
       : 0;
     if (mv.timeScale !== scale) mv.timeScale = scale;
-    if (spinning && mv.paused) mv.play();
+    // `play()` so se este viewer estiver mesmo no ecra. Isto corre a cada
+    // trama, dez vezes por segundo, e sem esta guarda desfazia a pausa dos
+    // viewers escondidos uma fracao de segundo depois de ela ser posta --
+    // ficavam todos a desenhar na mesma.
+    if (spinning && mv.paused && this._active !== false) mv.play();
     else if (!spinning && !mv.paused) mv.pause();
   }
 

@@ -28,20 +28,36 @@ const TRANSPORTS = [
       { k: 'bitrate', label: 'Bitrate', type: 'select', from: 'can_bitrates', def: 1000000,
         fmt: (v) => (v >= 1e6 ? `${v / 1e6} Mbit/s` : `${v / 1000} kbit/s`),
         hintFromCar: 'buses' },
-      { k: 'dbc', label: 'Ficheiro DBC', type: 'file', accept: '.dbc',
-        placeholder: 'Opcional: usa uma DBC diferente da do Git' },
+      { k: 'dbc', label: 'Ficheiro DBC', type: 'file', accept: '.dbc', upload: 'dbc',
+        placeholder: 'Opcional: usa uma DBC diferente da do Git',
+        summary: (r) => `${r.name} — ${r.messages} mensagens` },
     ],
   },
   {
     id: 'wifi',
     name: 'WiFi',
     scan: 'wifi',
-    required: ['host'],
+    // Sem .elf não há ligação: o servidor GDB só fala em endereços, e quem
+    // sabe onde está o live_debug é o firmware que foi gravado.
+    required: ['host', 'elf'],
+    // Uma linha por campo, como no CAN: o nome do .elf é comprido e o resto
+    // lê-se pela ordem das decisões — onde está, e o que lá ler.
+    stack: true,
     fields: [
       { k: 'ssid', label: 'Rede', type: 'select', fromScan: true },
-      { k: 'protocol', label: 'Protocolo', type: 'select', values: ['tcp', 'udp', 'mqtt'], def: 'tcp' },
+      // O Black Magic no ESP32 levanta a própria rede em 192.168.4.1 e serve
+      // o protocolo do GDB em 2345.
       { k: 'host', label: 'Host / IP', type: 'text', def: '192.168.4.1' },
-      { k: 'port', label: 'Porta', type: 'text', def: '3333' },
+      { k: 'port', label: 'Porta', type: 'text', def: '2345' },
+      { k: 'elf', label: 'Firmware (.elf)', type: 'file', accept: '.elf', upload: 'elf',
+        wide: true,
+        placeholder: 'Obrigatório: o .elf que está gravado no AMS',
+        clearTitle: 'Esquecer este .elf',
+        summary: (r) => `${r.name} — ${r.symbol} em ${r.address}, ${r.size} B` },
+      // O firmware refresca a struct uma vez por segundo. Pedir mais do que
+      // o dobro só gasta rádio a reler a mesma fotografia.
+      { k: 'hz', label: 'Leituras/s', type: 'select', values: [1, 2, 4, 8], def: 2,
+        fmt: (v) => `${v} Hz` },
     ],
   },
   {
@@ -197,6 +213,11 @@ export class ConnectScreen {
 
     input.addEventListener('change', async () => {
       this.config[t.id][f.k] = input.value;
+      // O nome acompanha o endereço escolhido; sem isto ficava o do primeiro
+      // da lista, e a consola dizia "ACU_V3" com a ligação feita ao BMS.
+      if (t.id === 'ble' && f.fromScan) {
+        this.config[t.id].name = input.selectedOptions[0]?.textContent || '';
+      }
       // A backend switch invalidates the channel list before anything else.
       if (f.rescans && t.scan) await this._scan(t, true);
       if (this.selected === t.id) this._reconnectSoon();
@@ -258,12 +279,13 @@ export class ConnectScreen {
   }
 
   /**
-   * Pick a .dbc from the machine.
+   * Pick a file from the machine — hoje uma .dbc ou o .elf do firmware.
    *
    * The browser never exposes a real filesystem path, so the bytes are sent to
-   * the backend, which parses them to prove it is a DBC and keeps the file.
-   * What lands in the config is the path the backend wrote, which is what the
-   * decoder can actually open.
+   * the backend, which validates them and keeps the file. What lands in the
+   * config is the path the backend wrote, which is what the transport can
+   * actually open. `f.upload` diz qual dos dois validadores corre, e
+   * `f.summary` escreve o que se mostra quando ele aceita.
    */
   _filePicker(t, f) {
     const box = document.createElement('div');
@@ -287,7 +309,7 @@ export class ConnectScreen {
     clear.type = 'button';
     clear.className = 'btn-file-clear';
     clear.textContent = '✕';
-    clear.title = 'Voltar às DBCs do carro';
+    clear.title = f.clearTitle || 'Voltar às DBCs do carro';
     clear.hidden = true;
 
     const reset = () => {
@@ -313,7 +335,7 @@ export class ConnectScreen {
       name.textContent = `${file.name} — a validar…`;
       clear.hidden = false;
 
-      const res = await api.uploadDbc(file);
+      const res = await api.upload(f.upload || 'dbc', file);
       if (!res.ok) {
         name.className = 'file-name err';
         name.textContent = res.error || 'Falhou';
@@ -321,7 +343,7 @@ export class ConnectScreen {
         return;
       }
       name.className = 'file-name ok';
-      name.textContent = `${res.name} — ${res.messages} mensagens`;
+      name.textContent = f.summary ? f.summary(res) : res.name;
       this.config[t.id][f.k] = res.path;
       if (this.selected === t.id) this._reconnectSoon();
     });
@@ -397,6 +419,16 @@ export class ConnectScreen {
   _fillScan(t, select, hint, res) {
     const key = select.dataset.key;
     select.innerHTML = '';
+    // O RN4871 do carro e hardware fixo: fica sempre em primeiro e escolhido,
+    // mesmo que o scan nao o tenha visto -- o backend insiste ate o encontrar.
+    const fixed = t.id === 'ble' && this.car && this.car.ble_address;
+    if (fixed) {
+      const mac = this.car.ble_address.toUpperCase();
+      res = { ...res, items: [
+        { value: this.car.ble_address, label: `BMS · RN4871 (${mac})`, detail: 'Fixo no perfil do carro' },
+        ...res.items.filter((it) => it.value.toUpperCase() !== mac),
+      ] };
+    }
     if (!res.items.length) {
       select.innerHTML = '<option value="">— nada encontrado —</option>';
       this.config[t.id][key] = '';
@@ -433,12 +465,19 @@ export class ConnectScreen {
     const { row, cfg } = this.els[id];
     const hint = cfg.querySelector('[data-role="hint"]');
 
-    const missing = t.required.filter((k) => !this.config[id][k]);
+    // Em modo demo nao se abre nada: o simulador nao precisa de porta, de
+    // dispositivo nem de host. Exigir a selecao aqui impedia o pedido de sair
+    // sequer -- e num portatil sem adaptador BLE, ou sem nada emparelhado, a
+    // lista vem vazia e nao havia forma nenhuma de percorrer o fluxo.
+    const missing = this.demo ? [] : t.required.filter((k) => !this.config[id][k]);
     if (missing.length) {
       row.classList.remove('busy', 'live');
       row.classList.add('error');
-      if (hint) { hint.className = 'hint err'; hint.textContent = `Falta selecionar: ${missing.join(', ')}`; }
-      this.onStatus({ kind: 'error', text: `${t.name}: sem dispositivo selecionado` });
+      // Pelo rótulo e não pela chave: "elf" não diz nada a ninguém, "Firmware
+      // (.elf)" é exatamente o campo que está por preencher no ecrã.
+      const labels = missing.map((k) => (t.fields.find((f) => f.k === k) || {}).label || k);
+      if (hint) { hint.className = 'hint err'; hint.textContent = `Falta preencher: ${labels.join(', ')}`; }
+      this.onStatus({ kind: 'error', text: `${t.name}: falta ${labels.join(', ')}` });
       return;
     }
 

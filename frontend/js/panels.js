@@ -26,6 +26,8 @@ const TOKENS = {
   fault: ['--fault', '#FF453A'],
   max: ['--fault', '#FF453A'],
   min: ['--c-blue', '#0A84FF'],
+  // Roxo e nao vermelho: o vermelho ja e a celula mais alta.
+  ow: ['--c-purple', '#BF5AF2'],
   empty: ['--c-empty', 'rgba(120,120,128,0.16)'],
   grid: ['--c-gridline', 'rgba(255,255,255,0.07)'],
   axis: ['--c-axis', 'rgba(255,255,255,0.16)'],
@@ -151,7 +153,7 @@ export class GroupedBarChart {
     // find global min/max so the extremes can be marked
     let lo = Infinity, hi = -Infinity, loRef = null, hiRef = null;
     this.groups.forEach((g, gi) => g.values.forEach((cell, i) => {
-      if (cell.v == null) return;
+      if (cell.v == null || cell.ow) return;
       if (cell.v < lo) { lo = cell.v; loRef = [gi, i]; }
       if (cell.v > hi) { hi = cell.v; hiRef = [gi, i]; }
     }));
@@ -166,9 +168,18 @@ export class GroupedBarChart {
           return;
         }
         const y = yOf(cell.v);
+        // A descarregar: a coluna por cima da barra fica amarela, como na
+        // ferramenta de bancada -- ve-se o padrao do balanceamento de relance.
+        if (cell.bal) {
+          ctx.save();
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = COL.warn;
+          ctx.fillRect(bx, M.top, bw, y - M.top);
+          ctx.restore();
+        }
         const isMax = hiRef && hiRef[0] === gi && hiRef[1] === i;
         const isMin = loRef && loRef[0] === gi && loRef[1] === i;
-        ctx.fillStyle = isMax ? COL.max : isMin ? COL.min
+        ctx.fillStyle = cell.ow ? COL.ow : isMax ? COL.max : isMin ? COL.min
           : cell.status === 'fault' ? COL.fault
           : cell.status === 'warn' ? COL.warn : COL.ok;
         ctx.fillRect(bx, y, bw, M.top + ch - y);
@@ -246,6 +257,8 @@ export class GroupedBarChart {
       cell.label ?? `${this.groups[this.hover.g].label} · ${this.hover.i + 1}`,
       cell.sub ?? '',
       cell.v == null ? '—' : `${cell.v.toFixed(this.scale.decimals ?? 2)} ${this.scale.unit}`,
+      cell.bal ? 'a descarregar (balanceamento)' : '',
+      cell.ow ? 'openwire' : '',
     ].filter(Boolean);
 
     ctx.font = FONT;
@@ -262,7 +275,7 @@ export class GroupedBarChart {
     ctx.fill();
     ctx.textAlign = 'left';
     lines.forEach((line, i) => {
-      ctx.fillStyle = i === lines.length - 1 ? COL.textBright : COL.text;
+      ctx.fillStyle = i === 2 ? COL.textBright : COL.text;
       ctx.fillText(line, bx + 9, by + 12 + i * 14);
     });
   }

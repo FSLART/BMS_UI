@@ -16,11 +16,13 @@ from typing import Any
 
 from . import dbcstore
 from .cars import CarProfile, get_car
-from .decode import for_car
+from .decode import for_car, for_lines, for_struct
 from .logbuffer import log
 from .simulator import Simulator
 from .transports.base import TransportError
+from .transports.ble import BleTransport
 from .transports.can_bus import CanTransport
+from .transports.wifi import WifiGdbTransport
 from .state import (
     STALE_AFTER_S,
     BmsState,
@@ -36,15 +38,18 @@ from .state import (
 
 UPDATE_HZ = 10.0
 
+# Intervalo entre tentativas ao RN4871 fixo do carro (CarProfile.ble_address).
+BLE_RETRY_S = 3
+
 # Link types the UI may offer at all. The rest are shown greyed out until their
 # decoders land, so nobody wires up a car expecting a link that cannot work.
 # SIM is deliberately absent: "run the simulator" is the demo switch, not a
 # transport you connect to.
-SELECTABLE: set[LinkType] = {LinkType.CAN}
+SELECTABLE: set[LinkType] = {LinkType.CAN, LinkType.BLE, LinkType.WIFI}
 
 # Of those, the ones with a working end-to-end decoder today. Anything else is
 # reported honestly as not implemented instead of faking a connection.
-IMPLEMENTED: set[LinkType] = {LinkType.SIM, LinkType.CAN}
+IMPLEMENTED: set[LinkType] = {LinkType.SIM, LinkType.CAN, LinkType.BLE, LinkType.WIFI}
 
 
 class ConnectionManager:
@@ -190,6 +195,10 @@ class ConnectionManager:
         try:
             if lt is LinkType.CAN:
                 await self._run_can(config)
+            elif lt is LinkType.BLE:
+                await self._run_ble(config)
+            elif lt is LinkType.WIFI:
+                await self._run_wifi(config)
             else:
                 await self._run_sim(lt, config)
         except asyncio.CancelledError:
@@ -197,6 +206,191 @@ class ConnectionManager:
         except Exception as exc:  # noqa: BLE001 - surface any driver failure in the UI
             log.exception("Falha na ligacao %s", lt.value.upper())
             self._set_link(status=LinkStatus.ERROR, error=str(exc))
+
+    # -- BLE -----------------------------------------------------------------
+
+    async def _run_ble(self, config: dict[str, Any]) -> None:
+        """Ouvir o dump `live_debug` do AMS pelo RN4871.
+
+        Sem DBC: o que chega ja vem descodificado pelo firmware, uma linha JSON
+        por segundo. O ciclo continua a correr aos 10 Hz da interface -- entre
+        amostras redesenha o mesmo estado, o que mantem o contador de
+        obsolescencia e o resto do ecra a mexer como em qualquer outro
+        transporte.
+
+        Nao ha `self._tx`: por BLE nao se envia nada. A configuracao do BMS por
+        radio nao esta no plano, e sem isso um caminho de escrita seria uma
+        porta aberta sem ninguem do outro lado.
+        """
+        assert self.car is not None
+        car = self.car
+        # O RN4871 do proprio carro insiste: sem ligacao tenta de 3 em 3 s, e
+        # se cair volta a procurar. Outro dispositivo escolhido a mao tenta uma
+        # vez e diz o que correu mal.
+        address = str(config.get("address") or "").strip().upper()
+        fixed = bool(car.ble_address) and address == car.ble_address.upper()
+
+        if for_lines(car) is None:
+            msg = f"Sem descodificador de linha para o dialeto '{car.decoder}'"
+            log.error("%s", msg)
+            self._set_link(status=LinkStatus.ERROR, error=msg)
+            return
+
+        warned = False
+        while True:
+            transport = BleTransport(config)
+            detail = transport.describe
+            try:
+                await transport.open()
+            except TransportError as exc:
+                if self._demo_fallback:
+                    log.error("%s", exc)
+                    log.warning("A cair para o simulador (modo demo ligado)")
+                    return await self._run_sim(LinkType.BLE, config)
+                if not fixed:
+                    log.error("%s", exc)
+                    self._set_link(status=LinkStatus.ERROR, error=str(exc))
+                    return
+                # Uma vez no log, nao a cada tentativa: a procurar pode ficar
+                # minutos e a consola enchia-se de repeticoes.
+                if not warned:
+                    warned = True
+                    log.warning("%s - a tentar de %d em %d s", exc, BLE_RETRY_S, BLE_RETRY_S)
+                self._set_link(status=LinkStatus.CONNECTING, detail=f"A procurar {detail}")
+                await asyncio.sleep(BLE_RETRY_S)
+                continue
+
+            warned = False
+            log.info("A aguardar dump JSON do AMS em %s", detail)
+            await self._pump_snapshots(
+                LinkType.BLE, transport, for_lines(car), detail,
+                # Linha cortada a meio no radio. O RN4871 nao tem controlo de
+                # fluxo, portanto isto acontece e nao e erro -- so vale a pena
+                # contar.
+                reject_msg="%d linha(s) invalidas (perda no radio)",
+            )
+            if not fixed:
+                return
+            # Sem pausa: o RN4871 esta a reiniciar, e a ligacao seguinte ja fica
+            # a espera dele (ate CONNECT_TIMEOUT_S). Esperar aqui so alargava o
+            # buraco nos dados.
+            log.warning("Ligacao a %s perdida - a voltar a procurar", detail)
+            self._set_link(status=LinkStatus.CONNECTING, detail=f"A procurar {detail}")
+
+    # -- WiFi ----------------------------------------------------------------
+
+    async def _run_wifi(self, config: dict[str, Any]) -> None:
+        """Ler a struct `live_debug` do STM32 pelo servidor GDB do Black Magic.
+
+        Tal como no BLE nao ha DBC nem `self._tx`: o que chega ja vem medido
+        pelo firmware, e por aqui nao se envia nada para o barramento.
+
+        A diferenca esta na origem. Aqui ninguem manda nada -- vai-se buscar a
+        RAM do STM32, 816 bytes de cada vez, pelo AHB-AP. O preco e ter de
+        agarrar o alvo uma vez, o que para o CPU por instantes; ver o cabecalho
+        de `transports/wifi.py`.
+        """
+        assert self.car is not None
+        car = self.car
+        transport = WifiGdbTransport(config)
+        detail = transport.describe
+
+        decoder = for_struct(car)
+        if decoder is None:
+            msg = f"Sem descodificador de memoria para o dialeto '{car.decoder}'"
+            log.error("%s", msg)
+            self._set_link(status=LinkStatus.ERROR, error=msg)
+            return
+
+        try:
+            await transport.open()
+        except TransportError as exc:
+            log.error("%s", exc)
+            if self._demo_fallback:
+                log.warning("A cair para o simulador (modo demo ligado)")
+                return await self._run_sim(LinkType.WIFI, config)
+            self._set_link(status=LinkStatus.ERROR, error=str(exc))
+            return
+
+        await self._pump_snapshots(
+            LinkType.WIFI, transport, decoder, detail,
+            reject_msg="%d fotografia(s) com tamanho errado",
+        )
+
+    # -- ciclo comum aos transportes de fotografia ----------------------------
+
+    async def _pump_snapshots(self, lt: LinkType, transport, decoder, detail: str,
+                              reject_msg: str) -> None:
+        """Roda a interface a partir de um transporte que entrega fotografias.
+
+        BLE e WiFi trazem, cada um a sua maneira, o estado completo do pack de
+        uma so vez. O que muda e o meio; o ciclo e o mesmo, e continua aos
+        10 Hz da interface mesmo quando as amostras chegam a 1 ou 4 Hz -- entre
+        elas redesenha o mesmo estado, o que mantem o contador de obsolescencia
+        e o resto do ecra a mexer como em qualquer outro transporte.
+        """
+        self._set_link(status=LinkStatus.HANDSHAKING, detail=detail)
+
+        period = 1.0 / UPDATE_HZ
+        was_live = False
+        rx_window = started = time.time()
+        rx_count = 0
+        rejected = 0
+        silence_warned = False
+
+        try:
+            while True:
+                loop_start = time.time()
+
+                if (err := transport.error) is not None:
+                    self._set_link(status=LinkStatus.ERROR, error=err)
+                    return
+
+                rx_count += decoder.feed(transport.drain())
+
+                elapsed = loop_start - rx_window
+                if elapsed >= 1.0:
+                    # Amostras por segundo, e nao tramas: a unidade certa aqui
+                    # e "quantas fotografias do pack chegaram".
+                    self.state.link.rx_rate = round(rx_count / elapsed, 1)
+                    if decoder.rejected > rejected:
+                        log.warning(reject_msg, decoder.rejected - rejected)
+                        rejected = decoder.rejected
+                    rx_count = 0
+                    rx_window = loop_start
+
+                live = decoder.live(loop_start)
+                if live != was_live:
+                    was_live = live
+                    log.info("AMS %s", "online" if live else "sem resposta")
+
+                # Ligado mas mudo: sem isto a interface fica em "a espera" para
+                # sempre e ninguem sabe se o problema e o radio ou o firmware.
+                if not silence_warned and not decoder.decoded and loop_start - started >= 5.0:
+                    silence_warned = True
+                    got = getattr(transport, "bytes_in", None)
+                    if got == 0:
+                        log.warning("Ligado ha 5 s e nao chegou nenhum byte: o AMS nao esta "
+                                    "a mandar nada (firmware sem dump JSON no UART2?)")
+                    else:
+                        log.warning("Ligado ha 5 s sem nenhuma amostra valida%s",
+                                    f" ({got} bytes recebidos)" if got else "")
+
+                link = LinkMeta(
+                    type=lt,
+                    status=LinkStatus.LIVE if live else LinkStatus.HANDSHAKING,
+                    detail=detail,
+                    rx_rate=self.state.link.rx_rate,
+                    last_frame_ts=decoder.last_ams_ts or None,
+                )
+                state = decoder.snapshot(link)
+                state.car = self.car_meta()
+                self.state = state
+                self._broadcast()
+
+                await asyncio.sleep(max(0.0, period - (time.time() - loop_start)))
+        finally:
+            await transport.close()
 
     # -- real CAN ------------------------------------------------------------
 
@@ -378,8 +572,14 @@ class ConnectionManager:
             log.warning("%s (%s)", msg, cmd.label)
             return {"ok": False, "error": msg}
 
+        link = self.state.link
+        if link.status is LinkStatus.LIVE and link.type is not LinkType.CAN:
+            msg = f"Comandos so seguem por CAN; a ligacao atual e {link.type.value.upper()}."
+            log.warning("%s Comando '%s' nao enviado.", msg, cmd.label)
+            return {"ok": False, "error": msg}
+
         transport, db = self._tx, self._db
-        if transport is None or db is None or self.state.link.status is not LinkStatus.LIVE:
+        if transport is None or db is None or link.status is not LinkStatus.LIVE:
             msg = "Sem ligacao ativa ao BMS."
             log.warning("%s Comando '%s' nao enviado.", msg, cmd.label)
             return {"ok": False, "error": msg}

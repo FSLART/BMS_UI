@@ -27,12 +27,30 @@ function showScreen(name) {
   if (active === name) return;
   active = name;
   Object.entries(screens).forEach(([k, el]) => el.classList.toggle('active', k === name));
+  syncViewers();
+}
+
+/**
+ * So o modelo que esta mesmo no ecra e que desenha.
+ *
+ * Um <model-viewer> escondido continua a renderizar: `opacity: 0` ou tamanho
+ * zero nao lhe dizem nada. Com quatro no documento, tres desenhavam modelos
+ * invisiveis a cada frame -- e o acumulador aberto sozinho sao 5,8 milhoes de
+ * triangulos.
+ */
+function syncViewers() {
+  connectViewer.setActive(active === 'connect');
+  const page = active === 'dash' ? dashboard.page : null;
+  dashViewer.setActive(page === 'overview' || page === 'cells' || page === 'tables');
+  chargeViewer.setActive(page === 'charge');
+  segmentViewer.setActive(page === 'segment');
 }
 
 // --- preload every model behind the splash, before anything else is built ---
 // Viewers are constructed only afterwards, so their first _build() already
 // finds the object URLs in the cache instead of hitting the network.
-await new Preloader($('screen-loading')).run();
+const preloader = new Preloader($('screen-loading'));
+const preloadedCars = await preloader.run();
 
 // --- viewers: closed on the connection screen, open on the dashboard ----
 const connectViewer = new Viewer($('viewer-connect'), 'closed');
@@ -46,6 +64,54 @@ const segmentViewer = new Viewer($('viewer-segment'), 'segment');
 // No auto-rotate: the connection screen is meant to hold the framing set in
 // CAMERA.closed, and a slow spin walks away from it after a few seconds.
 connectViewer.idle(false);
+
+/**
+ * Preparar o 3D enquanto o ecra de carregamento ainda esta a tapar tudo.
+ *
+ * Descarregar o GLB e menos de metade do trabalho. O caro e o que vem a
+ * seguir: analisar o ficheiro, enviar a geometria para o GPU e compilar os
+ * shaders. Isso corre na thread principal e nao se parte em bocados.
+ *
+ * Antes acontecia a primeira vez que cada vista aparecia -- medido em 1,3 s
+ * num unico bloqueio ao sair do ecra do carro, com a janela sem responder a
+ * cliques. Agora acontece aqui, onde ninguem esta a tentar carregar em nada.
+ *
+ * So o carro que ja esta disponivel: os outros nao tem GLB nenhum, e escolher
+ * um deles nao tem 3D para preparar.
+ */
+async function warmUpModels(cars) {
+  const car = (cars || []).find((c) => c.available);
+  if (!car) return;
+
+  const models = {
+    closed: car.model_closed, open: car.model_open,
+    charger: car.model_charger, segment: car.model_segment,
+  };
+  const views = {
+    closed: car.view_closed, open: car.view_open,
+    charger: car.view_charger, segment: car.view_segment,
+  };
+  // A ordem e a ordem por que aparecem: o fechado e o primeiro que se ve.
+  const plano = [
+    [connectViewer, 'closed'],
+    [dashViewer, 'open'],
+    [chargeViewer, 'charger'],
+    [segmentViewer, 'segment'],
+  ];
+  for (const [v] of plano) {
+    v.setViews(views);
+    v.setHotspots(car.hotspots);
+    v.setModels(models);
+  }
+  for (let i = 0; i < plano.length; i += 1) {
+    const [v, which] = plano[i];
+    preloader.note('A preparar os modelos 3D…', ((i + 1) / plano.length) * 100);
+    await v.warmUp([which]);
+  }
+  preloader.note('', 100);
+}
+
+await warmUpModels(preloadedCars);
 
 // --- status line -----------------------------------------------------------
 // Link-bound hotspots on the closed model. The connection screen only ever
@@ -75,6 +141,7 @@ const dashboard = new Dashboard({
   viewer: dashViewer,
   chargeViewer,
   segmentViewer,
+  onPage: () => syncViewers(),
   onDisconnect: async () => {
     await api.disconnect();
     connectScreen.reset();
@@ -214,11 +281,22 @@ showScreen('car');
 // --- state stream ----------------------------------------------------------
 let wentLive = false;
 
+// Quanto tempo o dashboard aguenta uma ligacao em baixo antes de voltar ao
+// ecra de ligacao. O RN4871 do BMS reinicia de 30 em 30 s de proposito; sem
+// esta margem cada reinicio atirava o utilizador para fora do dashboard.
+const RECONNECT_GRACE_MS = 30000;
+// Dentro da margem, quanto tempo os dados continuam com aspeto normal antes de
+// ficarem cinzentos. Cobre um reinicio do RN4871 sem o ecra piscar; passado
+// isto ja nao e um reinicio, e os numeros deixam de parecer atuais.
+const STALE_HOLD_MS = 15000;
+let lostAt = null;
+
 openStateSocket((state) => {
   const link = state.link;
   connectScreen.applyLinkState(link);
 
   if (link.status === 'live') {
+    lostAt = null;
     if (!wentLive) {
       wentLive = true;
       setStatus({ kind: 'live', text: `BMS ativo — ${link.detail}` });
@@ -235,15 +313,29 @@ openStateSocket((state) => {
     if (link.status === 'handshaking') {
       setStatus({ kind: 'busy', text: 'Ligação aberta — à espera de trama válida do BMS…' });
     } else if (link.status === 'connecting') {
-      setStatus({ kind: 'busy', text: `A abrir ${link.type.toUpperCase()}…` });
+      // O detalhe diz o que se esta a abrir -- e, no RN4871 fixo, que se
+      // esta a procurar por ele de novo.
+      setStatus({ kind: 'busy', text: `${link.detail || `A abrir ${link.type.toUpperCase()}`}…` });
     } else if (link.status === 'error') {
       setStatus({ kind: 'error', text: link.error || 'Falha na ligação' });
     }
-    // Falling out of live drops back to the connection screen, never past the
-    // car screen — the car stays chosen.
-    if (active === 'dash' && link.status !== 'handshaking') {
-      showScreen('connect');
-      connectViewer.show('closed');
+
+    if (active === 'dash') {
+      // Ligacao em baixo, ou ligada mas o AMS calado: o dashboard fica com os
+      // ultimos dados enquanto o backend volta a ligar. Cinzentos so passado
+      // STALE_HOLD_MS; ecra de ligacao so passado RECONNECT_GRACE_MS -- e
+      // nunca enquanto a ligacao esta aberta, so a espera de dados.
+      lostAt ??= Date.now();
+      const away = Date.now() - lostAt;
+      const giveUp = link.status === 'disconnected'
+        || (link.status !== 'handshaking' && away >= RECONNECT_GRACE_MS);
+      if (giveUp) {
+        lostAt = null;
+        showScreen('connect');
+        connectViewer.show('closed');
+      } else {
+        dashboard.update({ ...state, stale: away >= STALE_HOLD_MS });
+      }
     }
   }
 });

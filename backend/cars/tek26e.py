@@ -31,6 +31,7 @@ CAR = CarProfile(
     buses=BUSES,
     commands=COMMANDS,
     decoder=DECODER,
+    ble_address="40:84:32:61:CE:13",
     # NTC 3 e 4 do slave 3 avariados: leem lixo, nao o vizinho.
     broken_thermistors=["3:3", "3:4"],
     # 144s3p: 6 segmentos x 24 paralelos x 3 celulas = 432 Molicel P45B

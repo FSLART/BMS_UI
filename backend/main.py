@@ -18,6 +18,7 @@ from .resources import resource_path
 install_logging()
 
 from . import dbcstore                                     # noqa: E402
+from . import elfsyms                                      # noqa: E402
 from .cars import CARS                                    # noqa: E402
 from .manager import SELECTABLE, manager                   # noqa: E402
 from .transports import discovery                          # noqa: E402
@@ -153,6 +154,31 @@ async def upload_dbc(request: Request, name: str = "custom.dbc") -> dict[str, An
         return {"ok": False, "error": f"Ficheiro demasiado grande ({len(data) // 1024} KB)"}
 
     return await asyncio.to_thread(dbcstore.accept_upload, name, data)
+
+
+# 64 MB. O .elf do STM32F412 com DWARF completa anda pelos 3 MB; isto e tecto de
+# seguranca, nao um alvo.
+MAX_ELF_BYTES = 64 * 1024 * 1024
+
+
+@app.post("/api/elf/upload")
+async def upload_elf(request: Request, name: str = "firmware.elf") -> dict[str, Any]:
+    """Aceita o .elf do firmware, para a ligacao WiFi saber onde ler.
+
+    O servidor GDB do Black Magic so fala em enderecos. Quem sabe em que
+    endereco esta o `live_debug` e o ficheiro que foi gravado no STM32, e por
+    isso e que ele tem de vir ate aqui.
+
+    Validado ja: um .elf sem a variavel, ou com uma struct de outro tamanho, e
+    recusado aqui em vez de dar erro so na ligacao.
+    """
+    data = await request.body()
+    if not data:
+        return {"ok": False, "error": "Ficheiro vazio"}
+    if len(data) > MAX_ELF_BYTES:
+        return {"ok": False, "error": f"Ficheiro demasiado grande ({len(data) // (1024 * 1024)} MB)"}
+
+    return await asyncio.to_thread(elfsyms.accept_upload, name, data)
 
 
 @app.websocket("/ws")

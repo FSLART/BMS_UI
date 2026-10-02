@@ -101,7 +101,8 @@
       "Bash(PYTHONIOENCODING=utf-8 python scratchpad/compose_charger.py)",
       "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
       "Bash(node --check frontend/js/viewer.js)",
-      "Bash(node --check frontend/js/dashboard.js)"
+      "Bash(node --check frontend/js/dashboard.js)",
+      "Bash(python -c \"import bleak; print\\('bleak', bleak.__version__\\)\")"
     ]
   }
 }

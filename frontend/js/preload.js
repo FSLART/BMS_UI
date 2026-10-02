@@ -44,6 +44,11 @@ export class Preloader {
     if (note !== undefined) this.els.note.textContent = note;
   }
 
+  /** Texto de estado no splash, para quem continua a trabalhar depois do fetch. */
+  note(text, pct) {
+    this._paint(pct === undefined ? { note: text } : { note: text, pct });
+  }
+
   async run() {
     this._paint({ pct: 0, file: LABEL, loaded: 0, total: 0, note: '' });
 
@@ -52,7 +57,7 @@ export class Preloader {
       cars = (await fetch('/api/cars').then((r) => r.json())).cars || [];
     } catch {
       this._paint({ pct: 100, file: '', note: 'Backend indisponível' });
-      return;
+      return [];
     }
 
     // Unique paths, available cars only. EVO/T-28 have no GLBs yet.
@@ -97,8 +102,10 @@ export class Preloader {
       this._paint({ pct: (done / total) * 100, loaded: done, total });
     }
 
-    this._paint({ pct: 100, file: 'Pronto', note: '' });
-    await new Promise((r) => setTimeout(r, 260));   // let the bar reach the end
+    // Nao e "Pronto": os bytes chegaram, mas o 3D ainda vai ser preparado.
+    // Quem chama continua com warmUp() antes de mostrar seja o que for.
+    this._paint({ pct: 100, file: 'Descarregado', note: '' });
+    return cars;
   }
 
   async _fetchWithProgress(item, onProgress) {

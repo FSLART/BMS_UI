@@ -178,6 +178,10 @@ class CarProfile(BaseModel):
     # Which decoder understands this car's CAN dialect (backend/decode/).
     decoder: str = "t26"
 
+    # MAC do RN4871 do AMS. Hardware fixo: sem outro dispositivo escolhido, a
+    # ligacao BLE vai para aqui e insiste ate o encontrar.
+    ble_address: str = ""
+
     model_closed: str = ""
     model_open: str = ""      # tampa aberta, interiores a vista
     # Acumulador montado no handcart. Ainda nao existe: enquanto o ficheiro nao

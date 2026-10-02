@@ -94,7 +94,8 @@ def model_files() -> list[tuple[str, str]]:
 #   cantools  - idem para os formatos de base de dados
 #   uvicorn   - loops e protocolos tambem resolvidos por string
 #   webview   - o backend nativo por plataforma (winforms no Windows)
-COLLECT = ["can", "cantools", "uvicorn", "webview"]
+#   bleak     - o backend BLE por plataforma (WinRT no Windows)
+COLLECT = ["can", "cantools", "uvicorn", "webview", "bleak"]
 
 HIDDEN = [
     "serial.tools.list_ports",
@@ -102,9 +103,7 @@ HIDDEN = [
     "email.mime.multipart",
 ]
 
-# Pesado, so usado por transportes que ainda nao estao implementados. Sai do
-# executavel ate o BLE existir a serio; tirar daqui quando isso acontecer.
-EXCLUDE = ["bleak", "tkinter", "matplotlib", "PIL", "pytest"]
+EXCLUDE = ["tkinter", "matplotlib", "PIL", "pytest"]
 
 
 def missing_pieces() -> list[str]:

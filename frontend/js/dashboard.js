@@ -69,10 +69,11 @@ export function cellColor(v, sev, lo = 3.0, hi = 4.15) {
 }
 
 export class Dashboard {
-  constructor({ viewer, chargeViewer, segmentViewer, onDisconnect }) {
+  constructor({ viewer, chargeViewer, segmentViewer, onDisconnect, onPage }) {
     this.viewer = viewer;
     this.chargeViewer = chargeViewer;
     this.segmentViewer = segmentViewer;
+    this.onPage = onPage;
     this.built = false;
     this.selectedSegment = null;
     this.cellEls = [];
@@ -174,6 +175,9 @@ export class Dashboard {
 
   showPage(name) {
     this.page = name;
+    // Quem manda parar os modelos fora do ecra precisa de saber que a pagina
+    // mudou, e a troca de separador nao passa pelo showScreen.
+    this.onPage?.(name);
     for (const tab of document.querySelectorAll('#dash-tabs .tab')) {
       tab.classList.toggle('active', tab.dataset.page === name);
     }
@@ -368,7 +372,8 @@ export class Dashboard {
       const el = this.cellEls[i];
       if (!el) return;
       const lim = this.config.limits();
-      el.style.background = cellColor(c.voltage, c.status, lim.v_warn_low, lim.v_warn_high);
+      el.style.background = c.open_wire ? 'var(--c-purple)'
+        : cellColor(c.voltage, c.status, lim.v_warn_low, lim.v_warn_high);
       el.dataset.sev = c.status;
       el.classList.toggle('open-wire', !!c.open_wire);
       const dim = this.selectedSegment && c.segment !== this.selectedSegment;
@@ -668,16 +673,25 @@ export class Dashboard {
       label: `Segmento ${i + 1}`,
       split: state.cells_per_slave || 0,
       values: cells.map((c) => ({
-        v: c.voltage, status: c.status,
+        v: c.voltage, status: c.status, bal: c.balancing, ow: c.open_wire,
         label: `Segmento ${c.segment} · Slave ${c.slave} · Célula ${c.slave_channel}`,
         sub: `Segmento ${c.segment} · Paralelo ${c.index}`,
       })),
     }));
     this.vChart.setData(groups);
 
-    const flat = state.cells.map((c) => ({ v: c.voltage, at: `S${c.segment}·G${c.index}` }));
+    // Uma célula DESCONHECIDA chega com 0 V — não é a tensão dela, é a ausência
+    // de leitura. Deixá-la entrar aqui punha o mínimo do pack a 0,000 V e o
+    // delta em 4000 mV sempre que um fio de medição estivesse solto.
+    const flat = state.cells.map((c) => ({
+      // Openwire tambem fica de fora: a tensao lida nao e a da celula.
+      v: c.status === 'unknown' || c.open_wire ? null : c.voltage,
+      at: `S${c.segment}·G${c.index}`,
+    }));
     const st = this._stats(flat);
-    $('v-sub').textContent = `${state.cells.length} paralelos · ${state.topology}`;
+    const bal = state.cells.filter((c) => c.balancing).length;
+    $('v-sub').textContent = `${state.cells.length} paralelos · ${state.topology}`
+      + (bal ? ` · ${bal} a descarregar` : '');
     $('v-max').textContent = st.hi != null ? `${st.hi.toFixed(3)} V` : '—';
     $('v-min').textContent = st.lo != null ? `${st.lo.toFixed(3)} V` : '—';
     $('v-delta').textContent = st.delta != null ? `${(st.delta * 1000).toFixed(0)} mV` : '—';
@@ -766,18 +780,25 @@ export class Dashboard {
       });
     }
 
-    const flag = (ok) => (ok ? 'ok' : 'fault');
-    v.setHotspotState('ams',  { label: sf.ams_ok ? 'AMS' : 'AMS falha', sev: flag(sf.ams_ok) });
-    v.setHotspotState('imd',  { label: sf.imd_ok ? 'IMD' : 'IMD falha', sev: flag(sf.imd_ok) });
+    // O painel lateral já respeita `safety.available`; os marcadores no modelo
+    // não respeitavam, e um sinal que ninguém lê aparecia como avaria. "IMD
+    // falha" a vermelho quando o IMD nem sequer está ligado ao AMS é pior do
+    // que não dizer nada: quem olha não tem como saber que é mentira.
+    const measured = new Set(sf.available || []);
+    // `plain` é o que fica quando o sinal não é medido: só o nome da peça,
+    // a cinzento, sem afirmar que está boa nem que está má.
+    const sig = (key, id, plain, ok, bad, badSev) => v.setHotspotState(id, measured.has(key)
+      ? { label: sf[key] ? ok : bad, sev: sf[key] ? 'ok' : badSev }
+      : { label: plain, sev: 'idle' });
+
+    sig('ams_ok', 'ams', 'AMS', 'AMS', 'AMS falha', 'fault');
+    sig('imd_ok', 'imd', 'IMD', 'IMD', 'IMD falha', 'fault');
     v.setHotspotState('fuse', { label: 'Fusível', sev: 'idle' });
     // Each contactor reports separately on CAN (precharge_ctc_air_pos_state,
     // ..._air_min_state, precharge_state), so show them separately.
-    v.setHotspotState('air-pos',   { label: sf.air_positive ? 'AIR+ fechado' : 'AIR+ aberto',
-                                     sev: sf.air_positive ? 'ok' : 'idle' });
-    v.setHotspotState('air-neg',   { label: sf.air_negative ? 'AIR− fechado' : 'AIR− aberto',
-                                     sev: sf.air_negative ? 'ok' : 'idle' });
-    v.setHotspotState('precharge', { label: sf.precharge_done ? 'Pré-carga ok' : 'Pré-carga',
-                                     sev: sf.precharge_done ? 'ok' : 'warn' });
+    sig('air_positive', 'air-pos', 'AIR+', 'AIR+ fechado', 'AIR+ aberto', 'idle');
+    sig('air_negative', 'air-neg', 'AIR−', 'AIR− fechado', 'AIR− aberto', 'idle');
+    sig('precharge_done', 'precharge', 'Pré-carga', 'Pré-carga ok', 'Pré-carga', 'warn');
     // The IVT is the current sensor: show what it is measuring.
     v.setHotspotState('ivt', {
       label: `IVT  ${state.pack.current.toFixed(1)} A`,

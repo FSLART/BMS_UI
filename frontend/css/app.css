@@ -68,6 +68,7 @@
   --c-cell-fault: #8E2020;
   --c-cell-warn:  #8A5310;
   --c-blue:  #0A84FF;
+  --c-purple: #BF5AF2;
   --c-empty: rgba(120, 120, 128, .16);
   --c-gridline: rgba(255, 255, 255, .07);
   --c-axis:  rgba(255, 255, 255, .16);
@@ -127,6 +128,7 @@
   --c-cell-fault: #F3C0BC;
   --c-cell-warn:  #F6DCA8;
   --c-blue:  #0B63C5;
+  --c-purple: #8944AB;
   /* Sobre claro estas tres invertem o sinal: o que no escuro era branco a
      desvanecer tem de passar a preto a desvanecer, senao a grelha e os eixos
      desaparecem no fundo. */
@@ -1552,7 +1554,7 @@ button, input, select, textarea {
 /* An open wire is a fault, but a different one: a loose sense lead, not a flat
    cell. Hatched so it never reads as a voltage worth acting on. */
 .cell.open-wire {
-  box-shadow: inset 0 0 0 1.5px var(--fault);
+  box-shadow: inset 0 0 0 1.5px var(--c-purple);
   background-image: repeating-linear-gradient(
     45deg, transparent 0 2px, var(--hatch) 2px 3px);
 }

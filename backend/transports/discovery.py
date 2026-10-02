@@ -94,6 +94,16 @@ async def scan_can(backend: str = "slcan") -> dict[str, Any]:
 # Bluetooth LE
 # ---------------------------------------------------------------------------
 
+# Ultimo scan BLE, por endereco. Um BleakClient criado so com o endereco faz um
+# scan proprio antes de ligar, e falha com "was not found" se o dispositivo nao
+# anunciar nessa janela -- mesmo tendo aparecido na lista segundos antes. Com o
+# BLEDevice do scan, no Windows, liga direto sem voltar a procurar.
+BLE_SEEN: dict[str, Any] = {}
+
+# Nomes com que o RN4871 do BMS anuncia (o de fabrica e o do firmware).
+BMS_BLE_NAMES = ("RN4871", "LART Accumulator")
+
+
 async def scan_ble(timeout: float = 5.0) -> dict[str, Any]:
     try:
         from bleak import BleakScanner
@@ -105,6 +115,7 @@ async def scan_ble(timeout: float = 5.0) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 - adapter off / no permission
         return _result([], f"scan BLE falhou: {exc}")
 
+    BLE_SEEN.update({d.address.upper(): d for d in devices})
     items = [
         {
             "value": d.address,
@@ -113,7 +124,11 @@ async def scan_ble(timeout: float = 5.0) -> dict[str, Any]:
         }
         for d in devices
     ]
-    items.sort(key=lambda i: (i["label"].startswith("("), i["label"].lower()))
+    # O modulo do BMS primeiro: a interface escolhe o primeiro da lista e liga
+    # logo, e com outros RN4871 e portateis por perto (ACU_V3, ...) ligava ao
+    # errado. "LART Accumulator" e o nome que o RN4871_SetName() do firmware poe.
+    items.sort(key=lambda i: (not i["label"].startswith(BMS_BLE_NAMES),
+                              i["label"].startswith("("), i["label"].lower()))
     return _result(items, "" if items else "Nenhum dispositivo BLE encontrado")
 
 
