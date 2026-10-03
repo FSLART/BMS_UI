@@ -290,13 +290,15 @@ const RECONNECT_GRACE_MS = 30000;
 // isto ja nao e um reinicio, e os numeros deixam de parecer atuais.
 const STALE_HOLD_MS = 15000;
 let lostAt = null;
+// Ultima fotografia com o BMS vivo. Durante a margem e esta que se mostra:
+// o estado que chega entretanto e o de uma ligacao nova, ainda vazia.
+let lastLive = null;
 
 openStateSocket((state) => {
   const link = state.link;
   connectScreen.applyLinkState(link);
 
   if (link.status === 'live') {
-    lostAt = null;
     if (!wentLive) {
       wentLive = true;
       setStatus({ kind: 'live', text: `BMS ativo — ${link.detail}` });
@@ -307,7 +309,15 @@ openStateSocket((state) => {
         dashViewer.show('open');
       }, 700);
     }
-    dashboard.update(state);
+    if (!state.stale || !lastLive) {
+      lostAt = null;
+      lastLive = state;
+      dashboard.update(state);
+      return;
+    }
+    // Vivo mas obsoleto: antes de a ligacao cair, o vigia do backend e o
+    // ciclo de leitura alternam `stale` em impulsos de ~100 ms. Conta como
+    // falha, com a mesma margem, em vez de piscar o ecra.
   } else {
     wentLive = false;
     if (link.status === 'handshaking') {
@@ -319,23 +329,22 @@ openStateSocket((state) => {
     } else if (link.status === 'error') {
       setStatus({ kind: 'error', text: link.error || 'Falha na ligação' });
     }
+  }
 
-    if (active === 'dash') {
-      // Ligacao em baixo, ou ligada mas o AMS calado: o dashboard fica com os
-      // ultimos dados enquanto o backend volta a ligar. Cinzentos so passado
-      // STALE_HOLD_MS; ecra de ligacao so passado RECONNECT_GRACE_MS -- e
-      // nunca enquanto a ligacao esta aberta, so a espera de dados.
-      lostAt ??= Date.now();
-      const away = Date.now() - lostAt;
-      const giveUp = link.status === 'disconnected'
-        || (link.status !== 'handshaking' && away >= RECONNECT_GRACE_MS);
-      if (giveUp) {
-        lostAt = null;
-        showScreen('connect');
-        connectViewer.show('closed');
-      } else {
-        dashboard.update({ ...state, stale: away >= STALE_HOLD_MS });
-      }
-    }
+  if (active !== 'dash') return;
+  // Ligacao em baixo, ou ligada mas sem dados: o dashboard fica com a ultima
+  // fotografia boa enquanto o backend volta a ligar. Cinzenta so passado
+  // STALE_HOLD_MS; ecra de ligacao so passado RECONNECT_GRACE_MS -- e nunca
+  // enquanto a ligacao esta aberta, so a espera de dados.
+  lostAt ??= Date.now();
+  const away = Date.now() - lostAt;
+  const open = link.status === 'live' || link.status === 'handshaking';
+  if (link.status === 'disconnected' || (!open && away >= RECONNECT_GRACE_MS)) {
+    lostAt = null;
+    lastLive = null;
+    showScreen('connect');
+    connectViewer.show('closed');
+  } else {
+    dashboard.update({ ...(lastLive || state), link, stale: away >= STALE_HOLD_MS });
   }
 });

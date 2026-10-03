@@ -41,6 +41,11 @@ UPDATE_HZ = 10.0
 # Intervalo entre tentativas ao RN4871 fixo do carro (CarProfile.ble_address).
 BLE_RETRY_S = 3
 
+# Ligado mas sem amostras ha este tempo = ligacao meio-aberta (o RN4871 deixou
+# de encaminhar, ou o Windows ainda nao deu pela queda). O firmware manda uma
+# linha por segundo, portanto 10 s sem nada nao e um atraso: e fechar e religar.
+BLE_SILENCE_S = 10.0
+
 # Link types the UI may offer at all. The rest are shown greyed out until their
 # decoders land, so nobody wires up a car expecting a link that cannot work.
 # SIM is deliberately absent: "run the simulator" is the demo switch, not a
@@ -230,7 +235,11 @@ class ConnectionManager:
         address = str(config.get("address") or "").strip().upper()
         fixed = bool(car.ble_address) and address == car.ble_address.upper()
 
-        if for_lines(car) is None:
+        # Um descodificador para a sessao toda, nao um por religacao: assim o
+        # ultimo estado, o seq e a energia da carga sobrevivem a um reinicio
+        # do RN4871 em vez de recomecarem do zero.
+        decoder = for_lines(car)
+        if decoder is None:
             msg = f"Sem descodificador de linha para o dialeto '{car.decoder}'"
             log.error("%s", msg)
             self._set_link(status=LinkStatus.ERROR, error=msg)
@@ -262,20 +271,27 @@ class ConnectionManager:
 
             warned = False
             log.info("A aguardar dump JSON do AMS em %s", detail)
-            await self._pump_snapshots(
-                LinkType.BLE, transport, for_lines(car), detail,
-                # Linha cortada a meio no radio. O RN4871 nao tem controlo de
-                # fluxo, portanto isto acontece e nao e erro -- so vale a pena
-                # contar.
-                reject_msg="%d linha(s) invalidas (perda no radio)",
-            )
+            try:
+                await self._pump_snapshots(
+                    LinkType.BLE, transport, decoder, detail,
+                    # Linha cortada a meio no radio. O RN4871 nao tem controlo
+                    # de fluxo, portanto isto acontece e nao e erro -- so vale
+                    # a pena contar.
+                    reject_msg="%d linha(s) invalidas (perda no radio)",
+                    max_silence=BLE_SILENCE_S,
+                )
+            except Exception:  # noqa: BLE001 - o RN4871 fixo nunca desiste
+                if not fixed:
+                    raise
+                log.exception("Erro inesperado na ligacao BLE - a religar")
             if not fixed:
                 return
-            # Sem pausa: o RN4871 esta a reiniciar, e a ligacao seguinte ja fica
-            # a espera dele (ate CONNECT_TIMEOUT_S). Esperar aqui so alargava o
-            # buraco nos dados.
+            # Pausa curta e nao os 3 s: o RN4871 esta a reiniciar e a ligacao
+            # seguinte ja fica a espera dele. So evita martelar o Bluetooth do
+            # Windows se a ligacao cair logo a seguir a abrir.
             log.warning("Ligacao a %s perdida - a voltar a procurar", detail)
             self._set_link(status=LinkStatus.CONNECTING, detail=f"A procurar {detail}")
+            await asyncio.sleep(0.5)
 
     # -- WiFi ----------------------------------------------------------------
 
@@ -320,7 +336,7 @@ class ConnectionManager:
     # -- ciclo comum aos transportes de fotografia ----------------------------
 
     async def _pump_snapshots(self, lt: LinkType, transport, decoder, detail: str,
-                              reject_msg: str) -> None:
+                              reject_msg: str, max_silence: float | None = None) -> None:
         """Roda a interface a partir de um transporte que entrega fotografias.
 
         BLE e WiFi trazem, cada um a sua maneira, o estado completo do pack de
@@ -347,6 +363,14 @@ class ConnectionManager:
                     return
 
                 rx_count += decoder.feed(transport.drain())
+
+                # Ligacao aberta mas muda ha demasiado tempo: sair, para quem
+                # chamou fechar e voltar a abrir.
+                if max_silence and loop_start - max(started, decoder.last_ams_ts) > max_silence:
+                    err = f"sem amostras ha {max_silence:.0f} s com a ligacao aberta"
+                    log.warning("%s: %s", detail, err)
+                    self._set_link(status=LinkStatus.ERROR, error=err)
+                    return
 
                 elapsed = loop_start - rx_window
                 if elapsed >= 1.0:

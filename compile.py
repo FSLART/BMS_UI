@@ -103,7 +103,10 @@ HIDDEN = [
     "email.mime.multipart",
 ]
 
-EXCLUDE = ["tkinter", "matplotlib", "PIL", "pytest"]
+# PyQt5 e numpy vinham arrastados pelo --collect-all (webview.platforms.qt,
+# cantools plot) e nunca carregam: no Windows o pywebview so usa WinForms/Edge.
+# ~170 MB em disco a menos no build.
+EXCLUDE = ["tkinter", "matplotlib", "PIL", "pytest", "PyQt5", "numpy"]
 
 
 def missing_pieces() -> list[str]:
