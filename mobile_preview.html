@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BMS Monitor Mobile — Pré-visualização</title>
+  <title>LART BMS Mobile — Pré-visualização</title>
+  <script type="module" src="frontend/js/vendor/model-viewer-4.0.0.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
@@ -15,14 +16,21 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 20px;
+      padding: 20px 10px;
     }
     .header-bar {
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       text-align: center;
     }
+    .header-bar .logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
     .header-bar h1 {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 800;
       color: #FFC300;
       letter-spacing: 0.5px;
@@ -30,23 +38,23 @@
     .header-bar p {
       font-size: 13px;
       color: #8B949E;
-      margin-top: 4px;
     }
+
     /* Phone Frame Mockup */
     .phone-container {
-      width: 390px;
-      height: 820px;
-      background: #0B0F14;
+      width: 410px;
+      height: 840px;
+      background: #070A0F;
       border: 10px solid #1C242F;
       border-radius: 46px;
-      box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 0 2px #27323E;
+      box-shadow: 0 25px 70px rgba(0,0,0,0.85), 0 0 0 2px #27323E;
       display: flex;
       flex-direction: column;
       position: relative;
       overflow: hidden;
     }
     .phone-notch {
-      width: 120px;
+      width: 130px;
       height: 24px;
       background: #1C242F;
       position: absolute;
@@ -61,11 +69,12 @@
       justify-content: center;
     }
     .phone-speaker {
-      width: 44px;
+      width: 46px;
       height: 4px;
       background: #0B0F14;
       border-radius: 2px;
     }
+
     /* App Viewport */
     .app-screen {
       flex: 1;
@@ -73,48 +82,59 @@
       flex-direction: column;
       overflow-y: auto;
       padding-top: 28px;
-      padding-bottom: 60px;
+      padding-bottom: 64px;
       position: relative;
     }
+    .app-screen::-webkit-scrollbar { width: 4px; }
+    .app-screen::-webkit-scrollbar-thumb { background: #263240; border-radius: 4px; }
+
     /* Bottom Navigation Bar */
     .bottom-nav {
       position: absolute;
       bottom: 0;
       left: 0;
       right: 0;
-      height: 60px;
-      background: #151B22;
-      border-top: 1px solid #263240;
+      height: 64px;
+      background: #0E131A;
+      border-top: 1px solid #1C242F;
       display: flex;
       justify-content: space-around;
       align-items: center;
       z-index: 90;
+      padding: 0 4px;
     }
     .nav-item {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
+      gap: 2px;
       color: #6E7681;
       cursor: pointer;
-      font-size: 10px;
-      font-weight: 600;
+      font-size: 9px;
+      font-weight: 700;
       transition: all 0.15s ease;
-      width: 50px;
+      flex: 1;
+      padding: 6px 0;
+      border-radius: 8px;
     }
     .nav-item svg { width: 18px; height: 18px; fill: currentColor; }
     .nav-item.active {
-      color: #FFC300;
+      color: #FFD60A;
     }
+    .nav-item.active svg {
+      filter: drop-shadow(0 0 6px rgba(255, 214, 10, 0.4));
+    }
+
     /* Pages */
-    .page { display: none; padding: 14px; flex-direction: column; gap: 14px; }
+    .page { display: none; padding: 14px; flex-direction: column; gap: 12px; }
     .page.active { display: flex; }
+
     /* Cards */
     .card {
-      background: #151B22;
-      border: 1px solid #263240;
+      background: #0E131A;
+      border: 1px solid #1C242F;
       border-radius: 14px;
-      padding: 14px;
+      padding: 12px 14px;
     }
     .card-title {
       font-size: 11px;
@@ -122,22 +142,269 @@
       color: #8B949E;
       letter-spacing: 0.6px;
       text-transform: uppercase;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
+
+    /* View Mode Switcher Pills */
+    .mode-toggle {
+      display: flex;
+      background: #161D26;
+      border: 1px solid #1C242F;
+      border-radius: 8px;
+      padding: 2px;
+    }
+    .mode-pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #8B949E;
+      transition: all 0.15s ease;
+    }
+    .mode-pill.active {
+      background: #FFD60A;
+      color: #000;
+    }
+
+    /* Filter Chips */
+    .filter-chips {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .filter-chips::-webkit-scrollbar { display: none; }
+    .chip {
+      background: #161D26;
+      border: 1px solid #1C242F;
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #8B949E;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .chip.active {
+      background: #FFD60A;
+      border-color: #FFD60A;
+      color: #000;
+    }
+
     /* KPIs Grid */
     .kpi-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
     .kpi-card {
-      background: #161E28;
-      border: 1px solid #263240;
+      background: #131922;
+      border: 1px solid #1C242F;
       border-radius: 10px;
       padding: 8px 10px;
     }
-    .kpi-label { font-size: 9px; font-weight: 700; color: #8B949E; text-transform: uppercase; }
-    .kpi-value { font-size: 18px; font-weight: 800; font-family: monospace; margin-top: 2px; }
+    .kpi-label { font-size: 8px; font-weight: 700; color: #8B949E; text-transform: uppercase; }
+    .kpi-value { font-size: 17px; font-weight: 800; font-family: monospace; margin-top: 2px; }
     .kpi-unit { font-size: 11px; font-weight: 500; color: #8B949E; margin-left: 2px; }
+
+    /* Bar Charts Container (Horizontal Scroll) */
+    .chart-container {
+      background: #0C1017;
+      border: 1px solid #1C242F;
+      border-radius: 8px;
+      height: 220px;
+      position: relative;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 10px 4px;
+    }
+    .chart-canvas-wrap {
+      height: 100%;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding-left: 40px;
+      padding-right: 20px;
+      padding-bottom: 24px;
+    }
+    .y-axis-labels {
+      position: absolute;
+      left: 6px;
+      top: 10px;
+      bottom: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 9px;
+      font-family: monospace;
+      color: #8B949E;
+      pointer-events: none;
+    }
+    .chart-bars-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 1px;
+      height: 100%;
+    }
+    .chart-seg-group {
+      display: flex;
+      align-items: flex-end;
+      gap: 1px;
+      position: relative;
+      margin-right: 14px;
+      border-bottom: 1.5px solid rgba(255,255,255,0.2);
+    }
+    .chart-seg-group::after {
+      content: attr(data-seg);
+      position: absolute;
+      bottom: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      font-weight: 700;
+      color: #C4C4CC;
+    }
+    .chart-bar {
+      width: 5px;
+      border-top-left-radius: 2px;
+      border-top-right-radius: 2px;
+      cursor: pointer;
+      position: relative;
+      transition: opacity 0.1s;
+    }
+    .chart-bar:hover { opacity: 0.8; }
+    .chart-bar.min { background: #0A84FF !important; }
+    .chart-bar.max { background: #FF453A !important; }
+    .chart-bar.ok { background: #32D74B; }
+    .chart-bar.warn { background: #FFD60A; }
+    .chart-bar.fault { background: #FF453A; }
+    .chart-bar.ow { background: #BF5AF2; }
+
+    .chart-marker {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .chart-marker.max { color: #FF453A; }
+    .chart-marker.min { color: #0A84FF; }
+
+    /* Model Viewer */
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background: #070A0F;
+      outline: none;
+      --poster-color: transparent;
+    }
+    .model-card {
+      background: #0E131A;
+      border: 1px solid #1C242F;
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .model-header {
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #1C242F;
+    }
+    .model-controls {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-icon {
+      width: 28px;
+      height: 28px;
+      background: #161D26;
+      border: 1px solid #1C242F;
+      border-radius: 6px;
+      color: #8B949E;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-icon:hover, .btn-icon.active {
+      color: #FFD60A;
+      border-color: #FFD60A;
+      background: rgba(255, 214, 10, 0.15);
+    }
+
+    /* Selected Item Banner */
+    .detail-banner {
+      background: #161D26;
+      border: 1px solid #FFD60A;
+      border-radius: 8px;
+      padding: 6px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: 700;
+      color: #FFD60A;
+    }
+
+    /* Fullscreen Modal */
+    .fs-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #070A0F;
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      padding: 30px 14px 14px;
+      gap: 10px;
+    }
+    .fs-modal.active { display: flex; }
+
+    /* Cells Grid */
+    .cells-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+    .cell-tile {
+      background: #143525;
+      border: 0.5px solid #1C242F;
+      border-radius: 6px;
+      padding: 6px 4px;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .cell-tile.bal { border: 1.5px solid #FFD60A; }
+    .cell-num { font-size: 8px; color: rgba(255,255,255,0.7); font-family: monospace; }
+    .cell-volt { font-size: 11px; font-weight: 800; color: #FFF; font-family: monospace; }
+
+    /* Legend */
+    .legend-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: #8B949E;
+    }
+    .legend-items { display: flex; gap: 10px; align-items: center; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
     /* Safety Pills */
     .safety-grid { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 6px; }
     .safety-pill {
@@ -155,53 +422,10 @@
     .pill-info { display: flex; flex-direction: column; }
     .pill-label { font-size: 8px; font-weight: 600; color: #6E7681; }
     .pill-state { font-size: 11px; font-weight: 800; color: #3FB950; font-family: monospace; }
-    .safety-pill.fault .pill-state { color: #F85149; }
-    /* Sparkline Canvas */
-    .canvas-wrap {
-      width: 100%;
-      height: 80px;
-      background: #1C242F;
-      border-radius: 8px;
-      overflow: hidden;
-      margin-top: 6px;
-    }
-    canvas { width: 100%; height: 100%; display: block; }
-    /* Segment Items */
-    .seg-card {
-      background: #161E28;
-      border: 1px solid #263240;
-      border-radius: 10px;
-      padding: 10px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-    }
-    .seg-card:hover { border-color: #FFC300; }
-    /* Cells Grid */
-    .cells-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 5px;
-    }
-    .cell-tile {
-      background: #18543C;
-      border: 0.5px solid #263240;
-      border-radius: 6px;
-      padding: 6px 4px;
-      text-align: center;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-    .cell-tile.bal { border: 1.5px solid #FFC300; }
-    .cell-num { font-size: 8px; color: rgba(255,255,255,0.7); font-family: monospace; }
-    .cell-volt { font-size: 11px; font-weight: 800; color: #FFF; font-family: monospace; }
-    /* Action Buttons */
+
+    /* Buttons */
     .btn-main {
-      background: #FFC300;
+      background: #FFD60A;
       color: #000;
       font-weight: 800;
       font-size: 13px;
@@ -215,10 +439,9 @@
       gap: 8px;
       width: 100%;
     }
-    .btn-main:hover { background: #E6B000; }
     .btn-ghost {
       background: transparent;
-      border: 1px solid #263240;
+      border: 1px solid #1C242F;
       color: #F0F3F6;
       font-weight: 600;
       font-size: 12px;
@@ -227,38 +450,14 @@
       cursor: pointer;
       width: 100%;
     }
-    /* Switches */
-    .switch-wrap {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .toggle-switch {
-      width: 44px;
-      height: 24px;
-      background: #FFC300;
-      border-radius: 12px;
-      position: relative;
-      cursor: pointer;
-    }
-    .toggle-knob {
-      width: 20px;
-      height: 20px;
-      background: #000;
-      border-radius: 50%;
-      position: absolute;
-      top: 2px;
-      right: 2px;
-      transition: all 0.2s;
-    }
     .badge {
       display: inline-block;
       padding: 2px 6px;
       border-radius: 4px;
       font-size: 9px;
       font-weight: 800;
-      background: rgba(255,195,0,0.15);
-      color: #FFC300;
+      background: rgba(255,214,10,0.15);
+      color: #FFD60A;
     }
     .live-dot {
       width: 8px;
@@ -274,31 +473,38 @@
 <body>
 
   <div class="header-bar">
-    <h1>BMS MONITOR MOBILE (TEK-26e)</h1>
-    <p>Simulador interativo da aplicação Android • Jetpack Compose Layout</p>
+    <div class="logo-row">
+      <img src="android/app/src/main/res/drawable/lart_logo_symbol.png" alt="LART" style="height: 28px;" />
+      <h1>LART BMS MOBILE</h1>
+    </div>
+    <p>Simulador Interativo • Jetpack Compose • Gráficos de Tensão/NTCs • 3D SolidWorks</p>
   </div>
 
   <div class="phone-container">
     <div class="phone-notch"><div class="phone-speaker"></div></div>
 
     <div class="app-screen">
+
       <!-- 1. CONNECT PAGE -->
       <div class="page" id="page-connect">
-        <div style="margin-top: 6px;">
-          <div style="font-size: 10px; font-weight: 800; color: #FFC300; letter-spacing: 0.8px;">FORMULA STUDENT LART</div>
-          <div style="font-size: 20px; font-weight: 800; color: #F0F3F6; margin-top: 2px;">BMS Monitor Mobile</div>
-          <div style="font-size: 12px; color: #8B949E;">Monitorização de alta tensão por BLE</div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
+          <img src="android/app/src/main/res/drawable/lart_logo_symbol.png" alt="LART" style="height: 28px;" />
+          <div>
+            <div style="font-size: 10px; font-weight: 800; color: #FFD60A; letter-spacing: 0.8px;">FORMULA STUDENT LART</div>
+            <div style="font-size: 20px; font-weight: 800; color: #F0F3F6;">LART BMS</div>
+          </div>
         </div>
+        <div style="font-size: 12px; color: #8B949E; margin-top: -4px;">Monitorização de alta tensão por Bluetooth LE</div>
 
         <div class="card">
           <div class="card-title">1. Seleção do Carro</div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <div style="background: #1C242F; border: 1.5px solid #FFC300; border-radius: 10px; padding: 10px;">
-              <div style="font-weight: 800; font-size: 13px; color: #FFC300;">TEK-26e</div>
-              <div style="font-size: 11px; color: #8B949E; font-family: monospace;">144s3p • Molicel</div>
+            <div style="background: #161D26; border: 1.5px solid #FFD60A; border-radius: 10px; padding: 10px;">
+              <div style="font-weight: 800; font-size: 13px; color: #FFD60A;">TEK-26e</div>
+              <div style="font-size: 11px; color: #8B949E; font-family: monospace;">144s3p • Molicel P45B</div>
               <div style="font-size: 10px; color: #6E7681; margin-top: 2px;">518 V nom • 6 segs</div>
             </div>
-            <div style="background: #161E28; border: 1px solid #263240; border-radius: 10px; padding: 10px; opacity: 0.6;">
+            <div style="background: #131922; border: 1px solid #1C242F; border-radius: 10px; padding: 10px; opacity: 0.6;">
               <div style="font-weight: 800; font-size: 13px; color: #F0F3F6;">TEK-26e EVO</div>
               <div style="font-size: 11px; color: #8B949E; font-family: monospace;">144s3p • Molicel</div>
               <div style="font-size: 10px; color: #6E7681; margin-top: 2px;">518 V nom • EVO</div>
@@ -312,28 +518,26 @@
             <span class="badge">40:84:32:61:CE:13</span>
           </div>
           <p style="font-size: 11px; color: #8B949E; line-height: 15px; margin-bottom: 12px;">
-            Módulo Microchip RN4871 no UART2 do STM32 AMS Master. Endereço pré-configurado de fábrica.
+            Microchip RN4871 no UART2 do STM32 Master. Delay de descritor CCCD e prioridade alta ativados.
           </p>
           <button class="btn-main" onclick="switchPage('dashboard')">
             <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a1 1 0 0 1 1 1v7.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 10.586V3a1 1 0 0 1 1-1z"/></svg>
             LIGAR AO TEK-26e (BLE)
           </button>
           <div style="margin-top: 8px;">
-            <button class="btn-ghost" onclick="switchPage('dashboard')">PROCURAR DISPOSITIVOS BLE</button>
-          </div>
-          <div style="background: #1C242F; border-radius: 8px; padding: 8px 10px; margin-top: 10px; display: flex; align-items: center; font-size: 11px; font-family: monospace; color: #8B949E;">
-            <span class="live-dot" style="background: #FFC300; box-shadow: 0 0 8px #FFC300;"></span>
-            Pronto para ligar a 40:84:32:61:CE:13
+            <button class="btn-ghost" onclick="switchPage('model3d')">VER MODELO 3D DO VEÍCULO</button>
           </div>
         </div>
 
         <div class="card">
-          <div class="switch-wrap">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
               <div style="font-size: 13px; font-weight: 700;">Modo Demo (Simulador)</div>
               <div style="font-size: 11px; color: #8B949E; margin-top: 2px;">Física realista sem hardware conectado</div>
             </div>
-            <div class="toggle-switch" onclick="switchPage('dashboard')"><div class="toggle-knob"></div></div>
+            <div style="width: 44px; height: 24px; background: #FFD60A; border-radius: 12px; position: relative; cursor: pointer;" onclick="switchPage('dashboard')">
+              <div style="width: 20px; height: 20px; background: #000; border-radius: 50%; position: absolute; top: 2px; right: 2px;"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -344,11 +548,11 @@
           <div>
             <div style="display: flex; align-items: center; gap: 6px;">
               <span style="font-size: 18px; font-weight: 800;">TEK-26e</span>
-              <span class="badge"><span class="live-dot"></span>SIMULADOR / BLE</span>
+              <span class="badge"><span class="live-dot"></span>BLE LIVE</span>
             </div>
             <div style="font-size: 11px; color: #6E7681; font-family: monospace;">40:84:32:61:CE:13</div>
           </div>
-          <button style="background: #1C242F; border: 1px solid #263240; color: #F0F3F6; font-size: 11px; padding: 5px 10px; border-radius: 6px; font-weight: 600; cursor: pointer;" onclick="switchPage('connect')">Desligar</button>
+          <button style="background: #161D26; border: 1px solid #1C242F; color: #F0F3F6; font-size: 11px; padding: 5px 10px; border-radius: 6px; font-weight: 600; cursor: pointer;" onclick="switchPage('connect')">Desligar</button>
         </div>
 
         <!-- KPIs 2x3 Grid -->
@@ -356,30 +560,46 @@
           <div class="kpi-row">
             <div class="kpi-card">
               <div class="kpi-label">Tensão Pack</div>
-              <div class="kpi-value" style="color: #9BB4D9;"><span id="v-pack">591.2</span><span class="kpi-unit">V</span></div>
+              <div class="kpi-value" style="color: #0A84FF;"><span id="v-pack">591.2</span><span class="kpi-unit">V</span></div>
             </div>
             <div class="kpi-card">
               <div class="kpi-label">Corrente</div>
-              <div class="kpi-value" style="color: #FFC300;"><span id="i-pack">18.4</span><span class="kpi-unit">A</span></div>
+              <div class="kpi-value" style="color: #FFD60A;"><span id="i-pack">18.4</span><span class="kpi-unit">A</span></div>
             </div>
             <div class="kpi-card">
               <div class="kpi-label">Potência</div>
-              <div class="kpi-value" style="color: #FFC300;"><span id="p-pack">10.9</span><span class="kpi-unit">kW</span></div>
+              <div class="kpi-value" style="color: #FFD60A;"><span id="p-pack">10.9</span><span class="kpi-unit">kW</span></div>
             </div>
           </div>
           <div class="kpi-row">
             <div class="kpi-card">
               <div class="kpi-label">SoC</div>
-              <div class="kpi-value" style="color: #3FB950;"><span id="soc-pack">91</span><span class="kpi-unit">%</span></div>
+              <div class="kpi-value" style="color: #32D74B;"><span id="soc-pack">91</span><span class="kpi-unit">%</span></div>
             </div>
             <div class="kpi-card">
               <div class="kpi-label">Temp Máx</div>
-              <div class="kpi-value" style="color: #F0F3F6;"><span id="t-pack">34.2</span><span class="kpi-unit">°C</span></div>
+              <div class="kpi-value" style="color: #FF453A;"><span id="t-pack">34.2</span><span class="kpi-unit">°C</span></div>
             </div>
             <div class="kpi-card">
               <div class="kpi-label">Desvio Cél.</div>
-              <div class="kpi-value" style="color: #3FB950;"><span id="delta-pack">28</span><span class="kpi-unit">mV</span></div>
+              <div class="kpi-value" style="color: #32D74B;"><span id="delta-pack">28</span><span class="kpi-unit">mV</span></div>
             </div>
+          </div>
+        </div>
+
+        <!-- 3D Accumulator Preview Card on Dashboard -->
+        <div class="model-card">
+          <div class="model-header">
+            <div>
+              <div style="font-size: 11px; font-weight: 800; color: #F0F3F6;">ACUMULADOR 3D · 6 SEGMENTOS</div>
+              <div style="font-size: 9px; color: #8B949E;">SolidWorks CAD Interativo</div>
+            </div>
+            <div class="model-controls">
+              <div class="btn-icon" title="Ecrã Inteiro" onclick="openFullscreen3D('frontend/models/tek26e_open_light.glb', 'Acumulador Aberto (Pack HV)')">⤢</div>
+            </div>
+          </div>
+          <div style="height: 170px; width: 100%;">
+            <model-viewer src="frontend/models/tek26e_open_light.glb" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1" exposure="0.88" interaction-prompt="none" camera-orbit="45deg 70deg 110%"></model-viewer>
           </div>
         </div>
 
@@ -387,16 +607,16 @@
         <div class="card">
           <div class="card-title">
             <span>Corrente &amp; Tensão (Tempo Real)</span>
-            <span style="font-family: monospace; font-size: 10px; color: #FFC300;">I: <span id="trace-i">18.4</span>A • V: <span id="trace-v">591</span>V</span>
+            <span style="font-family: monospace; font-size: 10px; color: #FFD60A;">I: <span id="trace-i">18.4</span>A • V: <span id="trace-v">591</span>V</span>
           </div>
-          <div class="canvas-wrap">
+          <div style="width: 100%; height: 75px; background: #0C1017; border-radius: 8px; overflow: hidden;">
             <canvas id="sparklineCanvas"></canvas>
           </div>
         </div>
 
         <!-- Safety & AMS Grid -->
         <div class="card">
-          <div class="card-title">Segurança &amp; AMS</div>
+          <div class="card-title">Segurança &amp; AMS Master</div>
           <div class="safety-grid">
             <div class="safety-pill">
               <div class="dot-indicator"></div>
@@ -411,27 +631,6 @@
               <div class="pill-info"><span class="pill-label">PRÉ-CARGA</span><span class="pill-state">HV ON</span></div>
             </div>
           </div>
-          <div class="safety-grid" style="margin-top: 6px;">
-            <div class="safety-pill">
-              <div class="dot-indicator"></div>
-              <div class="pill-info"><span class="pill-label">AIR+</span><span class="pill-state">ON</span></div>
-            </div>
-            <div class="safety-pill">
-              <div class="dot-indicator"></div>
-              <div class="pill-info"><span class="pill-label">AIR−</span><span class="pill-state">ON</span></div>
-            </div>
-            <div class="safety-pill">
-              <div class="dot-indicator"></div>
-              <div class="pill-info"><span class="pill-label">ESTADO</span><span class="pill-state">ONMISSION</span></div>
-            </div>
-          </div>
-
-          <div style="background: #1C242F; border-radius: 8px; padding: 6px 10px; margin-top: 8px; display: flex; justify-content: space-between; font-size: 10px; font-family: monospace; color: #8B949E;">
-            <span>FAN: <b style="color: #FFF;">45%</b></span>
-            <span>MCU: <b style="color: #FFF;">31.5°C</b></span>
-            <span>SLAVES: <b style="color: #3FB950;">12/12</b></span>
-            <span>PEC CRC: <b style="color: #3FB950;">OK</b></span>
-          </div>
         </div>
 
         <!-- Segment List -->
@@ -440,69 +639,260 @@
             <span>Segmentos do Acumulador</span>
             <span>6 Segmentos</span>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 6px;" id="segmentList">
-            <!-- Segments injected via JS -->
-          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;" id="segmentList"></div>
         </div>
       </div>
 
       <!-- 3. CELLS PAGE -->
       <div class="page" id="page-cells">
-        <div class="card-title" style="margin-bottom: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <div style="font-size: 16px; font-weight: 800; color: #FFF;">Matriz de Células</div>
-            <div style="font-size: 11px; color: #8B949E;">144 Células (6 Segmentos × 24 Paralelos)</div>
+            <div style="font-size: 10px; font-weight: 800; color: #8B949E; letter-spacing: 0.8px;">TENSÃO DAS CÉLULAS</div>
+            <div style="font-size: 16px; font-weight: 800; color: #FFF;">144 Células em Série</div>
           </div>
-          <div style="text-align: right; font-family: monospace;">
-            <div style="color: #9BB4D9; font-weight: 700;">4.092 - 4.120 V</div>
-            <div style="color: #3FB950; font-size: 10px;">Δ 28 mV</div>
+          <div class="mode-toggle">
+            <div class="mode-pill active" id="btn-cells-chart" onclick="toggleCellsMode('chart')">📊 Gráfico</div>
+            <div class="mode-pill" id="btn-cells-grid" onclick="toggleCellsMode('grid')">⊞ Matriz</div>
           </div>
         </div>
 
-        <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
-          <span class="badge" style="background: #FFC300; color: #000; cursor: pointer;">Todos</span>
-          <span class="badge" style="cursor: pointer;">Seg 1</span>
-          <span class="badge" style="cursor: pointer;">Seg 2</span>
-          <span class="badge" style="cursor: pointer;">Seg 3</span>
-          <span class="badge" style="cursor: pointer;">Seg 4</span>
-          <span class="badge" style="cursor: pointer;">Seg 5</span>
-          <span class="badge" style="cursor: pointer;">Seg 6</span>
+        <div class="filter-chips">
+          <span class="chip active">Todos (144)</span>
+          <span class="chip">Seg 1</span>
+          <span class="chip">Seg 2</span>
+          <span class="chip">Seg 3</span>
+          <span class="chip">Seg 4</span>
+          <span class="chip">Seg 5</span>
+          <span class="chip">Seg 6</span>
         </div>
 
-        <div class="cells-grid" id="cellsGrid">
-          <!-- 144 cells injected via JS -->
+        <!-- Cells Bar Chart View -->
+        <div id="cells-chart-view" style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="card">
+            <div class="card-title">
+              <span>TENSÃO POR GRUPO SÉRIE</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="text-align: right; font-family: monospace;">
+                  <span style="color: #FF453A; font-weight: 800; font-size: 11px;">▲ 4.120 V</span>
+                  <span style="color: #0A84FF; font-weight: 800; font-size: 11px; margin-left: 6px;">▼ 4.092 V</span>
+                </div>
+                <div class="btn-icon" title="Maximizar Gráfico" onclick="openFullscreenChart('cells')">⤢</div>
+              </div>
+            </div>
+
+            <div class="detail-banner" id="cell-select-banner" style="display: none; margin-bottom: 8px;">
+              <span id="cell-select-text">Célula #38: 4.092 V</span>
+              <span style="color: #32D74B;">NORMAL</span>
+            </div>
+
+            <div class="chart-container">
+              <div class="y-axis-labels">
+                <span>4.30</span><span>4.15</span><span>3.70</span><span>2.80</span><span>2.50</span>
+              </div>
+              <div class="chart-canvas-wrap" id="cellsChartWrap">
+                <!-- Grouped bars generated by JS -->
+              </div>
+            </div>
+
+            <div class="legend-row" style="margin-top: 10px;">
+              <div class="legend-items">
+                <span><i class="legend-dot" style="background: #FF453A;"></i> Máx (▲)</span>
+                <span><i class="legend-dot" style="background: #0A84FF;"></i> Mín (▼)</span>
+                <span><i class="legend-dot" style="background: #32D74B;"></i> Normal</span>
+                <span><i class="legend-dot" style="background: #FFD60A;"></i> Balancear</span>
+              </div>
+              <span>Toca numa barra</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cells Grid View -->
+        <div id="cells-grid-view" style="display: none; flex-direction: column; gap: 8px;">
+          <div class="cells-grid" id="cellsGrid"></div>
         </div>
       </div>
 
-      <!-- 4. CHARGER PAGE -->
+      <!-- 4. TEMPS (NTCS) PAGE -->
+      <div class="page" id="page-temps">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 10px; font-weight: 800; color: #8B949E; letter-spacing: 0.8px;">TEMPERATURAS NTC</div>
+            <div style="font-size: 16px; font-weight: 800; color: #FFF;">72 Sensores (12 Slaves)</div>
+          </div>
+          <div class="mode-toggle">
+            <div class="mode-pill active" id="btn-temps-chart" onclick="toggleTempsMode('chart')">📊 Gráfico</div>
+            <div class="mode-pill" id="btn-temps-list" onclick="toggleTempsMode('list')">⊞ Lista</div>
+          </div>
+        </div>
+
+        <div class="filter-chips">
+          <span class="chip active">Todos (72)</span>
+          <span class="chip">Seg 1</span>
+          <span class="chip">Seg 2</span>
+          <span class="chip">Seg 3</span>
+          <span class="chip">Seg 4</span>
+          <span class="chip">Seg 5</span>
+          <span class="chip">Seg 6</span>
+        </div>
+
+        <!-- NTCs Bar Chart View -->
+        <div id="temps-chart-view" style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="card">
+            <div class="card-title">
+              <span>TEMPERATURA POR SEGMENTO</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="text-align: right; font-family: monospace;">
+                  <span style="color: #FF453A; font-weight: 800; font-size: 11px;">▲ 35.4°C</span>
+                  <span style="color: #0A84FF; font-weight: 800; font-size: 11px; margin-left: 6px;">▼ 27.8°C</span>
+                </div>
+                <div class="btn-icon" title="Maximizar Gráfico" onclick="openFullscreenChart('temps')">⤢</div>
+              </div>
+            </div>
+
+            <div class="detail-banner" id="ntc-select-banner" style="display: none; margin-bottom: 8px;">
+              <span id="ntc-select-text">NTC #3 (Seg 2, Slave 3): 35.4 °C</span>
+              <span style="color: #FF453A;">MÁXIMA</span>
+            </div>
+
+            <div class="chart-container">
+              <div class="y-axis-labels">
+                <span>70°</span><span>50°</span><span>35°</span><span>20°</span><span>0°</span>
+              </div>
+              <div class="chart-canvas-wrap" id="tempsChartWrap">
+                <!-- Grouped NTC bars generated by JS -->
+              </div>
+            </div>
+
+            <div class="legend-row" style="margin-top: 10px;">
+              <div class="legend-items">
+                <span><i class="legend-dot" style="background: #FF453A;"></i> Máx (▲)</span>
+                <span><i class="legend-dot" style="background: #0A84FF;"></i> Mín (▼)</span>
+                <span><i class="legend-dot" style="background: #32D74B;"></i> Normal</span>
+                <span><i class="legend-dot" style="background: #BF5AF2;"></i> Bypass</span>
+              </div>
+              <span>Toca numa barra</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- NTCs List View -->
+        <div id="temps-list-view" style="display: none; flex-direction: column; gap: 8px;" id="tempsListWrap"></div>
+      </div>
+
+      <!-- 5. 3D CAD VIEWER PAGE -->
+      <div class="page" id="page-model3d">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 10px; font-weight: 800; color: #8B949E; letter-spacing: 0.8px;">VISUALIZADOR 3D CAD</div>
+            <div style="font-size: 16px; font-weight: 800; color: #FFF;" id="model3d-title">Acumulador Aberto</div>
+          </div>
+          <span class="badge">SOLIDWORKS GLTF</span>
+        </div>
+
+        <!-- Model Selection Chips -->
+        <div class="filter-chips">
+          <span class="chip active" onclick="switch3DModel('pack', this)">⚡ Acumulador</span>
+          <span class="chip" onclick="switch3DModel('car', this)">🏎️ Carro</span>
+          <span class="chip" onclick="switch3DModel('segment', this)">🔋 Segmento</span>
+          <span class="chip" onclick="switch3DModel('charger', this)">🔌 Trolley Carga</span>
+        </div>
+
+        <!-- HUD Telemetry Bar -->
+        <div class="card" style="padding: 8px 12px; display: flex; justify-content: space-between; font-family: monospace;">
+          <div><div style="font-size: 8px; color: #8B949E;">TENSÃO</div><b style="color: #FFD60A; font-size: 14px;">591.2 V</b></div>
+          <div><div style="font-size: 8px; color: #8B949E;">ESTADO SOC</div><b style="color: #32D74B; font-size: 14px;">91 %</b></div>
+          <div><div style="font-size: 8px; color: #8B949E;">TEMP MÁX</div><b style="color: #FF453A; font-size: 14px;">34.2 °C</b></div>
+          <div><div style="font-size: 8px; color: #8B949E;">POTÊNCIA</div><b style="color: #FFF; font-size: 14px;">10.9 kW</b></div>
+        </div>
+
+        <!-- Interactive 3D Viewer Card -->
+        <div class="model-card">
+          <div class="model-header">
+            <span style="font-size: 10px; color: #8B949E; font-weight: 700;">ARRASTA PARA RODAR • PINÇA PARA ZOOM</span>
+            <div class="model-controls">
+              <div class="btn-icon active" id="btn-3d-rotate" title="Auto-Rodar" onclick="toggle3DAutoRotate()">🔄</div>
+              <div class="btn-icon" title="Centrar Câmara" onclick="reset3DCamera()">🎯</div>
+              <div class="btn-icon" title="Ecrã Inteiro" onclick="openFullscreen3DCurrent()">⤢</div>
+            </div>
+          </div>
+          <div style="height: 310px; width: 100%;">
+            <model-viewer id="main3DViewer" src="frontend/models/tek26e_open_light.glb" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none" camera-orbit="45deg 70deg 110%"></model-viewer>
+          </div>
+        </div>
+
+        <div class="card" id="model3d-context-card">
+          <div class="card-title">Detalhes do Acumulador</div>
+          <p style="font-size: 11px; color: #8B949E; line-height: 15px;">
+            Montagem com 6 segmentos de 24 paralelos cada (144s3p, Molicel P45B). Células refrigeradas a ar com condutas dedicadas e ventilação forçada.
+          </p>
+        </div>
+      </div>
+
+      <!-- 6. CHARGER PAGE -->
       <div class="page" id="page-charger">
-        <div style="font-size: 18px; font-weight: 800; color: #FFF;">Estação de Carga</div>
-        <div style="font-size: 11px; color: #8B949E;">Handcart / EV Europe OEM3</div>
-
-        <div class="card" style="text-align: center; padding: 24px 14px;">
-          <div style="font-size: 11px; font-weight: 700; color: #8B949E; letter-spacing: 0.6px;">ENERGIA CARREGADA (SESSÃO)</div>
-          <div style="font-size: 46px; font-weight: 900; color: #FFC300; font-family: monospace; margin: 8px 0;">
-            <span id="chgKwh">2.45</span><span style="font-size: 18px; color: #8B949E; font-weight: 600;"> kWh</span>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 10px; font-weight: 800; color: #8B949E; letter-spacing: 0.8px;">ESTAÇÃO DE CARGA</div>
+            <div style="font-size: 16px; font-weight: 800; color: #FFF;">Handcart T26 / EV Europe</div>
           </div>
-          <div style="font-size: 12px; color: #8B949E; font-family: monospace;">Tempo: 24 min 12 s</div>
+          <div class="mode-toggle">
+            <div class="mode-pill active" id="btn-charger-dash" onclick="toggleChargerMode('dash')">📊 Painel</div>
+            <div class="mode-pill" id="btn-charger-3d" onclick="toggleChargerMode('3d')">🧊 3D</div>
+          </div>
         </div>
 
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="kpi-label">Tensão Saída</div>
-            <div class="kpi-value" style="color: #9BB4D9;">592.4<span class="kpi-unit">V</span></div>
+        <div id="charger-3d-view" style="display: none;">
+          <div class="model-card">
+            <div class="model-header">
+              <span style="font-size: 10px; color: #8B949E; font-weight: 700;">HANDCART COM ACUMULADOR</span>
+              <div class="model-controls">
+                <div class="btn-icon" title="Ecrã Inteiro" onclick="openFullscreen3D('frontend/models/tek26e_charger.glb', 'Trolley de Carregamento')">⤢</div>
+              </div>
+            </div>
+            <div style="height: 280px; width: 100%;">
+              <model-viewer src="frontend/models/tek26e_charger.glb" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none"></model-viewer>
+            </div>
           </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Corrente Saída</div>
-            <div class="kpi-value" style="color: #FFC300;">5.95<span class="kpi-unit">A</span></div>
+        </div>
+
+        <div id="charger-dash-view" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="card" style="text-align: center; padding: 20px 14px;">
+            <div style="font-size: 10px; font-weight: 700; color: #8B949E; letter-spacing: 0.6px;">ENERGIA CARREGADA (SESSÃO)</div>
+            <div style="font-size: 42px; font-weight: 900; color: #FFD60A; font-family: monospace; margin: 6px 0;">
+              <span id="chgKwh">2.45</span><span style="font-size: 16px; color: #8B949E; font-weight: 600;"> kWh</span>
+            </div>
+            <div style="font-size: 11px; color: #8B949E; font-family: monospace;">Tempo: 24 min 12 s</div>
           </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Corrente Pedida</div>
-            <div class="kpi-value" style="color: #FFF;">6.0<span class="kpi-unit">A</span></div>
+
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="kpi-label">Tensão Saída</div>
+              <div class="kpi-value" style="color: #0A84FF;">592.4<span class="kpi-unit">V</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Corrente Saída</div>
+              <div class="kpi-value" style="color: #FFD60A;">5.95<span class="kpi-unit">A</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Corrente Pedida</div>
+              <div class="kpi-value" style="color: #FFF;">6.0<span class="kpi-unit">A</span></div>
+            </div>
           </div>
         </div>
       </div>
 
+    </div>
+
+    <!-- FULLSCREEN MODAL -->
+    <div class="fs-modal" id="fsModal">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 14px; font-weight: 800; color: #FFF;" id="fsModalTitle">Ecrã Inteiro</div>
+          <div style="font-size: 10px; color: #8B949E;" id="fsModalSubtitle">Visualização expandida</div>
+        </div>
+        <button style="background: #161D26; border: 1px solid #FFD60A; color: #FFD60A; font-size: 11px; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer;" onclick="closeFullscreen()">✕ Minimizar</button>
+      </div>
+      <div id="fsModalBody" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;"></div>
     </div>
 
     <!-- BOTTOM NAVIGATION -->
@@ -519,6 +909,14 @@
         <svg viewBox="0 0 24 24"><path d="M15 4h-1V2h-4v2H9c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-2 10h-2v-4h2v4z"/></svg>
         Células
       </div>
+      <div class="nav-item" onclick="switchPage('temps')" id="nav-temps">
+        <svg viewBox="0 0 24 24"><path d="M15 13V5c0-1.7-1.3-3-3-3S9 3.3 9 5v8c-1.2.9-2 2.3-2 4 0 2.8 2.2 5 5 5s5-2.2 5-5c0-1.7-.8-3.1-2-4zm-3-9c.6 0 1 .4 1 1v3h-2V5c0-.6.4-1 1-1z"/></svg>
+        NTCs
+      </div>
+      <div class="nav-item" onclick="switchPage('model3d')" id="nav-model3d">
+        <svg viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5zm0 8.5L4 7l8-4 8 4-8 4.5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        3D CAD
+      </div>
       <div class="nav-item" onclick="switchPage('charger')" id="nav-charger">
         <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
         Carga
@@ -527,6 +925,8 @@
   </div>
 
   <script>
+    let active3DModel = 'pack';
+
     function switchPage(pageId) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -535,40 +935,239 @@
       if (nav) nav.classList.add('active');
     }
 
-    // Build Segments
+    // Toggle Cells Mode (Chart vs Grid)
+    function toggleCellsMode(mode) {
+      const isChart = (mode === 'chart');
+      document.getElementById('btn-cells-chart').classList.toggle('active', isChart);
+      document.getElementById('btn-cells-grid').classList.toggle('active', !isChart);
+      document.getElementById('cells-chart-view').style.display = isChart ? 'flex' : 'none';
+      document.getElementById('cells-grid-view').style.display = isChart ? 'none' : 'flex';
+    }
+
+    // Toggle Temps Mode (Chart vs List)
+    function toggleTempsMode(mode) {
+      const isChart = (mode === 'chart');
+      document.getElementById('btn-temps-chart').classList.toggle('active', isChart);
+      document.getElementById('btn-temps-list').classList.toggle('active', !isChart);
+      document.getElementById('temps-chart-view').style.display = isChart ? 'flex' : 'none';
+      document.getElementById('temps-list-view').style.display = isChart ? 'none' : 'flex';
+    }
+
+    // Toggle Charger Mode (Dashboard vs 3D)
+    function toggleChargerMode(mode) {
+      const isDash = (mode === 'dash');
+      document.getElementById('btn-charger-dash').classList.toggle('active', isDash);
+      document.getElementById('btn-charger-3d').classList.toggle('active', !isDash);
+      document.getElementById('charger-dash-view').style.display = isDash ? 'flex' : 'none';
+      document.getElementById('charger-3d-view').style.display = isDash ? 'none' : 'block';
+    }
+
+    // Switch 3D Model in 3D CAD page
+    const MODEL_FILES = {
+      'pack': { file: 'frontend/models/tek26e_open_light.glb', title: 'Acumulador Aberto (Pack HV)', desc: 'Montagem com 6 segmentos de 24 paralelos cada (144s3p, Molicel P45B). Células refrigeradas a ar com condutas dedicadas.' },
+      'car': { file: 'frontend/models/tek26e_closed.glb', title: 'Carro TEK-26e (Montagem Completa)', desc: 'Carroçaria em fibra de carbono, chassis tubular e acumulador protegido dentro do monocoque.' },
+      'segment': { file: 'frontend/models/seguemento.glb', title: 'Módulo de Segmento (24 Células)', desc: 'Módulo padrão com duas placas BMS Slave e barramentos niquelados com monitorização individual.' },
+      'charger': { file: 'frontend/models/tek26e_charger.glb', title: 'Trolley de Carregamento (Handcart)', desc: 'Carro de transporte oficial de pitlane com acumulador de 518 V montado na plataforma de carga.' }
+    };
+
+    function switch3DModel(modelKey, chipEl) {
+      active3DModel = modelKey;
+      document.querySelectorAll('#page-model3d .chip').forEach(c => c.classList.remove('active'));
+      if (chipEl) chipEl.classList.add('active');
+
+      const info = MODEL_FILES[modelKey];
+      document.getElementById('model3d-title').textContent = info.title.split('(')[0];
+      const mv = document.getElementById('main3DViewer');
+      mv.src = info.file;
+      document.getElementById('model3d-context-card').innerHTML = `
+        <div class="card-title">${info.title}</div>
+        <p style="font-size: 11px; color: #8B949E; line-height: 15px;">${info.desc}</p>
+      `;
+    }
+
+    function toggle3DAutoRotate() {
+      const mv = document.getElementById('main3DViewer');
+      const btn = document.getElementById('btn-3d-rotate');
+      if (mv.hasAttribute('auto-rotate')) {
+        mv.removeAttribute('auto-rotate');
+        btn.classList.remove('active');
+      } else {
+        mv.setAttribute('auto-rotate', '');
+        btn.classList.add('active');
+      }
+    }
+
+    function reset3DCamera() {
+      const mv = document.getElementById('main3DViewer');
+      mv.cameraOrbit = '45deg 70deg 110%';
+      mv.jumpCameraToGoal();
+    }
+
+    // Fullscreen Controls
+    function openFullscreen3D(modelFile, title) {
+      const modal = document.getElementById('fsModal');
+      document.getElementById('fsModalTitle').textContent = title;
+      document.getElementById('fsModalSubtitle').textContent = "Arrasta para rodar • Pinça para zoom";
+      const body = document.getElementById('fsModalBody');
+      body.innerHTML = `
+        <model-viewer src="${modelFile}" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none" style="width:100%; height:100%; background:#070A0F;"></model-viewer>
+      `;
+      modal.classList.add('active');
+    }
+
+    function openFullscreen3DCurrent() {
+      const info = MODEL_FILES[active3DModel];
+      openFullscreen3D(info.file, info.title);
+    }
+
+    function openFullscreenChart(type) {
+      const modal = document.getElementById('fsModal');
+      const body = document.getElementById('fsModalBody');
+      if (type === 'cells') {
+        document.getElementById('fsModalTitle').textContent = "TENSÃO DAS CÉLULAS (144s)";
+        document.getElementById('fsModalSubtitle').textContent = "Gráfico de barras de alta precisão";
+        body.innerHTML = `
+          <div style="flex:1; background:#0C1017; border-radius:10px; padding:16px; overflow-x:auto; display:flex; align-items:flex-end;">
+            <div style="height:360px; min-width:700px; display:flex; align-items:flex-end;">
+              ${document.getElementById('cellsChartWrap').innerHTML}
+            </div>
+          </div>
+        `;
+      } else {
+        document.getElementById('fsModalTitle').textContent = "TEMPERATURAS NTC (72 Sensores)";
+        document.getElementById('fsModalSubtitle').textContent = "Gráfico de barras térmico por segmento";
+        body.innerHTML = `
+          <div style="flex:1; background:#0C1017; border-radius:10px; padding:16px; overflow-x:auto; display:flex; align-items:flex-end;">
+            <div style="height:360px; min-width:600px; display:flex; align-items:flex-end;">
+              ${document.getElementById('tempsChartWrap').innerHTML}
+            </div>
+          </div>
+        `;
+      }
+      modal.classList.add('active');
+    }
+
+    function closeFullscreen() {
+      document.getElementById('fsModal').classList.remove('active');
+      document.getElementById('fsModalBody').innerHTML = '';
+    }
+
+    // Build Cells Chart & Grid
+    const cellsWrap = document.getElementById('cellsChartWrap');
+    const cellsGrid = document.getElementById('cellsGrid');
+    const minCellIdx = 38;
+    const maxCellIdx = 104;
+
+    for (let s = 1; s <= 6; s++) {
+      const segGroup = document.createElement('div');
+      segGroup.className = 'chart-seg-group';
+      segGroup.dataset.seg = `SEG ${s}`;
+
+      for (let c = 1; c <= 24; c++) {
+        const idx = (s - 1) * 24 + c;
+        let v = 4.095 + (Math.sin(idx * 0.4) * 0.018);
+        if (idx === minCellIdx) v = 4.092; // Min
+        if (idx === maxCellIdx) v = 4.120; // Max
+
+        const isMin = (idx === minCellIdx);
+        const isMax = (idx === maxCellIdx);
+        const isBal = (idx === 14 || idx === 88);
+
+        // Height mapping: 2.50V (0%) to 4.30V (100%)
+        const pct = Math.max(5, Math.min(100, ((v - 2.50) / (4.30 - 2.50)) * 100));
+
+        const bar = document.createElement('div');
+        bar.className = `chart-bar ${isMax ? 'max' : isMin ? 'min' : isBal ? 'warn' : 'ok'}`;
+        bar.style.height = `${pct * 1.5}px`;
+        bar.title = `Célula #${idx}: ${v.toFixed(3)} V`;
+
+        if (isMax) bar.innerHTML = '<span class="chart-marker max">▲</span>';
+        if (isMin) bar.innerHTML = '<span class="chart-marker min">▼</span>';
+
+        bar.onclick = () => {
+          const banner = document.getElementById('cell-select-banner');
+          banner.style.display = 'flex';
+          document.getElementById('cell-select-text').textContent = `Célula #${idx} (Seg ${s}): ${v.toFixed(3)} V`;
+        };
+
+        segGroup.appendChild(bar);
+
+        // Also add to grid
+        cellsGrid.innerHTML += `
+          <div class="cell-tile ${isBal ? 'bal' : ''}">
+            <span class="cell-num">#${idx}</span>
+            <span class="cell-volt">${v.toFixed(3)}</span>
+          </div>
+        `;
+      }
+      cellsWrap.appendChild(segGroup);
+    }
+
+    // Build NTCs Chart
+    const tempsWrap = document.getElementById('tempsChartWrap');
+    const minNtc = { seg: 4, slave: 7, idx: 2 };
+    const maxNtc = { seg: 2, slave: 3, idx: 3 };
+
+    for (let s = 1; s <= 6; s++) {
+      const segGroup = document.createElement('div');
+      segGroup.className = 'chart-seg-group';
+      segGroup.dataset.seg = `SEG ${s}`;
+
+      for (let t = 1; t <= 12; t++) {
+        const slave = (s - 1) * 2 + (t <= 6 ? 1 : 2);
+        const ntcIdx = ((t - 1) % 6) + 1;
+        let temp = 28.5 + Math.sin((s * 12 + t) * 0.5) * 4;
+
+        const isMin = (s === minNtc.seg && slave === minNtc.slave && ntcIdx === minNtc.idx);
+        const isMax = (s === maxNtc.seg && slave === maxNtc.slave && ntcIdx === maxNtc.idx);
+        const isBroken = (slave === 3 && (ntcIdx === 3 || ntcIdx === 4)); // TEK-26e broken NTCs
+
+        if (isMin) temp = 27.8;
+        if (isMax) temp = 35.4;
+
+        const pct = Math.max(5, Math.min(100, (temp / 70) * 100));
+
+        const bar = document.createElement('div');
+        bar.className = `chart-bar ${isBroken ? 'ow' : isMax ? 'max' : isMin ? 'min' : temp >= 50 ? 'warn' : 'ok'}`;
+        bar.style.width = '8px';
+        bar.style.height = isBroken ? '20px' : `${pct * 1.5}px`;
+        bar.title = `NTC #${ntcIdx} (Seg ${s}, Slave ${slave}): ${isBroken ? 'Bypass' : temp.toFixed(1) + '°C'}`;
+
+        if (isMax) bar.innerHTML = '<span class="chart-marker max">▲</span>';
+        if (isMin) bar.innerHTML = '<span class="chart-marker min">▼</span>';
+
+        bar.onclick = () => {
+          const banner = document.getElementById('ntc-select-banner');
+          banner.style.display = 'flex';
+          document.getElementById('ntc-select-text').textContent = `NTC #${ntcIdx} (Seg ${s}, Slave ${slave}): ${isBroken ? 'BYPASS / AVARIADO' : temp.toFixed(1) + ' °C'}`;
+        };
+
+        segGroup.appendChild(bar);
+      }
+      tempsWrap.appendChild(segGroup);
+    }
+
+    // Build Dashboard Segments
     const segList = document.getElementById('segmentList');
     for (let s = 1; s <= 6; s++) {
       const v = (98.4 + Math.sin(s) * 0.4).toFixed(2);
       const isBal = (s === 2);
       segList.innerHTML += `
-        <div class="seg-card" onclick="switchPage('cells')">
+        <div style="background:#131922; border:1px solid #1C242F; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchPage('cells')">
           <div>
             <div style="display:flex; align-items:center; gap:6px;">
               <span class="live-dot"></span>
               <span style="font-weight:700; font-size:12px;">Segmento ${s}</span>
-              ${isBal ? '<span class="badge" style="background:#FFC300; color:#000;">BALANCEAR</span>' : ''}
+              ${isBal ? '<span class="badge" style="background:#FFD60A; color:#000;">BALANCEAR</span>' : ''}
             </div>
-            <div style="font-size:10px; color:#8B949E; margin-top:2px;">4.095 - 4.118 V • 32.1°C</div>
+            <div style="font-size:10px; color:#8B949E; margin-top:2px;">4.092 - 4.120 V • 34.2°C</div>
           </div>
-          <div style="font-family:monospace; font-weight:800; font-size:13px; color:#9BB4D9;">${v} V</div>
+          <div style="font-family:monospace; font-weight:800; font-size:13px; color:#FFD60A;">${v} V</div>
         </div>
       `;
     }
 
-    // Build 144 Cells
-    const cellsGrid = document.getElementById('cellsGrid');
-    for (let i = 1; i <= 144; i++) {
-      const v = (4.085 + (Math.sin(i * 0.4) * 0.02) + (i === 38 ? -0.06 : 0)).toFixed(3);
-      const isBal = (i === 38);
-      cellsGrid.innerHTML += `
-        <div class="cell-tile ${isBal ? 'bal' : ''}">
-          <span class="cell-num">#${i}</span>
-          <span class="cell-volt">${v}</span>
-        </div>
-      `;
-    }
-
-    // Live Simulator Loop
+    // Live Sparkline Canvas
     let currentHistory = [];
     let voltageHistory = [];
     for (let i = 0; i < 40; i++) {
@@ -590,7 +1189,7 @@
       const h = canvas.height;
 
       // Draw Voltage (Blue)
-      ctx.strokeStyle = '#9BB4D9';
+      ctx.strokeStyle = '#0A84FF';
       ctx.lineWidth = 2 * window.devicePixelRatio;
       ctx.beginPath();
       voltageHistory.forEach((v, idx) => {
@@ -601,7 +1200,7 @@
       ctx.stroke();
 
       // Draw Current (Yellow)
-      ctx.strokeStyle = '#FFC300';
+      ctx.strokeStyle = '#FFD60A';
       ctx.lineWidth = 2.5 * window.devicePixelRatio;
       ctx.beginPath();
       currentHistory.forEach((cur, idx) => {
@@ -631,7 +1230,7 @@
       voltageHistory.push(parseFloat(volt));
 
       drawSparkline();
-    }, 500);
+    }, 600);
 
     drawSparkline();
   </script>
