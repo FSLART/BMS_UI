@@ -224,6 +224,16 @@ fun DashboardScreen(
             )
         }
 
+        // 3D ACCUMULATOR CAD CARD (SolidWorks)
+        item {
+            Model3DViewer(
+                modelFile = "tek26e_open_light.glb",
+                height = 260.dp,
+                title = "ACUMULADOR 3D · 6 SEGMENTOS",
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         // ACCUMULATOR SEGMENTS OVERVIEW
         item {
             Row(

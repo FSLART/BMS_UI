@@ -6,6 +6,7 @@ plugins {
 
 
 android {
+    layout.buildDirectory.set(file("C:/Users/rafae/AppData/Local/Temp/bms_build/app"))
     namespace = "pt.fslart.bms"
     compileSdk = 35
 
@@ -76,6 +77,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.gson)
+    implementation("androidx.webkit:webkit:1.12.0")
 
     debugImplementation(libs.androidx.ui.tooling)
 }

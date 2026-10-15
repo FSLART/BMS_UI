@@ -2,13 +2,15 @@ package pt.fslart.bms.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ElectricBolt
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,8 +20,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.fslart.bms.ui.components.KpiCard
+import pt.fslart.bms.ui.components.Model3DViewer
 import pt.fslart.bms.ui.theme.*
 import pt.fslart.bms.viewmodel.BmsViewModel
+
+enum class ChargerScreenMode {
+    METRICS,
+    MODEL_3D
+}
 
 @Composable
 fun ChargerScreen(
@@ -28,28 +36,104 @@ fun ChargerScreen(
 ) {
     val state by viewModel.bmsState.collectAsState()
     val charger = state.charger
+    var viewMode by remember { mutableStateOf(ChargerScreenMode.METRICS) }
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(DarkBackground)
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Column {
-                Text(
-                    text = "ESTAÇÃO DE CARREGAMENTO",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = DarkTextMuted,
-                    letterSpacing = 0.8.sp
-                )
-                Text(
-                    text = "Handcart / EV Europe OEM3",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = DarkTextPrimary
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "ESTAÇÃO DE CARREGAMENTO",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DarkTextMuted,
+                        letterSpacing = 0.8.sp
+                    )
+                    Text(
+                        text = "Handcart T26 / EV Europe",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DarkTextPrimary
+                    )
+                }
+
+                // Mode Toggle: [ 📊 Painel | 🧊 3D ]
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DarkSurfaceElevated)
+                        .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
+                        .padding(2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (viewMode == ChargerScreenMode.METRICS) LartYellow else Color.Transparent)
+                            .clickable { viewMode = ChargerScreenMode.METRICS }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.ElectricBolt,
+                                contentDescription = "Painel",
+                                tint = if (viewMode == ChargerScreenMode.METRICS) Color.Black else DarkTextSecondary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Painel",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (viewMode == ChargerScreenMode.METRICS) Color.Black else DarkTextSecondary
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (viewMode == ChargerScreenMode.MODEL_3D) LartYellow else Color.Transparent)
+                            .clickable { viewMode = ChargerScreenMode.MODEL_3D }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Layers,
+                                contentDescription = "Modelo 3D",
+                                tint = if (viewMode == ChargerScreenMode.MODEL_3D) Color.Black else DarkTextSecondary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "3D",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (viewMode == ChargerScreenMode.MODEL_3D) Color.Black else DarkTextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (viewMode == ChargerScreenMode.MODEL_3D) {
+            // 3D TROLLEY VIEWER
+            item {
+                Model3DViewer(
+                    modelFile = "tek26e_charger.glb",
+                    height = 360.dp,
+                    title = "Handcart T26 com Acumulador em Carga",
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -78,7 +162,7 @@ fun ChargerScreen(
                         color = if (isCharging) StatusOkGlow else DarkTextSecondary
                     )
                     Text(
-                        text = if (charger.present) "Handcart conectado ao CAN2" else "Nenhum sinal do handcart detetado",
+                        text = if (isCharging) "Corrente de carga controlada por CAN" else "À espera de comando de ativação",
                         fontSize = 11.sp,
                         color = DarkTextMuted
                     )
@@ -86,58 +170,58 @@ fun ChargerScreen(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (isCharging) StatusOk else DarkSurfaceElevated)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = if (isCharging) "ON" else "IDLE",
-                        color = if (isCharging) Color.Black else DarkTextSecondary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
+                        .size(14.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(if (isCharging) StatusOk else DarkTextMuted)
+                )
             }
         }
 
-        // LARGE ENERGY METER
+        // METRICS SUMMARY
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(DarkSurfaceCard)
-                    .border(1.dp, DarkBorder, RoundedCornerShape(16.dp))
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(DarkSurface)
+                    .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
+                    .padding(14.dp)
             ) {
                 Text(
-                    text = "ENERGIA CARREGADA (SESSÃO)",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = DarkTextSecondary,
-                    letterSpacing = 0.6.sp
+                    text = "MÉTRICAS DA SESSÃO",
+                    fontSize = 10.sp,
+                    color = DarkTextMuted,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
                 )
-
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Row(verticalAlignment = Alignment.Bottom) {
-                    val kwh = charger.energyWh / 1000.0f
-                    Text(
-                        text = "%.2f".format(kwh),
-                        fontSize = 54.sp,
-                        fontWeight = FontWeight.Black,
-                        color = LartYellow,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "kWh",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkTextSecondary,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("Energia Fornecida", fontSize = 11.sp, color = DarkTextSecondary)
+                        Text(
+                            text = "%.1f Wh".format(charger.energyWh),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = DarkTextPrimary,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Potência Instantânea", fontSize = 11.sp, color = DarkTextSecondary)
+                        val powerKw = (charger.outputVoltage * charger.outputCurrent) / 1000f
+                        Text(
+                            text = "%.2f kW".format(powerKw),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LartYellow,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))

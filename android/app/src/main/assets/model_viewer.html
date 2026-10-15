@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LART 3D Viewer</title>
+  <script src="js/model-viewer.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      background: #070A0F;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background-color: #070A0F;
+      --poster-color: transparent;
+      outline: none;
+    }
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(7, 10, 15, 0.9);
+      color: #FFD60A;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      z-index: 10;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255, 214, 10, 0.2);
+      border-top-color: #FFD60A;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .hotspot {
+      background: rgba(11, 15, 20, 0.9);
+      border: 1.5px solid #FFD60A;
+      border-radius: 6px;
+      padding: 4px 8px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: bold;
+      pointer-events: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .hotspot .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #32D74B;
+    }
+    .hotspot .val {
+      color: #FFD60A;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div id="loader" class="loading-overlay">
+    <div class="spinner"></div>
+    <span id="loader-text">A CARREGAR MODELO 3D...</span>
+  </div>
+
+  <model-viewer id="viewer"
+    src="models/tek26e_closed.glb"
+    camera-controls
+    touch-action="pan-y"
+    auto-rotate
+    rotation-per-second="18deg"
+    shadow-intensity="1.2"
+    shadow-softness="0.9"
+    exposure="0.88"
+    camera-orbit="45deg 70deg 110%"
+    min-camera-orbit="auto auto 5%"
+    max-camera-orbit="auto auto 350%"
+    interaction-prompt="none">
+  </model-viewer>
+
+  <script>
+    const mv = document.getElementById('viewer');
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loader-text');
+
+    function loadModel(modelFile, autoRotate = true) {
+      loader.style.opacity = '1';
+      loader.style.display = 'flex';
+      loaderText.textContent = 'A CARREGAR ' + modelFile.toUpperCase() + '...';
+      
+      mv.src = 'models/' + modelFile;
+      if (autoRotate) {
+        mv.setAttribute('auto-rotate', '');
+      } else {
+        mv.removeAttribute('auto-rotate');
+      }
+    }
+
+    function resetCamera() {
+      mv.cameraOrbit = '45deg 70deg 110%';
+      mv.cameraTarget = 'auto auto auto';
+      mv.jumpCameraToGoal();
+    }
+
+    function toggleAutoRotate(enabled) {
+      if (enabled === undefined) {
+        if (mv.hasAttribute('auto-rotate')) {
+          mv.removeAttribute('auto-rotate');
+          return false;
+        } else {
+          mv.setAttribute('auto-rotate', '');
+          return true;
+        }
+      } else {
+        if (enabled) {
+          mv.setAttribute('auto-rotate', '');
+        } else {
+          mv.removeAttribute('auto-rotate');
+        }
+        return enabled;
+      }
+    }
+
+    mv.addEventListener('load', () => {
+      loader.style.opacity = '0';
+      setTimeout(() => { loader.style.display = 'none'; }, 300);
+      if (window.AndroidInterface && window.AndroidInterface.onModelLoaded) {
+        window.AndroidInterface.onModelLoaded();
+      }
+    });
+
+    mv.addEventListener('error', (err) => {
+      loaderText.textContent = 'ERRO AO CARREGAR O MODELO 3D';
+      console.error(err);
+    });
+  </script>
+</body>
+</html>

@@ -18,6 +18,7 @@ enum class ScreenTab {
     CELLS,
     TEMPS,
     CHARGER,
+    MODEL_3D,
     CONSOLE
 }
 

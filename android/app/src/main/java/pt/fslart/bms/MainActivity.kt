@@ -128,6 +128,14 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
                     )
 
                     NavigationRailItem(
+                        selected = currentTab == ScreenTab.MODEL_3D,
+                        onClick = { viewModel.setTab(ScreenTab.MODEL_3D) },
+                        icon = { Icon(Icons.Default.Layers, contentDescription = "3D CAD") },
+                        label = { Text("3D", fontSize = 10.sp) },
+                        colors = railColors()
+                    )
+
+                    NavigationRailItem(
                         selected = currentTab == ScreenTab.CONSOLE,
                         onClick = { viewModel.setTab(ScreenTab.CONSOLE) },
                         icon = { Icon(Icons.Default.Terminal, contentDescription = "Consola") },
@@ -153,7 +161,7 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
                             selected = currentTab == ScreenTab.CONNECT,
                             onClick = { viewModel.setTab(ScreenTab.CONNECT) },
                             icon = { Icon(Icons.Default.Bluetooth, contentDescription = "Ligar") },
-                            label = { Text("Ligar", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("Ligar", fontSize = 9.sp, fontWeight = FontWeight.SemiBold) },
                             colors = navColors()
                         )
 
@@ -161,7 +169,7 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
                             selected = currentTab == ScreenTab.DASHBOARD,
                             onClick = { viewModel.setTab(ScreenTab.DASHBOARD) },
                             icon = { Icon(Icons.Default.Speed, contentDescription = "Painel") },
-                            label = { Text("Painel", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("Painel", fontSize = 9.sp, fontWeight = FontWeight.SemiBold) },
                             colors = navColors()
                         )
 
@@ -169,7 +177,7 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
                             selected = currentTab == ScreenTab.CELLS,
                             onClick = { viewModel.setTab(ScreenTab.CELLS) },
                             icon = { Icon(Icons.Default.BatteryChargingFull, contentDescription = "Células") },
-                            label = { Text("Células", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("Células", fontSize = 9.sp, fontWeight = FontWeight.SemiBold) },
                             colors = navColors()
                         )
 
@@ -177,7 +185,15 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
                             selected = currentTab == ScreenTab.TEMPS,
                             onClick = { viewModel.setTab(ScreenTab.TEMPS) },
                             icon = { Icon(Icons.Default.Thermostat, contentDescription = "NTCs") },
-                            label = { Text("NTCs", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("NTCs", fontSize = 9.sp, fontWeight = FontWeight.SemiBold) },
+                            colors = navColors()
+                        )
+
+                        NavigationBarItem(
+                            selected = currentTab == ScreenTab.MODEL_3D,
+                            onClick = { viewModel.setTab(ScreenTab.MODEL_3D) },
+                            icon = { Icon(Icons.Default.Layers, contentDescription = "3D CAD") },
+                            label = { Text("3D", fontSize = 9.sp, fontWeight = FontWeight.SemiBold) },
                             colors = navColors()
                         )
 
@@ -185,7 +201,7 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
                             selected = currentTab == ScreenTab.CHARGER,
                             onClick = { viewModel.setTab(ScreenTab.CHARGER) },
                             icon = { Icon(Icons.Default.ElectricBolt, contentDescription = "Carga") },
-                            label = { Text("Carga", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("Carga", fontSize = 9.sp, fontWeight = FontWeight.SemiBold) },
                             colors = navColors()
                         )
 
@@ -193,7 +209,7 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
                             selected = currentTab == ScreenTab.CONSOLE,
                             onClick = { viewModel.setTab(ScreenTab.CONSOLE) },
                             icon = { Icon(Icons.Default.Terminal, contentDescription = "Consola") },
-                            label = { Text("Logs", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                            label = { Text("Logs", fontSize = 9.sp, fontWeight = FontWeight.SemiBold) },
                             colors = navColors()
                         )
                     }
@@ -215,6 +231,7 @@ private fun ScreenContent(currentTab: ScreenTab, viewModel: BmsViewModel) {
         ScreenTab.CELLS -> CellsScreen(viewModel = viewModel)
         ScreenTab.TEMPS -> ThermistorsScreen(viewModel = viewModel)
         ScreenTab.CHARGER -> ChargerScreen(viewModel = viewModel)
+        ScreenTab.MODEL_3D -> Model3DScreen(viewModel = viewModel)
         ScreenTab.CONSOLE -> ConsoleScreen(viewModel = viewModel)
     }
 }
