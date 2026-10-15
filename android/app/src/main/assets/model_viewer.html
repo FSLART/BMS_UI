@@ -106,7 +106,7 @@
   </model-viewer>
 
   <script>
-    const mv = document.getElementById('viewer');
+    const viewerEl = document.getElementById('viewer');
     const loader = document.getElementById('loader');
     const loaderText = document.getElementById('loader-text');
     let currentModel = '';
@@ -137,30 +137,30 @@
         return;
       }
 
-      if (currentModel === targetSrc && mv.loaded) {
+      if (currentModel === targetSrc && viewerEl.loaded) {
         hideLoader();
-        if (autoRotate) mv.setAttribute('auto-rotate', '');
-        else mv.removeAttribute('auto-rotate');
+        if (autoRotate) viewerEl.setAttribute('auto-rotate', '');
+        else viewerEl.removeAttribute('auto-rotate');
         return;
       }
 
       currentModel = targetSrc;
       showLoader('A CARREGAR ' + modelFile.replace('.glb', '').toUpperCase() + '...');
 
-      if (mv.getAttribute('src') !== targetSrc) {
-        mv.src = targetSrc;
+      if (viewerEl.getAttribute('src') !== targetSrc) {
+        viewerEl.src = targetSrc;
       }
 
       if (autoRotate) {
-        mv.setAttribute('auto-rotate', '');
+        viewerEl.setAttribute('auto-rotate', '');
       } else {
-        mv.removeAttribute('auto-rotate');
+        viewerEl.removeAttribute('auto-rotate');
       }
 
       clearTimeout(loadTimeout);
       loadTimeout = setTimeout(() => {
         if (loader && loader.style.display !== 'none') {
-          if (mv.loaded) {
+          if (viewerEl.loaded) {
             hideLoader();
           } else {
             loaderText.textContent = 'A PROCESSAR GEOMETRIA...';
@@ -176,19 +176,19 @@
         const p = window._pendingModel;
         window._pendingModel = null;
         loadModel(p.file, p.autoRotate);
-      } else if (!mv.src) {
+      } else if (!viewerEl.src) {
         loadModel('tek26e_closed.glb', true);
       }
     });
 
-    mv.addEventListener('progress', (e) => {
+    viewerEl.addEventListener('progress', (e) => {
       const pct = Math.round(e.detail.totalProgress * 100);
       if (pct > 0 && pct < 100) {
         loaderText.textContent = 'A CARREGAR ' + pct + '%...';
       }
     });
 
-    mv.addEventListener('load', () => {
+    viewerEl.addEventListener('load', () => {
       clearTimeout(loadTimeout);
       hideLoader();
       if (window.AndroidInterface && window.AndroidInterface.onModelLoaded) {
@@ -196,7 +196,7 @@
       }
     });
 
-    mv.addEventListener('error', (err) => {
+    viewerEl.addEventListener('error', (err) => {
       clearTimeout(loadTimeout);
       loaderText.textContent = 'ERRO AO CARREGAR O MODELO 3D';
       console.error('ModelViewer error:', err);
@@ -204,29 +204,33 @@
     });
 
     function resetCamera() {
-      mv.cameraOrbit = '45deg 70deg 110%';
-      mv.cameraTarget = 'auto auto auto';
-      mv.jumpCameraToGoal();
+      viewerEl.cameraOrbit = '45deg 70deg 110%';
+      viewerEl.cameraTarget = 'auto auto auto';
+      viewerEl.jumpCameraToGoal();
     }
 
     function toggleAutoRotate(enabled) {
       if (enabled === undefined) {
-        if (mv.hasAttribute('auto-rotate')) {
-          mv.removeAttribute('auto-rotate');
+        if (viewerEl.hasAttribute('auto-rotate')) {
+          viewerEl.removeAttribute('auto-rotate');
           return false;
         } else {
-          mv.setAttribute('auto-rotate', '');
+          viewerEl.setAttribute('auto-rotate', '');
           return true;
         }
       } else {
         if (enabled) {
-          mv.setAttribute('auto-rotate', '');
+          viewerEl.setAttribute('auto-rotate', '');
         } else {
-          mv.removeAttribute('auto-rotate');
+          viewerEl.removeAttribute('auto-rotate');
         }
         return enabled;
       }
     }
+
+    window.loadModel = loadModel;
+    window.resetCamera = resetCamera;
+    window.toggleAutoRotate = toggleAutoRotate;
   </script>
 </body>
 </html>
