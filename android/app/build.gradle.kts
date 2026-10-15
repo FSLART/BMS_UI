@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+
 android {
     namespace = "pt.fslart.bms"
     compileSdk = 35

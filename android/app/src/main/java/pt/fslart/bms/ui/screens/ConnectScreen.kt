@@ -52,13 +52,12 @@ fun ConnectScreen(
         item {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(LartYellow)
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = pt.fslart.bms.R.drawable.lart_logo_symbol),
+                        contentDescription = "LART",
+                        modifier = Modifier.height(24.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "FORMULA STUDENT LART",
                         fontSize = 11.sp,
@@ -67,9 +66,9 @@ fun ConnectScreen(
                         letterSpacing = 1.sp
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "BMS Monitor Mobile",
+                    text = "LART BMS",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = DarkTextPrimary
