@@ -9,3 +9,11 @@ compile/
 # Copias de trabalho de antes de a animacao das ventoinhas ser gravada nos
 # modelos. Nao sao usadas por nenhum carro nem entram no executavel.
 *.glb.pre-anim
+
+# Android Build Outputs
+.gradle/
+android/.gradle/
+android/app/build/
+android/local.properties
+*.apk
+
