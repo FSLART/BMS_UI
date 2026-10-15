@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bms_bg">#0B0F14</color>
+    <color name="bms_surface">#151B22</color>
+    <color name="bms_yellow">#FFC300</color>
+    <color name="bms_text">#F0F3F6</color>
+</resources>
