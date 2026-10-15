@@ -3,12 +3,17 @@ package pt.fslart.bms.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,13 +26,14 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import pt.fslart.bms.model.Cell
 import pt.fslart.bms.model.Severity
 import pt.fslart.bms.ui.theme.*
-import kotlin.math.max
-import kotlin.math.min
 
 // Colors matching the desktop application (TOKENS in panels.js)
 val ChartMinBlue = Color(0xFF0A84FF)  // Azul para célula mínima
@@ -47,6 +53,7 @@ fun CellVoltageBarChart(
     vWarnHigh: Float = 4.15f,
     modifier: Modifier = Modifier
 ) {
+    var isMaximized by remember { mutableStateOf(false) }
     var selectedCell by remember { mutableStateOf<Cell?>(null) }
 
     // Find global minimum and maximum healthy cells
@@ -83,8 +90,8 @@ fun CellVoltageBarChart(
                 )
             }
 
-            // Highlighting Min (Blue) and Max (Red) Callouts
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Highlighting Min (Blue) and Max (Red) Callouts + Maximize Button
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (maxCell != null) {
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
@@ -139,6 +146,23 @@ fun CellVoltageBarChart(
                         )
                     }
                 }
+
+                // Maximize Button
+                IconButton(
+                    onClick = { isMaximized = true },
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(DarkSurfaceElevated)
+                        .border(1.dp, DarkBorder, RoundedCornerShape(6.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fullscreen,
+                        contentDescription = "Maximizar Gráfico",
+                        tint = LartYellow,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
 
@@ -170,224 +194,21 @@ fun CellVoltageBarChart(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // SCROLLABLE BAR CHART (Supports 144 bars comfortably)
-        val scrollState = rememberScrollState()
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(230.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF0C1017))
-                .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
-                .horizontalScroll(scrollState)
-        ) {
-            val totalCells = cells.size.coerceAtLeast(144)
-            val barWidthDp = 5.5.dp
-            val barGapDp = 1.dp
-            val segGapDp = 14.dp
-            val nSegments = 6
-            val totalWidthDp = 70.dp + ((barWidthDp + barGapDp) * totalCells) + (segGapDp * nSegments)
-
-            Canvas(
-                modifier = Modifier
-                    .width(totalWidthDp)
-                    .fillMaxHeight()
-                    .pointerInput(cells) {
-                        detectTapGestures { offset ->
-                            val marginLeft = 45.dp.toPx()
-                            val bwPx = barWidthDp.toPx()
-                            val bgPx = barGapDp.toPx()
-                            val sgPx = segGapDp.toPx()
-                            val perSeg = 24
-
-                            for (i in cells.indices) {
-                                val seg = i / perSeg
-                                val segOffset = seg * sgPx
-                                val x = marginLeft + segOffset + (i * (bwPx + bgPx))
-                                if (offset.x in x..(x + bwPx)) {
-                                    selectedCell = cells[i]
-                                    break
-                                }
-                            }
-                        }
-                    }
-            ) {
-                val w = size.width
-                val h = size.height
-
-                val marginLeft = 45.dp.toPx()
-                val marginRight = 20.dp.toPx()
-                val marginTop = 26.dp.toPx()
-                val marginBottom = 28.dp.toPx()
-
-                val chartH = h - marginTop - marginBottom
-                val chartW = w - marginLeft - marginRight
-
-                val scaleMin = vMinLimit
-                val scaleMax = vMaxLimit
-                val span = (scaleMax - scaleMin).coerceAtLeast(0.1f)
-
-                fun yOf(v: Float): Float {
-                    val clamped = v.coerceIn(scaleMin, scaleMax)
-                    return marginTop + chartH * (1.0f - ((clamped - scaleMin) / span))
-                }
-
-                // Grid lines & Y Axis labels
-                val ticks = 5
-                val textPaint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.parseColor("#94949E")
-                    textSize = 10.dp.toPx()
-                    typeface = android.graphics.Typeface.MONOSPACE
-                    textAlign = android.graphics.Paint.Align.RIGHT
-                }
-
-                for (i in 0..ticks) {
-                    val v = scaleMin + (span * i / ticks)
-                    val y = yOf(v)
-                    drawLine(
-                        color = ChartGridLine,
-                        start = Offset(marginLeft, y),
-                        end = Offset(w - marginRight, y),
-                        strokeWidth = 1.dp.toPx()
-                    )
-                    drawContext.canvas.nativeCanvas.drawText(
-                        "%.2f".format(v),
-                        marginLeft - 6.dp.toPx(),
-                        y + 3.dp.toPx(),
-                        textPaint
-                    )
-                }
-
-                // UV Threshold Line (Under Voltage, e.g. 2.80V)
-                val yUv = yOf(vWarnLow)
-                drawLine(
-                    color = ChartWarnAmber.copy(alpha = 0.6f),
-                    start = Offset(marginLeft, yUv),
-                    end = Offset(w - marginRight, yUv),
-                    strokeWidth = 1.5.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
-                )
-
-                // OV Threshold Line (Over Voltage, e.g. 4.15V)
-                val yOv = yOf(vWarnHigh)
-                drawLine(
-                    color = ChartWarnAmber.copy(alpha = 0.6f),
-                    start = Offset(marginLeft, yOv),
-                    end = Offset(w - marginRight, yOv),
-                    strokeWidth = 1.5.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
-                )
-
-                // Bars & Segment Separators
-                val bwPx = barWidthDp.toPx()
-                val bgPx = barGapDp.toPx()
-                val sgPx = segGapDp.toPx()
-                val perSeg = 24
-                val baselineY = marginTop + chartH
-
-                // Baseline
-                drawLine(
-                    color = ChartAxisLine,
-                    start = Offset(marginLeft, baselineY),
-                    end = Offset(w - marginRight, baselineY),
-                    strokeWidth = 1.5.dp.toPx()
-                )
-
-                val arrowPaint = android.graphics.Paint().apply {
-                    textSize = 11.dp.toPx()
-                    typeface = android.graphics.Typeface.DEFAULT_BOLD
-                    textAlign = android.graphics.Paint.Align.CENTER
-                }
-
-                val segLabelPaint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.parseColor("#C4C4CC")
-                    textSize = 10.dp.toPx()
-                    typeface = android.graphics.Typeface.DEFAULT_BOLD
-                    textAlign = android.graphics.Paint.Align.CENTER
-                }
-
-                for (s in 0 until nSegments) {
-                    val segStartX = marginLeft + (s * sgPx) + (s * perSeg * (bwPx + bgPx))
-                    val segEndX = segStartX + (perSeg * (bwPx + bgPx)) - bgPx
-
-                    // Segment label below baseline
-                    drawContext.canvas.nativeCanvas.drawText(
-                        "SEG ${s + 1}",
-                        (segStartX + segEndX) / 2f,
-                        baselineY + 18.dp.toPx(),
-                        segLabelPaint
-                    )
-
-                    // Vertical separator between segments
-                    if (s > 0) {
-                        val sepX = segStartX - (sgPx / 2f)
-                        drawLine(
-                            color = ChartAxisLine,
-                            start = Offset(sepX, marginTop),
-                            end = Offset(sepX, baselineY),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
-
-                    // Mid-segment slave separator (dashed)
-                    val midSlaveX = segStartX + (12 * (bwPx + bgPx)) - (bgPx / 2f)
-                    drawLine(
-                        color = ChartAxisLine.copy(alpha = 0.35f),
-                        start = Offset(midSlaveX, marginTop + 10f),
-                        end = Offset(midSlaveX, baselineY),
-                        strokeWidth = 1.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
-                    )
-                }
-
-                // Draw each Cell Bar
-                cells.forEachIndexed { idx, cell ->
-                    val seg = idx / perSeg
-                    val segOffset = seg * sgPx
-                    val x = marginLeft + segOffset + (idx * (bwPx + bgPx))
-                    val y = yOf(cell.voltage)
-                    val barH = (baselineY - y).coerceAtLeast(0f)
-
-                    val isMax = (maxCell != null && cell.index == maxCell.index)
-                    val isMin = (minCell != null && cell.index == minCell.index)
-
-                    // Top highlight for balancing cells
-                    if (cell.balancing) {
-                        drawRect(
-                            color = LartYellow.copy(alpha = 0.7f),
-                            topLeft = Offset(x, marginTop),
-                            size = Size(bwPx, y - marginTop)
-                        )
-                    }
-
-                    // Bar color according to rules:
-                    // Max is RED, Min is BLUE, open-wire is PURPLE, normal is GREEN
-                    val barColor = when {
-                        cell.openWire -> ChartOpenWirePurple
-                        isMax -> ChartMaxRed
-                        isMin -> ChartMinBlue
-                        cell.status == Severity.FAULT -> StatusFault
-                        cell.status == Severity.WARN -> StatusWarn
-                        else -> ChartOkGreen
-                    }
-
-                    drawRect(
-                        color = barColor,
-                        topLeft = Offset(x, y),
-                        size = Size(bwPx, barH)
-                    )
-
-                    // Draw Extremes Marker (▲ on Max in Red, ▼ on Min in Blue)
-                    if (isMax) {
-                        arrowPaint.color = android.graphics.Color.parseColor("#FF453A")
-                        drawContext.canvas.nativeCanvas.drawText("▲", x + bwPx / 2f, y - 4.dp.toPx(), arrowPaint)
-                    } else if (isMin) {
-                        arrowPaint.color = android.graphics.Color.parseColor("#0A84FF")
-                        drawContext.canvas.nativeCanvas.drawText("▼", x + bwPx / 2f, y - 4.dp.toPx(), arrowPaint)
-                    }
-                }
-            }
-        }
+        // Standard Scrollable Bar Chart
+        VoltageChartCanvas(
+            cells = cells,
+            vMinLimit = vMinLimit,
+            vMaxLimit = vMaxLimit,
+            vWarnLow = vWarnLow,
+            vWarnHigh = vWarnHigh,
+            minCell = minCell,
+            maxCell = maxCell,
+            chartHeight = 230.dp,
+            barWidthDp = 5.5.dp,
+            barGapDp = 1.dp,
+            segGapDp = 14.dp,
+            onCellSelected = { selectedCell = it }
+        )
 
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -407,6 +228,410 @@ fun CellVoltageBarChart(
                 fontSize = 10.sp,
                 color = DarkTextMuted
             )
+        }
+    }
+
+    // FULLSCREEN MAXIMIZED DIALOG
+    if (isMaximized) {
+        Dialog(
+            onDismissRequest = { isMaximized = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(DarkBackground)
+                    .systemBarsPadding()
+                    .padding(14.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Fullscreen Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "TENSÃO DAS CÉLULAS",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DarkTextPrimary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(LartYellow.copy(alpha = 0.2f))
+                                        .border(1.dp, LartYellow.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "ECRÃ INTEIRO",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = LartYellow
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "${cells.size} Células em Série (144s) · 6 Segmentos",
+                                fontSize = 11.sp,
+                                color = DarkTextSecondary
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            if (maxCell != null) {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("▲ MÁX (#${maxCell.index})", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ChartMaxRed)
+                                    Text(
+                                        text = "%.3f V".format(maxCell.voltage),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = ChartMaxRed,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                            if (minCell != null) {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("▼ MÍN (#${minCell.index})", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ChartMinBlue)
+                                    Text(
+                                        text = "%.3f V".format(minCell.voltage),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = ChartMinBlue,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = { isMaximized = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceElevated, contentColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.FullscreenExit, contentDescription = "Minimizar", modifier = Modifier.size(16.dp), tint = LartYellow)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Minimizar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LartYellow)
+                            }
+                        }
+                    }
+
+                    // Selected Banner
+                    selectedCell?.let { cell ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(DarkSurfaceElevated)
+                                .border(1.dp, LartYellow, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Célula #${cell.index} · Segmento ${cell.segment} · Slave ${cell.slave} · Ch ${cell.slaveChannel}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DarkTextPrimary
+                                )
+                                Text(
+                                    text = if (cell.balancing) "Balanceamento ativo (A descarregar)" else "Status: ${cell.status}",
+                                    fontSize = 10.sp,
+                                    color = if (cell.balancing) LartYellow else DarkTextSecondary
+                                )
+                            }
+                            Text(
+                                text = "%.4f V".format(cell.voltage),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (cell.balancing) LartYellow else ChartOkGreen,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    // Maximized Chart (Tall Canvas)
+                    Box(modifier = Modifier.weight(1f)) {
+                        VoltageChartCanvas(
+                            cells = cells,
+                            vMinLimit = vMinLimit,
+                            vMaxLimit = vMaxLimit,
+                            vWarnLow = vWarnLow,
+                            vWarnHigh = vWarnHigh,
+                            minCell = minCell,
+                            maxCell = maxCell,
+                            chartHeight = 360.dp,
+                            barWidthDp = 8.dp,
+                            barGapDp = 1.5.dp,
+                            segGapDp = 22.dp,
+                            onCellSelected = { selectedCell = it }
+                        )
+                    }
+
+                    // Maximized Legend
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(DarkSurface)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            LegendIndicator(color = ChartMaxRed, label = "Máxima (▲)")
+                            LegendIndicator(color = ChartMinBlue, label = "Mínima (▼)")
+                            LegendIndicator(color = ChartOkGreen, label = "Normal")
+                            LegendIndicator(color = LartYellow, label = "Balanceamento")
+                            LegendIndicator(color = ChartOpenWirePurple, label = "Fio Aberto")
+                        }
+                        Text("Scroll horizontal para ver todos os segmentos", fontSize = 10.sp, color = DarkTextMuted)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VoltageChartCanvas(
+    cells: List<Cell>,
+    vMinLimit: Float,
+    vMaxLimit: Float,
+    vWarnLow: Float,
+    vWarnHigh: Float,
+    minCell: Cell?,
+    maxCell: Cell?,
+    chartHeight: Dp,
+    barWidthDp: Dp,
+    barGapDp: Dp,
+    segGapDp: Dp,
+    onCellSelected: (Cell) -> Unit
+) {
+    val scrollState = rememberScrollState()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(chartHeight)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF0C1017))
+            .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
+            .horizontalScroll(scrollState)
+    ) {
+        val totalCells = cells.size.coerceAtLeast(144)
+        val nSegments = 6
+        val totalWidthDp = 70.dp + ((barWidthDp + barGapDp) * totalCells) + (segGapDp * nSegments)
+
+        Canvas(
+            modifier = Modifier
+                .width(totalWidthDp)
+                .fillMaxHeight()
+                .pointerInput(cells) {
+                    detectTapGestures { offset ->
+                        val marginLeft = 45.dp.toPx()
+                        val bwPx = barWidthDp.toPx()
+                        val bgPx = barGapDp.toPx()
+                        val sgPx = segGapDp.toPx()
+                        val perSeg = 24
+
+                        for (i in cells.indices) {
+                            val seg = i / perSeg
+                            val segOffset = seg * sgPx
+                            val x = marginLeft + segOffset + (i * (bwPx + bgPx))
+                            if (offset.x in x..(x + bwPx)) {
+                                onCellSelected(cells[i])
+                                break
+                            }
+                        }
+                    }
+                }
+        ) {
+            val w = size.width
+            val h = size.height
+
+            val marginLeft = 45.dp.toPx()
+            val marginRight = 20.dp.toPx()
+            val marginTop = 26.dp.toPx()
+            val marginBottom = 28.dp.toPx()
+
+            val chartH = h - marginTop - marginBottom
+            val scaleMin = vMinLimit
+            val scaleMax = vMaxLimit
+            val span = (scaleMax - scaleMin).coerceAtLeast(0.1f)
+
+            fun yOf(v: Float): Float {
+                val clamped = v.coerceIn(scaleMin, scaleMax)
+                return marginTop + chartH * (1.0f - ((clamped - scaleMin) / span))
+            }
+
+            // Grid lines & Y Axis labels
+            val ticks = 5
+            val textPaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.parseColor("#94949E")
+                textSize = 10.dp.toPx()
+                typeface = android.graphics.Typeface.MONOSPACE
+                textAlign = android.graphics.Paint.Align.RIGHT
+            }
+
+            for (i in 0..ticks) {
+                val v = scaleMin + (span * i / ticks)
+                val y = yOf(v)
+                drawLine(
+                    color = ChartGridLine,
+                    start = Offset(marginLeft, y),
+                    end = Offset(w - marginRight, y),
+                    strokeWidth = 1.dp.toPx()
+                )
+                drawContext.canvas.nativeCanvas.drawText(
+                    "%.2f".format(v),
+                    marginLeft - 6.dp.toPx(),
+                    y + 3.dp.toPx(),
+                    textPaint
+                )
+            }
+
+            // UV Threshold Line (Under Voltage, e.g. 2.80V)
+            val yUv = yOf(vWarnLow)
+            drawLine(
+                color = ChartWarnAmber.copy(alpha = 0.6f),
+                start = Offset(marginLeft, yUv),
+                end = Offset(w - marginRight, yUv),
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+            )
+
+            // OV Threshold Line (Over Voltage, e.g. 4.15V)
+            val yOv = yOf(vWarnHigh)
+            drawLine(
+                color = ChartWarnAmber.copy(alpha = 0.6f),
+                start = Offset(marginLeft, yOv),
+                end = Offset(w - marginRight, yOv),
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+            )
+
+            // Bars & Segment Separators
+            val bwPx = barWidthDp.toPx()
+            val bgPx = barGapDp.toPx()
+            val sgPx = segGapDp.toPx()
+            val perSeg = 24
+            val baselineY = marginTop + chartH
+
+            // Baseline
+            drawLine(
+                color = ChartAxisLine,
+                start = Offset(marginLeft, baselineY),
+                end = Offset(w - marginRight, baselineY),
+                strokeWidth = 1.5.dp.toPx()
+            )
+
+            val arrowPaint = android.graphics.Paint().apply {
+                textSize = 11.dp.toPx()
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textAlign = android.graphics.Paint.Align.CENTER
+            }
+
+            val segLabelPaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.parseColor("#C4C4CC")
+                textSize = 10.dp.toPx()
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textAlign = android.graphics.Paint.Align.CENTER
+            }
+
+            for (s in 0 until nSegments) {
+                val segStartX = marginLeft + (s * sgPx) + (s * perSeg * (bwPx + bgPx))
+                val segEndX = segStartX + (perSeg * (bwPx + bgPx)) - bgPx
+
+                // Segment label below baseline
+                drawContext.canvas.nativeCanvas.drawText(
+                    "SEG ${s + 1}",
+                    (segStartX + segEndX) / 2f,
+                    baselineY + 18.dp.toPx(),
+                    segLabelPaint
+                )
+
+                // Vertical separator between segments
+                if (s > 0) {
+                    val sepX = segStartX - (sgPx / 2f)
+                    drawLine(
+                        color = ChartAxisLine,
+                        start = Offset(sepX, marginTop),
+                        end = Offset(sepX, baselineY),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+
+                // Mid-segment slave separator (dashed)
+                val midSlaveX = segStartX + (12 * (bwPx + bgPx)) - (bgPx / 2f)
+                drawLine(
+                    color = ChartAxisLine.copy(alpha = 0.35f),
+                    start = Offset(midSlaveX, marginTop + 10f),
+                    end = Offset(midSlaveX, baselineY),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
+                )
+            }
+
+            // Draw each Cell Bar
+            cells.forEachIndexed { idx, cell ->
+                val seg = idx / perSeg
+                val segOffset = seg * sgPx
+                val x = marginLeft + segOffset + (idx * (bwPx + bgPx))
+                val y = yOf(cell.voltage)
+                val barH = (baselineY - y).coerceAtLeast(0f)
+
+                val isMax = (maxCell != null && cell.index == maxCell.index)
+                val isMin = (minCell != null && cell.index == minCell.index)
+
+                // Top highlight for balancing cells
+                if (cell.balancing) {
+                    drawRect(
+                        color = LartYellow.copy(alpha = 0.7f),
+                        topLeft = Offset(x, marginTop),
+                        size = Size(bwPx, y - marginTop)
+                    )
+                }
+
+                // Bar color according to rules:
+                // Max is RED, Min is BLUE, open-wire is PURPLE, normal is GREEN
+                val barColor = when {
+                    cell.openWire -> ChartOpenWirePurple
+                    isMax -> ChartMaxRed
+                    isMin -> ChartMinBlue
+                    cell.status == Severity.FAULT -> StatusFault
+                    cell.status == Severity.WARN -> StatusWarn
+                    else -> ChartOkGreen
+                }
+
+                drawRect(
+                    color = barColor,
+                    topLeft = Offset(x, y),
+                    size = Size(bwPx, barH)
+                )
+
+                // Draw Extremes Marker (▲ on Max in Red, ▼ on Min in Blue)
+                if (isMax) {
+                    arrowPaint.color = android.graphics.Color.parseColor("#FF453A")
+                    drawContext.canvas.nativeCanvas.drawText("▲", x + bwPx / 2f, y - 4.dp.toPx(), arrowPaint)
+                } else if (isMin) {
+                    arrowPaint.color = android.graphics.Color.parseColor("#0A84FF")
+                    drawContext.canvas.nativeCanvas.drawText("▼", x + bwPx / 2f, y - 4.dp.toPx(), arrowPaint)
+                }
+            }
         }
     }
 }
