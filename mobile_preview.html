@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BMS Monitor Mobile — Pré-visualização</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: #05080c;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #F0F3F6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .header-bar {
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .header-bar h1 {
+      font-size: 20px;
+      font-weight: 800;
+      color: #FFC300;
+      letter-spacing: 0.5px;
+    }
+    .header-bar p {
+      font-size: 13px;
+      color: #8B949E;
+      margin-top: 4px;
+    }
+    /* Phone Frame Mockup */
+    .phone-container {
+      width: 390px;
+      height: 820px;
+      background: #0B0F14;
+      border: 10px solid #1C242F;
+      border-radius: 46px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 0 2px #27323E;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .phone-notch {
+      width: 120px;
+      height: 24px;
+      background: #1C242F;
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      border-bottom-left-radius: 14px;
+      border-bottom-right-radius: 14px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .phone-speaker {
+      width: 44px;
+      height: 4px;
+      background: #0B0F14;
+      border-radius: 2px;
+    }
+    /* App Viewport */
+    .app-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding-top: 28px;
+      padding-bottom: 60px;
+      position: relative;
+    }
+    /* Bottom Navigation Bar */
+    .bottom-nav {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: #151B22;
+      border-top: 1px solid #263240;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 90;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      color: #6E7681;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      width: 50px;
+    }
+    .nav-item svg { width: 18px; height: 18px; fill: currentColor; }
+    .nav-item.active {
+      color: #FFC300;
+    }
+    /* Pages */
+    .page { display: none; padding: 14px; flex-direction: column; gap: 14px; }
+    .page.active { display: flex; }
+    /* Cards */
+    .card {
+      background: #151B22;
+      border: 1px solid #263240;
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #8B949E;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    /* KPIs Grid */
+    .kpi-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .kpi-card {
+      background: #161E28;
+      border: 1px solid #263240;
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+    .kpi-label { font-size: 9px; font-weight: 700; color: #8B949E; text-transform: uppercase; }
+    .kpi-value { font-size: 18px; font-weight: 800; font-family: monospace; margin-top: 2px; }
+    .kpi-unit { font-size: 11px; font-weight: 500; color: #8B949E; margin-left: 2px; }
+    /* Safety Pills */
+    .safety-grid { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 6px; }
+    .safety-pill {
+      background: #142B1E;
+      border: 1px solid rgba(46, 160, 67, 0.4);
+      border-radius: 8px;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .safety-pill.fault { background: #331718; border-color: rgba(248, 81, 73, 0.4); }
+    .dot-indicator { width: 6px; height: 6px; border-radius: 50%; background: #3FB950; }
+    .safety-pill.fault .dot-indicator { background: #F85149; }
+    .pill-info { display: flex; flex-direction: column; }
+    .pill-label { font-size: 8px; font-weight: 600; color: #6E7681; }
+    .pill-state { font-size: 11px; font-weight: 800; color: #3FB950; font-family: monospace; }
+    .safety-pill.fault .pill-state { color: #F85149; }
+    /* Sparkline Canvas */
+    .canvas-wrap {
+      width: 100%;
+      height: 80px;
+      background: #1C242F;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    canvas { width: 100%; height: 100%; display: block; }
+    /* Segment Items */
+    .seg-card {
+      background: #161E28;
+      border: 1px solid #263240;
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .seg-card:hover { border-color: #FFC300; }
+    /* Cells Grid */
+    .cells-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+    .cell-tile {
+      background: #18543C;
+      border: 0.5px solid #263240;
+      border-radius: 6px;
+      padding: 6px 4px;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .cell-tile.bal { border: 1.5px solid #FFC300; }
+    .cell-num { font-size: 8px; color: rgba(255,255,255,0.7); font-family: monospace; }
+    .cell-volt { font-size: 11px; font-weight: 800; color: #FFF; font-family: monospace; }
+    /* Action Buttons */
+    .btn-main {
+      background: #FFC300;
+      color: #000;
+      font-weight: 800;
+      font-size: 13px;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+    }
+    .btn-main:hover { background: #E6B000; }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid #263240;
+      color: #F0F3F6;
+      font-weight: 600;
+      font-size: 12px;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      width: 100%;
+    }
+    /* Switches */
+    .switch-wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .toggle-switch {
+      width: 44px;
+      height: 24px;
+      background: #FFC300;
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+    }
+    .toggle-knob {
+      width: 20px;
+      height: 20px;
+      background: #000;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      transition: all 0.2s;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 800;
+      background: rgba(255,195,0,0.15);
+      color: #FFC300;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3FB950;
+      display: inline-block;
+      margin-right: 6px;
+      box-shadow: 0 0 8px #3FB950;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-bar">
+    <h1>BMS MONITOR MOBILE (TEK-26e)</h1>
+    <p>Simulador interativo da aplicação Android • Jetpack Compose Layout</p>
+  </div>
+
+  <div class="phone-container">
+    <div class="phone-notch"><div class="phone-speaker"></div></div>
+
+    <div class="app-screen">
+      <!-- 1. CONNECT PAGE -->
+      <div class="page" id="page-connect">
+        <div style="margin-top: 6px;">
+          <div style="font-size: 10px; font-weight: 800; color: #FFC300; letter-spacing: 0.8px;">FORMULA STUDENT LART</div>
+          <div style="font-size: 20px; font-weight: 800; color: #F0F3F6; margin-top: 2px;">BMS Monitor Mobile</div>
+          <div style="font-size: 12px; color: #8B949E;">Monitorização de alta tensão por BLE</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">1. Seleção do Carro</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div style="background: #1C242F; border: 1.5px solid #FFC300; border-radius: 10px; padding: 10px;">
+              <div style="font-weight: 800; font-size: 13px; color: #FFC300;">TEK-26e</div>
+              <div style="font-size: 11px; color: #8B949E; font-family: monospace;">144s3p • Molicel</div>
+              <div style="font-size: 10px; color: #6E7681; margin-top: 2px;">518 V nom • 6 segs</div>
+            </div>
+            <div style="background: #161E28; border: 1px solid #263240; border-radius: 10px; padding: 10px; opacity: 0.6;">
+              <div style="font-weight: 800; font-size: 13px; color: #F0F3F6;">TEK-26e EVO</div>
+              <div style="font-size: 11px; color: #8B949E; font-family: monospace;">144s3p • Molicel</div>
+              <div style="font-size: 10px; color: #6E7681; margin-top: 2px;">518 V nom • EVO</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>2. Ligação Bluetooth LE</span>
+            <span class="badge">40:84:32:61:CE:13</span>
+          </div>
+          <p style="font-size: 11px; color: #8B949E; line-height: 15px; margin-bottom: 12px;">
+            Módulo Microchip RN4871 no UART2 do STM32 AMS Master. Endereço pré-configurado de fábrica.
+          </p>
+          <button class="btn-main" onclick="switchPage('dashboard')">
+            <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a1 1 0 0 1 1 1v7.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 10.586V3a1 1 0 0 1 1-1z"/></svg>
+            LIGAR AO TEK-26e (BLE)
+          </button>
+          <div style="margin-top: 8px;">
+            <button class="btn-ghost" onclick="switchPage('dashboard')">PROCURAR DISPOSITIVOS BLE</button>
+          </div>
+          <div style="background: #1C242F; border-radius: 8px; padding: 8px 10px; margin-top: 10px; display: flex; align-items: center; font-size: 11px; font-family: monospace; color: #8B949E;">
+            <span class="live-dot" style="background: #FFC300; box-shadow: 0 0 8px #FFC300;"></span>
+            Pronto para ligar a 40:84:32:61:CE:13
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="switch-wrap">
+            <div>
+              <div style="font-size: 13px; font-weight: 700;">Modo Demo (Simulador)</div>
+              <div style="font-size: 11px; color: #8B949E; margin-top: 2px;">Física realista sem hardware conectado</div>
+            </div>
+            <div class="toggle-switch" onclick="switchPage('dashboard')"><div class="toggle-knob"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. DASHBOARD PAGE -->
+      <div class="page active" id="page-dashboard">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 18px; font-weight: 800;">TEK-26e</span>
+              <span class="badge"><span class="live-dot"></span>SIMULADOR / BLE</span>
+            </div>
+            <div style="font-size: 11px; color: #6E7681; font-family: monospace;">40:84:32:61:CE:13</div>
+          </div>
+          <button style="background: #1C242F; border: 1px solid #263240; color: #F0F3F6; font-size: 11px; padding: 5px 10px; border-radius: 6px; font-weight: 600; cursor: pointer;" onclick="switchPage('connect')">Desligar</button>
+        </div>
+
+        <!-- KPIs 2x3 Grid -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="kpi-label">Tensão Pack</div>
+              <div class="kpi-value" style="color: #9BB4D9;"><span id="v-pack">591.2</span><span class="kpi-unit">V</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Corrente</div>
+              <div class="kpi-value" style="color: #FFC300;"><span id="i-pack">18.4</span><span class="kpi-unit">A</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Potência</div>
+              <div class="kpi-value" style="color: #FFC300;"><span id="p-pack">10.9</span><span class="kpi-unit">kW</span></div>
+            </div>
+          </div>
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="kpi-label">SoC</div>
+              <div class="kpi-value" style="color: #3FB950;"><span id="soc-pack">91</span><span class="kpi-unit">%</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Temp Máx</div>
+              <div class="kpi-value" style="color: #F0F3F6;"><span id="t-pack">34.2</span><span class="kpi-unit">°C</span></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Desvio Cél.</div>
+              <div class="kpi-value" style="color: #3FB950;"><span id="delta-pack">28</span><span class="kpi-unit">mV</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Sparkline -->
+        <div class="card">
+          <div class="card-title">
+            <span>Corrente &amp; Tensão (Tempo Real)</span>
+            <span style="font-family: monospace; font-size: 10px; color: #FFC300;">I: <span id="trace-i">18.4</span>A • V: <span id="trace-v">591</span>V</span>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="sparklineCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Safety & AMS Grid -->
+        <div class="card">
+          <div class="card-title">Segurança &amp; AMS</div>
+          <div class="safety-grid">
+            <div class="safety-pill">
+              <div class="dot-indicator"></div>
+              <div class="pill-info"><span class="pill-label">AMS</span><span class="pill-state">OK</span></div>
+            </div>
+            <div class="safety-pill">
+              <div class="dot-indicator"></div>
+              <div class="pill-info"><span class="pill-label">SDC</span><span class="pill-state">FECHADO</span></div>
+            </div>
+            <div class="safety-pill">
+              <div class="dot-indicator"></div>
+              <div class="pill-info"><span class="pill-label">PRÉ-CARGA</span><span class="pill-state">HV ON</span></div>
+            </div>
+          </div>
+          <div class="safety-grid" style="margin-top: 6px;">
+            <div class="safety-pill">
+              <div class="dot-indicator"></div>
+              <div class="pill-info"><span class="pill-label">AIR+</span><span class="pill-state">ON</span></div>
+            </div>
+            <div class="safety-pill">
+              <div class="dot-indicator"></div>
+              <div class="pill-info"><span class="pill-label">AIR−</span><span class="pill-state">ON</span></div>
+            </div>
+            <div class="safety-pill">
+              <div class="dot-indicator"></div>
+              <div class="pill-info"><span class="pill-label">ESTADO</span><span class="pill-state">ONMISSION</span></div>
+            </div>
+          </div>
+
+          <div style="background: #1C242F; border-radius: 8px; padding: 6px 10px; margin-top: 8px; display: flex; justify-content: space-between; font-size: 10px; font-family: monospace; color: #8B949E;">
+            <span>FAN: <b style="color: #FFF;">45%</b></span>
+            <span>MCU: <b style="color: #FFF;">31.5°C</b></span>
+            <span>SLAVES: <b style="color: #3FB950;">12/12</b></span>
+            <span>PEC CRC: <b style="color: #3FB950;">OK</b></span>
+          </div>
+        </div>
+
+        <!-- Segment List -->
+        <div class="card">
+          <div class="card-title">
+            <span>Segmentos do Acumulador</span>
+            <span>6 Segmentos</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;" id="segmentList">
+            <!-- Segments injected via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. CELLS PAGE -->
+      <div class="page" id="page-cells">
+        <div class="card-title" style="margin-bottom: 4px;">
+          <div>
+            <div style="font-size: 16px; font-weight: 800; color: #FFF;">Matriz de Células</div>
+            <div style="font-size: 11px; color: #8B949E;">144 Células (6 Segmentos × 24 Paralelos)</div>
+          </div>
+          <div style="text-align: right; font-family: monospace;">
+            <div style="color: #9BB4D9; font-weight: 700;">4.092 - 4.120 V</div>
+            <div style="color: #3FB950; font-size: 10px;">Δ 28 mV</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
+          <span class="badge" style="background: #FFC300; color: #000; cursor: pointer;">Todos</span>
+          <span class="badge" style="cursor: pointer;">Seg 1</span>
+          <span class="badge" style="cursor: pointer;">Seg 2</span>
+          <span class="badge" style="cursor: pointer;">Seg 3</span>
+          <span class="badge" style="cursor: pointer;">Seg 4</span>
+          <span class="badge" style="cursor: pointer;">Seg 5</span>
+          <span class="badge" style="cursor: pointer;">Seg 6</span>
+        </div>
+
+        <div class="cells-grid" id="cellsGrid">
+          <!-- 144 cells injected via JS -->
+        </div>
+      </div>
+
+      <!-- 4. CHARGER PAGE -->
+      <div class="page" id="page-charger">
+        <div style="font-size: 18px; font-weight: 800; color: #FFF;">Estação de Carga</div>
+        <div style="font-size: 11px; color: #8B949E;">Handcart / EV Europe OEM3</div>
+
+        <div class="card" style="text-align: center; padding: 24px 14px;">
+          <div style="font-size: 11px; font-weight: 700; color: #8B949E; letter-spacing: 0.6px;">ENERGIA CARREGADA (SESSÃO)</div>
+          <div style="font-size: 46px; font-weight: 900; color: #FFC300; font-family: monospace; margin: 8px 0;">
+            <span id="chgKwh">2.45</span><span style="font-size: 18px; color: #8B949E; font-weight: 600;"> kWh</span>
+          </div>
+          <div style="font-size: 12px; color: #8B949E; font-family: monospace;">Tempo: 24 min 12 s</div>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-label">Tensão Saída</div>
+            <div class="kpi-value" style="color: #9BB4D9;">592.4<span class="kpi-unit">V</span></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Corrente Saída</div>
+            <div class="kpi-value" style="color: #FFC300;">5.95<span class="kpi-unit">A</span></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Corrente Pedida</div>
+            <div class="kpi-value" style="color: #FFF;">6.0<span class="kpi-unit">A</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BOTTOM NAVIGATION -->
+    <div class="bottom-nav">
+      <div class="nav-item" onclick="switchPage('connect')" id="nav-connect">
+        <svg viewBox="0 0 24 24"><path d="M12 2a1 1 0 0 1 1 1v7.586l3.293-3.293a1 1 0 1 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 1 1 1.414-1.414L11 10.586V3a1 1 0 0 1 1-1z"/></svg>
+        Ligar
+      </div>
+      <div class="nav-item active" onclick="switchPage('dashboard')" id="nav-dashboard">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0-9 9 9 9 0 0 0 9 9 9 9 0 0 0 9-9 9 9 0 0 0-9-9zm0 2a7 7 0 0 1 7 7c0 1.6-.5 3-1.4 4.2l-4.2-4.2a2 2 0 1 0-2.8 2.8l4.2 4.2A7 7 0 1 1 12 5z"/></svg>
+        Painel
+      </div>
+      <div class="nav-item" onclick="switchPage('cells')" id="nav-cells">
+        <svg viewBox="0 0 24 24"><path d="M15 4h-1V2h-4v2H9c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-2 10h-2v-4h2v4z"/></svg>
+        Células
+      </div>
+      <div class="nav-item" onclick="switchPage('charger')" id="nav-charger">
+        <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+        Carga
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('page-' + pageId).classList.add('active');
+      const nav = document.getElementById('nav-' + pageId);
+      if (nav) nav.classList.add('active');
+    }
+
+    // Build Segments
+    const segList = document.getElementById('segmentList');
+    for (let s = 1; s <= 6; s++) {
+      const v = (98.4 + Math.sin(s) * 0.4).toFixed(2);
+      const isBal = (s === 2);
+      segList.innerHTML += `
+        <div class="seg-card" onclick="switchPage('cells')">
+          <div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="live-dot"></span>
+              <span style="font-weight:700; font-size:12px;">Segmento ${s}</span>
+              ${isBal ? '<span class="badge" style="background:#FFC300; color:#000;">BALANCEAR</span>' : ''}
+            </div>
+            <div style="font-size:10px; color:#8B949E; margin-top:2px;">4.095 - 4.118 V • 32.1°C</div>
+          </div>
+          <div style="font-family:monospace; font-weight:800; font-size:13px; color:#9BB4D9;">${v} V</div>
+        </div>
+      `;
+    }
+
+    // Build 144 Cells
+    const cellsGrid = document.getElementById('cellsGrid');
+    for (let i = 1; i <= 144; i++) {
+      const v = (4.085 + (Math.sin(i * 0.4) * 0.02) + (i === 38 ? -0.06 : 0)).toFixed(3);
+      const isBal = (i === 38);
+      cellsGrid.innerHTML += `
+        <div class="cell-tile ${isBal ? 'bal' : ''}">
+          <span class="cell-num">#${i}</span>
+          <span class="cell-volt">${v}</span>
+        </div>
+      `;
+    }
+
+    // Live Simulator Loop
+    let currentHistory = [];
+    let voltageHistory = [];
+    for (let i = 0; i < 40; i++) {
+      currentHistory.push(15 + Math.sin(i * 0.3) * 25);
+      voltageHistory.push(591 + Math.sin(i * 0.3) * 4);
+    }
+
+    const canvas = document.getElementById('sparklineCanvas');
+    const ctx = canvas.getContext('2d');
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
+      canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
+    }
+    resizeCanvas();
+
+    function drawSparkline() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Draw Voltage (Blue)
+      ctx.strokeStyle = '#9BB4D9';
+      ctx.lineWidth = 2 * window.devicePixelRatio;
+      ctx.beginPath();
+      voltageHistory.forEach((v, idx) => {
+        const x = (idx / (voltageHistory.length - 1)) * w;
+        const y = h * 0.5 - ((v - 591) / 10) * (h * 0.4);
+        if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Draw Current (Yellow)
+      ctx.strokeStyle = '#FFC300';
+      ctx.lineWidth = 2.5 * window.devicePixelRatio;
+      ctx.beginPath();
+      currentHistory.forEach((cur, idx) => {
+        const x = (idx / (currentHistory.length - 1)) * w;
+        const y = h * 0.5 - (cur / 60) * (h * 0.4);
+        if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    let t = 0;
+    setInterval(() => {
+      t += 0.5;
+      const cur = (20 + Math.sin(t * 0.8) * 35 + (Math.random() - 0.5) * 5).toFixed(1);
+      const volt = (591.2 - cur * 0.05).toFixed(1);
+      const pwr = (volt * cur / 1000).toFixed(1);
+
+      document.getElementById('i-pack').innerText = cur;
+      document.getElementById('v-pack').innerText = volt;
+      document.getElementById('p-pack').innerText = pwr;
+      document.getElementById('trace-i').innerText = cur;
+      document.getElementById('trace-v').innerText = Math.round(volt);
+
+      currentHistory.shift();
+      currentHistory.push(parseFloat(cur));
+      voltageHistory.shift();
+      voltageHistory.push(parseFloat(volt));
+
+      drawSparkline();
+    }, 500);
+
+    drawSparkline();
+  </script>
+</body>
+</html>

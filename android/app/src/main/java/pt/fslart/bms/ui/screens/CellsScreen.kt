@@ -11,6 +11,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,8 +27,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.fslart.bms.model.Cell
 import pt.fslart.bms.ui.components.CellItem
+import pt.fslart.bms.ui.components.CellVoltageBarChart
 import pt.fslart.bms.ui.theme.*
 import pt.fslart.bms.viewmodel.BmsViewModel
+
+enum class CellsViewMode {
+    CHART,
+    GRID
+}
 
 @Composable
 fun CellsScreen(
@@ -34,6 +44,7 @@ fun CellsScreen(
     val state by viewModel.bmsState.collectAsState()
     val selectedSegmentId by viewModel.selectedSegmentId.collectAsState()
 
+    var viewMode by remember { mutableStateOf(CellsViewMode.CHART) }
     var selectedCellForModal by remember { mutableStateOf<Cell?>(null) }
 
     val filteredCells = remember(state.cells, selectedSegmentId) {
@@ -50,16 +61,15 @@ fun CellsScreen(
     val minV = validVolts.minOrNull() ?: 0.0f
     val maxV = validVolts.maxOrNull() ?: 0.0f
     val deltaV = maxV - minV
-    val avgV = if (validVolts.isNotEmpty()) validVolts.average().toFloat() else 0.0f
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(DarkBackground)
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // HEADER & STATS
+        // TOP BAR: HEADER + VIEW MODE TOGGLE (BAR CHART vs GRID)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -67,8 +77,8 @@ fun CellsScreen(
         ) {
             Column {
                 Text(
-                    text = "MATRIZ DE CÉLULAS",
-                    fontSize = 12.sp,
+                    text = "TENSÃO DAS CÉLULAS",
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = DarkTextMuted,
                     letterSpacing = 0.8.sp
@@ -81,32 +91,65 @@ fun CellsScreen(
                 )
             }
 
-            // Stat pills
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("MIN / MAX", fontSize = 9.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
-                    Text(
-                        text = "%.3f - %.3f V".format(minV, maxV),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = LartBlueAccent,
-                        fontFamily = FontFamily.Monospace
-                    )
+            // Mode Toggle: [ 📊 Gráfico | ⊞ Matriz ]
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(DarkSurfaceElevated)
+                    .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
+                    .padding(2.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (viewMode == CellsViewMode.CHART) LartYellow else Color.Transparent)
+                        .clickable { viewMode = CellsViewMode.CHART }
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.BarChart,
+                            contentDescription = "Gráfico",
+                            tint = if (viewMode == CellsViewMode.CHART) Color.Black else DarkTextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Gráfico",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (viewMode == CellsViewMode.CHART) Color.Black else DarkTextSecondary
+                        )
+                    }
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("DESVIO Δ", fontSize = 9.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
-                    Text(
-                        text = "${(deltaV * 1000f).toInt()} mV",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (deltaV > 0.05f) StatusWarn else StatusOkGlow,
-                        fontFamily = FontFamily.Monospace
-                    )
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (viewMode == CellsViewMode.GRID) LartYellow else Color.Transparent)
+                        .clickable { viewMode = CellsViewMode.GRID }
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.GridView,
+                            contentDescription = "Matriz",
+                            tint = if (viewMode == CellsViewMode.GRID) Color.Black else DarkTextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Matriz",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (viewMode == CellsViewMode.GRID) Color.Black else DarkTextSecondary
+                        )
+                    }
                 }
             }
         }
 
-        // SEGMENT FILTER CHIPS (SCROLLABLE HORIZONTALLY)
+        // SEGMENT FILTER CHIPS
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -116,7 +159,7 @@ fun CellsScreen(
             FilterChip(
                 selected = selectedSegmentId == null,
                 onClick = { viewModel.selectSegment(null) },
-                label = { Text("Todos (144)") },
+                label = { Text("Todos (${state.cells.size.coerceAtLeast(144)})") },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = LartYellow,
                     selectedLabelColor = Color.Black,
@@ -153,53 +196,104 @@ fun CellsScreen(
             }
         }
 
-        // LEGEND BAR
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(DarkSurfaceElevated)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                LegendDot(color = StatusOk, label = "Normal")
-                LegendDot(color = StatusWarn, label = "Aviso")
-                LegendDot(color = StatusFault, label = "Falha")
-            }
+        // VIEW CONTENT
+        if (viewMode == CellsViewMode.CHART) {
+            // 📊 1. GROUPED BAR CHART (IDENTICAL TO PC: MIN BLUE, MAX RED)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CellVoltageBarChart(
+                    cells = filteredCells,
+                    vMinLimit = state.car.limits.vMin - 0.2f,
+                    vMaxLimit = state.car.limits.vMax + 0.1f,
+                    vWarnLow = state.car.limits.vWarnLow,
+                    vWarnHigh = state.car.limits.vWarnHigh,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
+                // Quick stats card
+                Row(
                     modifier = Modifier
-                        .size(6.dp)
-                        .clip(RoundedCornerShape(1.dp))
-                        .background(LartYellow)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Borda amarela = Em balanceamento",
-                    fontSize = 10.sp,
-                    color = LartYellow,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DarkSurface)
+                        .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "TENSÃO MÍNIMA", fontSize = 9.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "%.3f V".format(minV),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF0A84FF),
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
 
-        // ADAPTIVE CELLS GRID (4 COLUMNS ON PHONE, EXPANDABLE)
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 68.dp),
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-            items(filteredCells) { cell ->
-                CellItem(
-                    cell = cell,
-                    vLow = state.car.limits.vWarnLow,
-                    vHigh = state.car.limits.vWarnHigh,
-                    onClick = { selectedCellForModal = cell }
-                )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "DESVIO TOTAL", fontSize = 9.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "${(deltaV * 1000f).toInt()} mV",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (deltaV > 0.05f) Color(0xFFFFD60A) else StatusOkGlow,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "TENSÃO MÁXIMA", fontSize = 9.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "%.3f V".format(maxV),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFFFF453A),
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+        } else {
+            // ⊞ 2. HEAT MAP GRID VIEW
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Legend
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DarkSurfaceElevated)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        LegendDot(color = StatusOk, label = "Normal")
+                        LegendDot(color = StatusWarn, label = "Aviso")
+                        LegendDot(color = StatusFault, label = "Falha")
+                    }
+                    Text(text = "Toque para detalhes", fontSize = 10.sp, color = DarkTextMuted)
+                }
+
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 68.dp),
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    items(filteredCells) { cell ->
+                        CellItem(
+                            cell = cell,
+                            vLow = state.car.limits.vWarnLow,
+                            vHigh = state.car.limits.vWarnHigh,
+                            onClick = { selectedCellForModal = cell }
+                        )
+                    }
+                }
             }
         }
     }

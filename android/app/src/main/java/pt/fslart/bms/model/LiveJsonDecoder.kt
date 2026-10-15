@@ -1,6 +1,8 @@
 package pt.fslart.bms.model
 
+import android.util.Log
 import com.google.gson.JsonArray
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlin.math.abs
@@ -11,8 +13,10 @@ import kotlin.math.roundToInt
 class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
 
     private var lastAmsTimestamp: Long = 0L
-    private var rxCount: Long = 0L
-    private var droppedSamples: Long = 0L
+    var rxCount: Long = 0L
+        private set
+    var droppedSamples: Long = 0L
+        private set
     private var lastSeq: Long? = null
     private var chgEnergyWh: Float = 0.0f
     private var chgStarted: Long? = null
@@ -50,6 +54,29 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
             if (mask == null) return false
             return (mask and (1 shl n)) != 0
         }
+
+        fun JsonElement?.asFloatSafe(default: Float = 0f): Float {
+            if (this == null || this.isJsonNull) return default
+            return try { this.asNumber.toFloat() } catch (e: Exception) { default }
+        }
+
+        fun JsonElement?.asIntSafe(default: Int = 0): Int {
+            if (this == null || this.isJsonNull) return default
+            return try { this.asNumber.toInt() } catch (e: Exception) { default }
+        }
+
+        fun JsonElement?.asLongSafe(default: Long = 0L): Long {
+            if (this == null || this.isJsonNull) return default
+            return try { this.asNumber.toLong() } catch (e: Exception) { default }
+        }
+
+        fun JsonElement?.asBooleanSafe(default: Boolean = false): Boolean {
+            if (this == null || this.isJsonNull) return default
+            return try {
+                if (this.isJsonPrimitive && this.asJsonPrimitive.isBoolean) this.asBoolean
+                else this.asNumber.toInt() != 0
+            } catch (e: Exception) { default }
+        }
     }
 
     fun isLive(now: Long = System.currentTimeMillis()): Boolean {
@@ -66,6 +93,7 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
             val root = JsonParser.parseString(trimmed).asJsonObject
             processJson(root, now)
         } catch (e: Exception) {
+            Log.e("LiveJsonDecoder", "Erro ao fazer parse JSON: ${e.message}")
             null
         }
     }
@@ -77,8 +105,8 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
         // Check sequence / dropped samples
         val jsonMeta = raw.getAsJsonObject("json")
         if (jsonMeta != null) {
-            val sent = if (jsonMeta.has("sent") && !jsonMeta.get("sent").isJsonNull) jsonMeta.get("sent").asLong else null
-            if (sent != null) {
+            val sent = jsonMeta.get("sent")?.asLongSafe()
+            if (sent != null && sent > 0) {
                 val prev = lastSeq
                 if (prev != null && sent > prev + 1) {
                     droppedSamples += (sent - prev - 1)
@@ -106,7 +134,7 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
         val balMaskArray = bal.getAsJsonArray("mask")
 
         val slavesDetected = if (packObj.has("slaves_found") && !packObj.get("slaves_found").isJsonNull) {
-            packObj.get("slaves_found").asInt
+            packObj.get("slaves_found").asIntSafe(car.slaveCount)
         } else car.slaveCount
 
         // 1. Build Cells
@@ -123,22 +151,22 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
             } else null
 
             val owMask = if (owCellArray != null && si < owCellArray.size()) {
-                owCellArray.get(si).asInt
+                owCellArray.get(si).asIntSafe()
             } else 0
 
             val balMask = if (balMaskArray != null && si < balMaskArray.size()) {
-                balMaskArray.get(si).asInt
+                balMaskArray.get(si).asIntSafe()
             } else 0
 
             val pecFlag = if (pecFlagsArray != null && si < pecFlagsArray.size()) {
-                pecFlagsArray.get(si).asInt
+                pecFlagsArray.get(si).asIntSafe()
             } else 0
 
-            val trust = (pecFlag and 1) == 0 && si < slavesDetected
+            val trust = (pecFlag and 1) == 0 && (slavesDetected <= 0 || si < slavesDetected)
 
             for (ch in 0 until car.cellsPerSlave) {
-                val mv = if (row != null && ch < row.size() && !row.get(ch).isJsonNull) {
-                    row.get(ch).asInt
+                val mv = if (row != null && ch < row.size()) {
+                    row.get(ch).asIntSafe()
                 } else null
 
                 val v = if (mv != null && mv > 0) mv / 1000.0f else null
@@ -182,21 +210,22 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
             } else null
 
             val owMask = if (owNtcArray != null && si < owNtcArray.size()) {
-                owNtcArray.get(si).asInt
+                owNtcArray.get(si).asIntSafe()
             } else 0
 
             val pecFlag = if (pecFlagsArray != null && si < pecFlagsArray.size()) {
-                pecFlagsArray.get(si).asInt
+                pecFlagsArray.get(si).asIntSafe()
             } else 0
 
-            val trust = (pecFlag and 4) == 0 && (pecFlag and 8) == 0 && si < slavesDetected
+            val trust = (pecFlag and 4) == 0 && (pecFlag and 8) == 0 && (slavesDetected <= 0 || si < slavesDetected)
 
             for (ti in 0 until car.tempsPerSlave) {
-                var temp = if (row != null && ti < row.size() && !row.get(ti).isJsonNull) {
-                    row.get(ti).asFloat / 10.0f
+                var temp = if (row != null && ti < row.size()) {
+                    val rawDeci = row.get(ti).asFloatSafe()
+                    if (rawDeci != 0f) rawDeci / 10.0f else null
                 } else null
 
-                // Broken thermistors exclusion (e.g. "3:3", "3:4" on TEK-26e)
+                // Broken thermistors on TEK-26e
                 if (car.brokenThermistors.contains("${si + 1}:${ti + 1}")) {
                     temp = null
                 }
@@ -256,50 +285,40 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
         }
 
         // 4. Build Pack
-        val vsum = if (packObj.has("voltage_sum_mV") && !packObj.get("voltage_sum_mV").isJsonNull) {
-            packObj.get("voltage_sum_mV").asFloat / 1000f
-        } else {
-            val isaU = if (i1.has("voltage_mV") && !i1.get("voltage_mV").isJsonNull) i1.get("voltage_mV").asFloat / 1000f else null
-            isaU ?: cells.filter { it.status != Severity.UNKNOWN }.map { it.voltage }.sum()
+        val rawVsum = packObj.get("voltage_sum_mV")?.asFloatSafe() ?: 0f
+        val sumOfCells = cells.filter { it.status != Severity.UNKNOWN }.map { it.voltage }.sum()
+
+        val vsum = when {
+            rawVsum > 1000f -> rawVsum / 1000f
+            sumOfCells > 10f -> sumOfCells
+            else -> {
+                val isaU = i1.get("voltage_mV")?.asFloatSafe() ?: 0f
+                if (isaU > 1000f) isaU / 1000f else 0f
+            }
         }
 
-        val isaI = if (i1.has("current_mA") && !i1.get("current_mA").isJsonNull) {
-            i1.get("current_mA").asFloat / 1000f
-        } else 0.0f
+        val isaI = (i1.get("current_mA")?.asFloatSafe() ?: 0f) / 1000f
+        val isaPW = i1.get("power_W")?.asFloatSafe()
+        val isaP = if (isaPW != null && isaPW != 0f) (isaPW / 1000f) else ((vsum * isaI) / 1000f)
 
-        val isaP = if (i1.has("power_W") && !i1.get("power_W").isJsonNull) {
-            i1.get("power_W").asFloat / 1000f // in kW
-        } else {
-            (vsum * isaI) / 1000f
-        }
-
-        val socPct = if (soc.has("percent_x100") && !soc.get("percent_x100").isJsonNull) {
-            soc.get("percent_x100").asFloat / 100f
-        } else 0.0f
-
-        val usedChargeAs = if (soc.has("used_charge_As") && !soc.get("used_charge_As").isJsonNull) {
-            max(0.0f, soc.get("used_charge_As").asFloat)
-        } else 0.0f
+        val socPct = (soc.get("percent_x100")?.asFloatSafe() ?: 0f) / 100f
+        val usedChargeAs = max(0.0f, soc.get("used_charge_As")?.asFloatSafe() ?: 0f)
         val energyUsedWh = (usedChargeAs * vsum) / 3600f
 
-        val allValidCellV = cells.filter { it.status != Severity.UNKNOWN }.map { it.voltage }
+        val allValidCellV = cells.filter { it.status != Severity.UNKNOWN && it.voltage > 0f }.map { it.voltage }
         val allValidTemps = thermistors.mapNotNull { it.temperature }
 
-        val cMin = if (packObj.has("cell_min_mV") && !packObj.get("cell_min_mV").isJsonNull) {
-            packObj.get("cell_min_mV").asFloat / 1000f
-        } else allValidCellV.minOrNull() ?: 0.0f
+        val rawCmin = (packObj.get("cell_min_mV")?.asFloatSafe() ?: 0f) / 1000f
+        val rawCmax = (packObj.get("cell_max_mV")?.asFloatSafe() ?: 0f) / 1000f
 
-        val cMax = if (packObj.has("cell_max_mV") && !packObj.get("cell_max_mV").isJsonNull) {
-            packObj.get("cell_max_mV").asFloat / 1000f
-        } else allValidCellV.maxOrNull() ?: 0.0f
+        val cMin = if (rawCmin > 1.0f) rawCmin else (allValidCellV.minOrNull() ?: 0.0f)
+        val cMax = if (rawCmax > 1.0f) rawCmax else (allValidCellV.maxOrNull() ?: 0.0f)
 
-        val tMin = if (packObj.has("temp_min_cC") && !packObj.get("temp_min_cC").isJsonNull) {
-            packObj.get("temp_min_cC").asFloat / 100f
-        } else allValidTemps.minOrNull() ?: 0.0f
+        val rawTmin = (packObj.get("temp_min_cC")?.asFloatSafe() ?: 0f) / 100f
+        val rawTmax = (packObj.get("temp_max_cC")?.asFloatSafe() ?: 0f) / 100f
 
-        val tMax = if (packObj.has("temp_max_cC") && !packObj.get("temp_max_cC").isJsonNull) {
-            packObj.get("temp_max_cC").asFloat / 100f
-        } else allValidTemps.maxOrNull() ?: 0.0f
+        val tMin = if (rawTmin > 0f) rawTmin else (allValidTemps.minOrNull() ?: 0.0f)
+        val tMax = if (rawTmax > 0f) rawTmax else (allValidTemps.maxOrNull() ?: 0.0f)
 
         val pack = Pack(
             voltage = (vsum * 100f).roundToInt() / 100f,
@@ -309,22 +328,22 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
             energyUsed = (energyUsedWh * 10f).roundToInt() / 10f,
             cellVMin = (cMin * 10000f).roundToInt() / 10000f,
             cellVMax = (cMax * 10000f).roundToInt() / 10000f,
-            cellVDelta = ((cMax - cMin) * 10000f).roundToInt() / 10000f,
+            cellVDelta = ((cMax - cMin).coerceAtLeast(0f) * 10000f).roundToInt() / 10000f,
             tempMax = (tMax * 10f).roundToInt() / 10f,
             tempMin = (tMin * 10f).roundToInt() / 10f,
             status = Severity.worst(cells.map { it.status } + thermistors.map { it.status })
         )
 
         // 5. Safety
-        val prechargeStateCode = if (pre.has("state") && !pre.get("state").isJsonNull) pre.get("state").asInt else 0
+        val prechargeStateCode = pre.get("state")?.asIntSafe() ?: 0
         val prechargeStateName = nameFromTable(PRECHARGE_STATES, prechargeStateCode)
-        val brainStateCode = if (bms.has("state") && !bms.get("state").isJsonNull) bms.get("state").asInt else 2
+        val brainStateCode = bms.get("state")?.asIntSafe() ?: 2
         val masterStateName = nameFromTable(AMS_STATES, brainStateCode)
 
-        val amsErrorActive = if (ae.has("active") && !ae.get("active").isJsonNull) ae.get("active").asInt != 0 else false
-        val airPos = if (pre.has("air_pos") && !pre.get("air_pos").isJsonNull) pre.get("air_pos").asInt != 0 else false
-        val airNeg = if (pre.has("air_neg") && !pre.get("air_neg").isJsonNull) pre.get("air_neg").asInt != 0 else false
-        val sdcClosed = if (pre.has("sdc_closed") && !pre.get("sdc_closed").isJsonNull) pre.get("sdc_closed").asInt != 0 else false
+        val amsErrorActive = ae.get("active")?.asBooleanSafe() ?: false
+        val airPos = pre.get("air_pos")?.asBooleanSafe() ?: false
+        val airNeg = pre.get("air_neg")?.asBooleanSafe() ?: false
+        val sdcClosed = pre.get("sdc_closed")?.asBooleanSafe() ?: false
 
         val safety = Safety(
             available = listOf("ams_ok", "air_positive", "air_negative", "precharge_done", "sdc_closed"),
@@ -338,43 +357,34 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
         )
 
         // 6. AMS Board
-        val fanPwm = if (board.has("fan_pwm") && !board.get("fan_pwm").isJsonNull) {
-            (board.get("fan_pwm").asFloat / 255.0f * 100.0f * 10f).roundToInt() / 10f
+        val rawFan = board.get("fan_pwm")?.asFloatSafe()
+        val fanPwm = if (rawFan != null && rawFan > 0) {
+            (rawFan / 255.0f * 100.0f * 10f).roundToInt() / 10f
         } else null
 
-        val mcuTemp = if (board.has("mcu_temp_dC") && !board.get("mcu_temp_dC").isJsonNull) {
-            board.get("mcu_temp_dC").asFloat / 10.0f
-        } else null
+        val rawMcu = board.get("mcu_temp_dC")?.asFloatSafe()
+        val mcuTemp = if (rawMcu != null && rawMcu > 0) rawMcu / 10.0f else null
 
         val ams = Ams(
             fanPwm = fanPwm,
             mcuTemperature = mcuTemp,
-            pecError = if (packObj.has("any_pec_error") && !packObj.get("any_pec_error").isJsonNull) {
-                packObj.get("any_pec_error").asInt != 0
-            } else false,
-            faultCounter = if (bms.has("active_faults") && !bms.get("active_faults").isJsonNull) {
-                bms.get("active_faults").asInt
-            } else 0,
-            runtimeS = if (bms.has("runtime_s") && !bms.get("runtime_s").isJsonNull) {
-                bms.get("runtime_s").asFloat
-            } else null,
+            pecError = packObj.get("any_pec_error")?.asBooleanSafe() ?: false,
+            faultCounter = bms.get("active_faults")?.asIntSafe() ?: 0,
+            runtimeS = bms.get("runtime_s")?.asFloatSafe(),
             slavesDetected = slavesDetected
         )
 
         // 7. Charger & Mode
-        val chgStateCode = if (chg.has("state") && !chg.get("state").isJsonNull) chg.get("state").asInt else 0
+        val chgStateCode = chg.get("state")?.asIntSafe() ?: 0
         val chgStateName = nameFromTable(CHARGER_STATES, chgStateCode)
         val isCharging = (chgStateName == "CHARGING")
-        val handcartSwitch = if (chg.has("handcart_switch") && !chg.get("handcart_switch").isJsonNull) chg.get("handcart_switch").asInt != 0 else false
-        val statusOk = if (chg.has("status_ok") && !chg.get("status_ok").isJsonNull) chg.get("status_ok").asInt != 0 else false
+        val handcartSwitch = chg.get("handcart_switch")?.asBooleanSafe() ?: false
+        val statusOk = chg.get("status_ok")?.asBooleanSafe() ?: false
         val chgPresent = handcartSwitch || statusOk
 
-        val chgRawCurrent = if (chg.has("requested_current_raw") && !chg.get("requested_current_raw").isJsonNull) {
-            chg.get("requested_current_raw").asFloat / 10.0f
-        } else 0.0f
-
-        val i2Ma = if (i2.has("current_mA") && !i2.get("current_mA").isJsonNull) i2.get("current_mA").asFloat else 0.0f
-        val i2Mv = if (i2.has("voltage_mV") && !i2.get("voltage_mV").isJsonNull) i2.get("voltage_mV").asFloat else 0.0f
+        val chgRawCurrent = (chg.get("requested_current_raw")?.asFloatSafe() ?: 0f) / 10.0f
+        val i2Ma = i2.get("current_mA")?.asFloatSafe() ?: 0f
+        val i2Mv = i2.get("voltage_mV")?.asFloatSafe() ?: 0f
 
         if (isCharging) {
             if (chgStarted == null) {
@@ -421,7 +431,7 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
             }
         }
 
-        if (slavesDetected < car.slaveCount) {
+        if (slavesDetected in 1 until car.slaveCount) {
             faults.add(
                 Fault(
                     code = "SLAVES_MISSING",

@@ -14,6 +14,7 @@ import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -44,7 +45,8 @@ class BleManager(
     private val adapter: BluetoothAdapter? get() = bluetoothManager?.adapter
 
     private var gatt: BluetoothGatt? = null
-    private var decoder = LiveJsonDecoder(CarProfile.TEK26E)
+    var decoder = LiveJsonDecoder(CarProfile.TEK26E)
+        private set
 
     private val _connectionState = MutableStateFlow(BleConnectionState.DISCONNECTED)
     val connectionState: StateFlow<BleConnectionState> = _connectionState.asStateFlow()
@@ -69,6 +71,8 @@ class BleManager(
         private set
     var linesIn: Long = 0L
         private set
+    var packetCount: Long = 0L
+        private set
 
     fun setCar(car: CarProfile) {
         decoder.car = car
@@ -79,7 +83,7 @@ class BleManager(
         val timestamp = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())
         val entry = "[$timestamp] $msg"
         val current = _logLines.value.toMutableList()
-        if (current.size > 200) {
+        if (current.size > 300) {
             current.removeAt(0)
         }
         current.add(entry)
@@ -97,6 +101,9 @@ class BleManager(
 
         disconnect()
         setCar(car)
+        bytesIn = 0L
+        linesIn = 0L
+        packetCount = 0L
 
         val device: BluetoothDevice = try {
             adapter?.getRemoteDevice(cleanAddress) ?: run {
@@ -155,14 +162,20 @@ class BleManager(
 
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
-                    log("BLE Conectado. A solicitar MTU 512…")
-                    _statusMessage.value = "Conectado. A negociar MTU…"
-                    // Request MTU 512 for larger packet buffers
-                    val mtuSuccess = g?.requestMtu(512) ?: false
-                    if (!mtuSuccess) {
-                        // Fallback directly to discoverServices
-                        log("Falha ao pedir MTU, a descobrir serviços…")
-                        g?.discoverServices()
+                    log("BLE Conectado com sucesso!")
+                    _statusMessage.value = "Conectado. A configurar conexão…"
+
+                    // Request High Priority for high-throughput stream
+                    g?.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+
+                    // Request MTU 512
+                    scope.launch(Dispatchers.IO) {
+                        delay(100L)
+                        val mtuSuccess = g?.requestMtu(512) ?: false
+                        if (!mtuSuccess) {
+                            log("Falha ao pedir MTU, a descobrir serviços diretamente…")
+                            g?.discoverServices()
+                        }
                     }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
@@ -176,8 +189,12 @@ class BleManager(
 
         @SuppressLint("MissingPermission")
         override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
-            log("MTU negociado para $mtu (status: $status). A descobrir serviços…")
-            gatt?.discoverServices()
+            log("MTU negociado para $mtu (status: $status). A aguardar 200ms para descobrir serviços…")
+            // Give Bluetooth stack 200ms before discovering services
+            scope.launch(Dispatchers.IO) {
+                delay(200L)
+                gatt?.discoverServices()
+            }
         }
 
         @SuppressLint("MissingPermission")
@@ -189,18 +206,49 @@ class BleManager(
                 return
             }
 
-            log("Serviços descobertos (${g.services.size} serviços)")
-            val notifyChar = pickNotifyCharacteristic(g)
+            log("Serviços descobertos (${g.services.size} serviços):")
+            for (svc in g.services) {
+                log("  Svc: ${svc.uuid}")
+                for (c in svc.characteristics) {
+                    val p = c.properties
+                    val notify = (p and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
+                    val indicate = (p and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
+                    log("    Char: ${c.uuid} [notify=$notify, ind=$indicate, props=0x${p.toString(16)}]")
+                }
+            }
 
+            val notifyChar = pickNotifyCharacteristic(g)
             if (notifyChar == null) {
-                log("Nenhuma característica de notificação utilizável encontrada")
+                log("ERRO: Nenhuma característica de notificação utilizável encontrada")
                 _statusMessage.value = "Sem característica de dados RN4871"
                 _connectionState.value = BleConnectionState.ERROR
                 disconnect()
                 return
             }
 
-            enableNotifications(g, notifyChar)
+            // Delay descriptor write by 250ms to ensure Android GATT queue is completely ready
+            scope.launch(Dispatchers.IO) {
+                delay(250L)
+                enableNotifications(g, notifyChar)
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onDescriptorWrite(
+            gatt: BluetoothGatt?,
+            descriptor: BluetoothGattDescriptor?,
+            status: Int
+        ) {
+            val ok = (status == BluetoothGatt.GATT_SUCCESS)
+            log("onDescriptorWrite: ${descriptor?.uuid} -> status=$status (${if (ok) "SUCESSO" else "FALHA"})")
+            if (ok) {
+                _connectionState.value = BleConnectionState.CONNECTED
+                _statusMessage.value = "Ligado e a receber dados"
+                log("Notificações CCCD ativadas com SUCESSO no RN4871! A aguardar pacotes...")
+            } else {
+                _statusMessage.value = "Falha ao ativar CCCD ($status)"
+                log("Aviso: Falha ao subscrever CCCD: status $status")
+            }
         }
 
         // Support for newer Android versions (API 33+)
@@ -218,38 +266,47 @@ class BleManager(
             gatt: BluetoothGatt?,
             characteristic: BluetoothGattCharacteristic?
         ) {
+            @Suppress("DEPRECATION")
             characteristic?.value?.let { handleIncomingBytes(it) }
         }
     }
 
     private fun pickNotifyCharacteristic(g: BluetoothGatt): BluetoothGattCharacteristic? {
-        // 1. Try exact Microchip RN4871 service + notify characteristic
+        // 1. Check RN4871 Transparent UART Service first
         val rnService = g.getService(BleConstants.SERVICE_RN4871)
         if (rnService != null) {
             val c = rnService.getCharacteristic(BleConstants.CHAR_NOTIFY)
             if (c != null) {
-                log("Característica RN4871 encontrada: ${c.uuid}")
+                log("Característica RN4871 NOTIFY exata encontrada no serviço Microchip: ${c.uuid}")
                 return c
+            }
+            // If exact UUID is slightly different, check any characteristic in this service that notifies
+            for (c2 in rnService.characteristics) {
+                if ((c2.properties and (BluetoothGattCharacteristic.PROPERTY_NOTIFY or BluetoothGattCharacteristic.PROPERTY_INDICATE)) != 0) {
+                    log("Característica NOTIFY encontrada no serviço RN4871: ${c2.uuid}")
+                    return c2
+                }
             }
         }
 
-        // 2. Try any characteristic that matches CHAR_NOTIFY
+        // 2. Search for exact CHAR_NOTIFY in any service
         for (svc in g.services) {
-            val c = svc.getCharacteristic(BleConstants.CHAR_NOTIFY)
-            if (c != null) {
-                log("Característica NOTIFY encontrada no serviço ${svc.uuid}: ${c.uuid}")
-                return c
+            for (c in svc.characteristics) {
+                if (c.uuid.toString().equals(BleConstants.CHAR_NOTIFY.toString(), ignoreCase = true)) {
+                    log("Característica NOTIFY encontrada no serviço ${svc.uuid}: ${c.uuid}")
+                    return c
+                }
             }
         }
 
-        // 3. Fallback: find first characteristic with NOTIFY or INDICATE property
+        // 3. Fallback: First characteristic that has NOTIFY or INDICATE property (excluding standard Service Changed 0x2A05)
         for (svc in g.services) {
             for (c in svc.characteristics) {
                 val props = c.properties
                 if ((props and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0 ||
                     (props and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
                     if (!c.uuid.toString().lowercase().startsWith("00002a05")) {
-                        log("Usando característica de notificação alternativa: ${c.uuid}")
+                        log("Usando característica de notificação alternativa: ${c.uuid} no serviço ${svc.uuid}")
                         return c
                     }
                 }
@@ -260,37 +317,61 @@ class BleManager(
 
     @SuppressLint("MissingPermission")
     private fun enableNotifications(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
+        log("Ativando notificações na característica ${characteristic.uuid}...")
         val success = g.setCharacteristicNotification(characteristic, true)
         if (!success) {
-            log("Falha ao registar notificação na characteristic")
-            _statusMessage.value = "Falha ao ativar notificações"
+            log("ERRO: setCharacteristicNotification retornou false!")
+            _statusMessage.value = "Falha ao ativar notificações locais"
             return
         }
 
+        // Find CCCD (Client Characteristic Configuration Descriptor - 0x2902)
         val descriptor = characteristic.getDescriptor(BleConstants.CCCD_DESCRIPTOR)
+            ?: characteristic.descriptors.find { it.uuid.toString().contains("2902", ignoreCase = true) }
             ?: characteristic.descriptors.firstOrNull()
 
         if (descriptor != null) {
+            val props = characteristic.properties
+            val isNotify = (props and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
+            val isIndicate = (props and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
+
+            val valToSet = if (isNotify) {
+                BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            } else if (isIndicate) {
+                BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+            } else {
+                BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            }
+
+            log("A escrever CCCD ${descriptor.uuid} com valor: ${valToSet.contentToString()}")
+
+            // Important: set descriptor.value for Samsung and legacy compat
+            @Suppress("DEPRECATION")
+            descriptor.value = valToSet
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                g.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                val writeRes = g.writeDescriptor(descriptor, valToSet)
+                log("writeDescriptor (API 33+) retorno: $writeRes (${if (writeRes == 0) "ENVIADO" else "ERRO CODE $writeRes"})")
             } else {
                 @Suppress("DEPRECATION")
-                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                @Suppress("DEPRECATION")
-                g.writeDescriptor(descriptor)
+                val writeRes = g.writeDescriptor(descriptor)
+                log("writeDescriptor (legacy) retorno: $writeRes")
             }
-            log("Descriptor CCCD subscrito com sucesso")
         } else {
-            log("Aviso: Descriptor CCCD não encontrado")
+            log("AVISO CRÍTICO: Descritor CCCD (0x2902) não encontrado na característica!")
         }
 
         _connectionState.value = BleConnectionState.CONNECTED
         _statusMessage.value = "Ligado ao RN4871"
-        log("Ligação BLE ativa e a receber dados do acumulador!")
     }
 
     private fun handleIncomingBytes(bytes: ByteArray) {
         bytesIn += bytes.size
+        packetCount++
+
+        if (packetCount <= 5 || packetCount % 50 == 0L) {
+            log("RX chunk #$packetCount: ${bytes.size} B (Total: ${bytesIn} B)")
+        }
 
         synchronized(bufferLock) {
             buffer.write(bytes)
@@ -319,6 +400,9 @@ class BleManager(
                 val lineString = String(lineBytes, StandardCharsets.UTF_8).trim()
                 if (lineString.isNotEmpty()) {
                     linesIn++
+                    if (linesIn <= 3 || linesIn % 20 == 0L) {
+                        log("Linha #$linesIn recebida (${lineString.length} chars)")
+                    }
                     processDecodedLine(lineString)
                 }
             }
@@ -353,6 +437,16 @@ class BleManager(
                     isDemo = false
                 )
                 _bmsState.value = enrichedState
+
+                if (decoder.rxCount <= 3 || decoder.rxCount % 30 == 0L) {
+                    log("Telemetria atualizada! V=${enrichedState.pack.voltage}V, I=${enrichedState.pack.current}A, Células=${enrichedState.cells.size}")
+                }
+            } else {
+                if (line.startsWith("AMS_ERROR")) {
+                    log("AMS: $line")
+                } else if (linesIn <= 5) {
+                    log("Aviso: Linha não decodificada: ${line.take(60)}...")
+                }
             }
         }
     }
