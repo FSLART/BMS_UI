@@ -89,3 +89,10 @@ fala em endereços, e é o `.elf` que diz onde vive o `live_debug`. Escolhe-se n
 próprio ecrã de ligação. Ler assim obriga a agarrar o alvo uma vez, o que **para
 o CPU do AMS por instantes** — os detalhes e o porquê estão no cabeçalho de
 `backend/transports/wifi.py`.
+
+## 📱 Aplicação Android (BMS Monitor Mobile)
+
+Na pasta [`android/`](android/README.md) encontra-se a aplicação móvel nativa para Android (Kotlin + Jetpack Compose) adaptada para telemóveis e tablets, com foco na ligação **Bluetooth Low Energy (BLE)** ao módulo Microchip RN4871 (`40:84:32:61:CE:13`).
+
+Para instruções de compilação e detalhes de arquitetura, consulta [`android/README.md`](android/README.md).
+
