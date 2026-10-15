@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LART BMS Mobile — Pré-visualização</title>
-  <script type="module" src="frontend/js/vendor/model-viewer-4.0.0.min.js"></script>
+  <script src="frontend/js/vendor/model-viewer-4.0.0.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
@@ -38,6 +38,18 @@
     .header-bar p {
       font-size: 13px;
       color: #8B949E;
+    }
+    .header-notice {
+      display: none;
+      margin-top: 10px;
+      background: #101620;
+      border: 1px solid #FFD60A;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 11px;
+      color: #FFD60A;
+      align-items: center;
+      gap: 8px;
     }
 
     /* Phone Frame Mockup */
@@ -478,6 +490,9 @@
       <h1>LART BMS MOBILE</h1>
     </div>
     <p>Simulador Interativo • Jetpack Compose • Gráficos de Tensão/NTCs • 3D SolidWorks</p>
+    <div id="fileNotice" class="header-notice">
+      <span>💡 Para rodar o 3D CAD real no PC sem restrições do navegador, executa <b>run_preview.bat</b></span>
+    </div>
   </div>
 
   <div class="phone-container">
@@ -587,19 +602,19 @@
           </div>
         </div>
 
-        <!-- 3D Accumulator Preview Card on Dashboard -->
+        <!-- 3D Car Preview Card on Dashboard -->
         <div class="model-card">
           <div class="model-header">
             <div>
-              <div style="font-size: 11px; font-weight: 800; color: #F0F3F6;">ACUMULADOR 3D · 6 SEGMENTOS</div>
-              <div style="font-size: 9px; color: #8B949E;">SolidWorks CAD Interativo</div>
+              <div style="font-size: 11px; font-weight: 800; color: #F0F3F6;">CARRO TEK-26e 3D · SOLIDWORKS CAD</div>
+              <div style="font-size: 9px; color: #8B949E;">Modelo Interativo · Chassi e Bateria</div>
             </div>
             <div class="model-controls">
-              <div class="btn-icon" title="Ecrã Inteiro" onclick="openFullscreen3D('frontend/models/tek26e_open_light.glb', 'Acumulador Aberto (Pack HV)')">⤢</div>
+              <div class="btn-icon" title="Ecrã Inteiro" onclick="openFullscreen3D('frontend/models/tek26e_closed.glb', 'Carro TEK-26e (Montagem Completa)')">⤢</div>
             </div>
           </div>
           <div style="height: 170px; width: 100%;">
-            <model-viewer src="frontend/models/tek26e_open_light.glb" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1" exposure="0.88" interaction-prompt="none" camera-orbit="45deg 70deg 110%"></model-viewer>
+            <model-viewer src="frontend/models/tek26e_closed.glb" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1" exposure="0.88" interaction-prompt="none" camera-orbit="45deg 70deg 110%"></model-viewer>
           </div>
         </div>
 
@@ -784,15 +799,15 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
             <div style="font-size: 10px; font-weight: 800; color: #8B949E; letter-spacing: 0.8px;">VISUALIZADOR 3D CAD</div>
-            <div style="font-size: 16px; font-weight: 800; color: #FFF;" id="model3d-title">Acumulador Aberto</div>
+            <div style="font-size: 16px; font-weight: 800; color: #FFF;" id="model3d-title">Carro TEK-26e</div>
           </div>
           <span class="badge">SOLIDWORKS GLTF</span>
         </div>
 
         <!-- Model Selection Chips -->
         <div class="filter-chips">
-          <span class="chip active" onclick="switch3DModel('pack', this)">⚡ Acumulador</span>
-          <span class="chip" onclick="switch3DModel('car', this)">🏎️ Carro</span>
+          <span class="chip active" onclick="switch3DModel('car', this)">🏎️ Carro</span>
+          <span class="chip" onclick="switch3DModel('pack', this)">⚡ Acumulador</span>
           <span class="chip" onclick="switch3DModel('segment', this)">🔋 Segmento</span>
           <span class="chip" onclick="switch3DModel('charger', this)">🔌 Trolley Carga</span>
         </div>
@@ -816,14 +831,14 @@
             </div>
           </div>
           <div style="height: 310px; width: 100%;">
-            <model-viewer id="main3DViewer" src="frontend/models/tek26e_open_light.glb" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none" camera-orbit="45deg 70deg 110%"></model-viewer>
+            <model-viewer id="main3DViewer" src="frontend/models/tek26e_closed.glb" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none" camera-orbit="45deg 70deg 110%"></model-viewer>
           </div>
         </div>
 
         <div class="card" id="model3d-context-card">
-          <div class="card-title">Detalhes do Acumulador</div>
+          <div class="card-title">Carro TEK-26e (Montagem Completa)</div>
           <p style="font-size: 11px; color: #8B949E; line-height: 15px;">
-            Montagem com 6 segmentos de 24 paralelos cada (144s3p, Molicel P45B). Células refrigeradas a ar com condutas dedicadas e ventilação forçada.
+            Carroçaria em fibra de carbono, chassis tubular e acumulador protegido dentro do monocoque.
           </p>
         </div>
       </div>
@@ -925,7 +940,7 @@
   </div>
 
   <script>
-    let active3DModel = 'pack';
+    let active3DModel = 'car';
 
     function switchPage(pageId) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1233,6 +1248,33 @@
     }, 600);
 
     drawSparkline();
+
+    // Protocol check for desktop preview
+    if (window.location.protocol === 'file:') {
+      const notice = document.getElementById('fileNotice');
+      if (notice) notice.style.display = 'inline-flex';
+    }
+
+    // Fallback handler if local browser security blocks .glb fetch under file://
+    document.querySelectorAll('model-viewer').forEach(mv => {
+      mv.addEventListener('error', (err) => {
+        console.warn('ModelViewer fetch error (likely browser file:// CORS restriction):', err);
+        const parent = mv.parentElement;
+        if (parent && !parent.querySelector('.model-fallback-card')) {
+          mv.style.display = 'none';
+          const card = document.createElement('div');
+          card.className = 'model-fallback-card';
+          card.style.cssText = 'width:100%; height:100%; min-height:160px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#070A0F; border-radius:10px; padding:12px; text-align:center; box-sizing:border-box;';
+          card.innerHTML = `
+            <img src="frontend/pics/t26.png" style="max-height:100px; max-width:85%; object-fit:contain; filter:drop-shadow(0 4px 12px rgba(0,0,0,0.7)); margin-bottom:8px;">
+            <div style="font-size:11px; font-weight:800; color:#FFD60A; letter-spacing:0.5px;">TEK-26e CAD (Modo 2.5D)</div>
+            <div style="font-size:9.5px; color:#8B949E; margin-top:2px;">O navegador restringe ficheiros 3D em <code>file://</code></div>
+            <div style="font-size:9px; background:#1C242F; color:#FFF; padding:4px 8px; border-radius:6px; font-family:monospace; border:1px solid #FFD60A; margin-top:6px;">Executa <b>run_preview.bat</b> para 3D WebGL Real</div>
+          `;
+          parent.appendChild(card);
+        }
+      });
+    });
   </script>
 </body>
 </html>

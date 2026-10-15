@@ -224,12 +224,12 @@ fun DashboardScreen(
             )
         }
 
-        // 3D ACCUMULATOR CAD CARD (SolidWorks)
+        // 3D CAD CARD (SolidWorks)
         item {
             Model3DViewer(
-                modelFile = "tek26e_open_light.glb",
+                modelFile = "tek26e_closed.glb",
                 height = 260.dp,
-                title = "ACUMULADOR 3D · 6 SEGMENTOS",
+                title = "CARRO TEK-26e 3D · SOLIDWORKS CAD",
                 modifier = Modifier.fillMaxWidth()
             )
         }

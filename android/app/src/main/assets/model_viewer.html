@@ -92,7 +92,6 @@
   </div>
 
   <model-viewer id="viewer"
-    src="models/tek26e_closed.glb"
     camera-controls
     touch-action="pan-y"
     auto-rotate
@@ -110,19 +109,99 @@
     const mv = document.getElementById('viewer');
     const loader = document.getElementById('loader');
     const loaderText = document.getElementById('loader-text');
+    let currentModel = '';
+    let loadTimeout = null;
+
+    function hideLoader() {
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(() => { loader.style.display = 'none'; }, 300);
+      }
+    }
+
+    function showLoader(text) {
+      if (loader) {
+        loaderText.textContent = text || 'A CARREGAR MODELO 3D...';
+        loader.style.display = 'flex';
+        loader.style.opacity = '1';
+      }
+    }
 
     function loadModel(modelFile, autoRotate = true) {
-      loader.style.opacity = '1';
-      loader.style.display = 'flex';
-      loaderText.textContent = 'A CARREGAR ' + modelFile.toUpperCase() + '...';
-      
-      mv.src = 'models/' + modelFile;
+      if (!modelFile) return;
+      const targetSrc = 'models/' + modelFile;
+
+      if (!customElements.get('model-viewer')) {
+        window._pendingModel = { file: modelFile, autoRotate: autoRotate };
+        showLoader('A INICIAR MOTOR 3D...');
+        return;
+      }
+
+      if (currentModel === targetSrc && mv.loaded) {
+        hideLoader();
+        if (autoRotate) mv.setAttribute('auto-rotate', '');
+        else mv.removeAttribute('auto-rotate');
+        return;
+      }
+
+      currentModel = targetSrc;
+      showLoader('A CARREGAR ' + modelFile.replace('.glb', '').toUpperCase() + '...');
+
+      if (mv.getAttribute('src') !== targetSrc) {
+        mv.src = targetSrc;
+      }
+
       if (autoRotate) {
         mv.setAttribute('auto-rotate', '');
       } else {
         mv.removeAttribute('auto-rotate');
       }
+
+      clearTimeout(loadTimeout);
+      loadTimeout = setTimeout(() => {
+        if (loader && loader.style.display !== 'none') {
+          if (mv.loaded) {
+            hideLoader();
+          } else {
+            loaderText.textContent = 'A PROCESSAR GEOMETRIA...';
+            setTimeout(hideLoader, 2500);
+          }
+        }
+      }, 7000);
     }
+
+    customElements.whenDefined('model-viewer').then(() => {
+      console.log('model-viewer element ready');
+      if (window._pendingModel) {
+        const p = window._pendingModel;
+        window._pendingModel = null;
+        loadModel(p.file, p.autoRotate);
+      } else if (!mv.src) {
+        loadModel('tek26e_closed.glb', true);
+      }
+    });
+
+    mv.addEventListener('progress', (e) => {
+      const pct = Math.round(e.detail.totalProgress * 100);
+      if (pct > 0 && pct < 100) {
+        loaderText.textContent = 'A CARREGAR ' + pct + '%...';
+      }
+    });
+
+    mv.addEventListener('load', () => {
+      clearTimeout(loadTimeout);
+      hideLoader();
+      if (window.AndroidInterface && window.AndroidInterface.onModelLoaded) {
+        window.AndroidInterface.onModelLoaded();
+      }
+    });
+
+    mv.addEventListener('error', (err) => {
+      clearTimeout(loadTimeout);
+      loaderText.textContent = 'ERRO AO CARREGAR O MODELO 3D';
+      console.error('ModelViewer error:', err);
+      setTimeout(hideLoader, 3000);
+    });
 
     function resetCamera() {
       mv.cameraOrbit = '45deg 70deg 110%';
@@ -148,19 +227,6 @@
         return enabled;
       }
     }
-
-    mv.addEventListener('load', () => {
-      loader.style.opacity = '0';
-      setTimeout(() => { loader.style.display = 'none'; }, 300);
-      if (window.AndroidInterface && window.AndroidInterface.onModelLoaded) {
-        window.AndroidInterface.onModelLoaded();
-      }
-    });
-
-    mv.addEventListener('error', (err) => {
-      loaderText.textContent = 'ERRO AO CARREGAR O MODELO 3D';
-      console.error(err);
-    });
   </script>
 </body>
 </html>

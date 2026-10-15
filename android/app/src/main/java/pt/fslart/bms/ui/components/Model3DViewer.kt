@@ -150,43 +150,7 @@ fun Model3DViewer(
             ) {
                 AndroidView(
                     factory = { ctx ->
-                        WebView(ctx).apply {
-                            layoutParams = ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                            setBackgroundColor(AndroidColor.parseColor("#070A0F"))
-
-                            val assetLoader = WebViewAssetLoader.Builder()
-                                .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
-                                .build()
-
-                            webViewClient = object : WebViewClient() {
-                                override fun shouldInterceptRequest(
-                                    view: WebView,
-                                    request: WebResourceRequest
-                                ): WebResourceResponse? {
-                                    return assetLoader.shouldInterceptRequest(request.url)
-                                }
-
-                                override fun onPageFinished(view: WebView?, url: String?) {
-                                    super.onPageFinished(view, url)
-                                    view?.evaluateJavascript("loadModel('$modelFile', $isAutoRotate);", null)
-                                }
-                            }
-
-                            settings.apply {
-                                javaScriptEnabled = true
-                                domStorageEnabled = true
-                                allowFileAccess = true
-                                allowContentAccess = true
-                                useWideViewPort = true
-                                loadWithOverviewMode = true
-                            }
-
-                            loadUrl("https://appassets.androidplatform.net/assets/model_viewer.html")
-                            webViewRef = this
-                        }
+                        createConfiguredWebView(ctx, modelFile, isAutoRotate) { webViewRef = it }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -247,42 +211,7 @@ fun Model3DViewer(
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         AndroidView(
                             factory = { ctx ->
-                                WebView(ctx).apply {
-                                    layoutParams = ViewGroup.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT
-                                    )
-                                    setBackgroundColor(AndroidColor.parseColor("#070A0F"))
-
-                                    val assetLoader = WebViewAssetLoader.Builder()
-                                        .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
-                                        .build()
-
-                                    webViewClient = object : WebViewClient() {
-                                        override fun shouldInterceptRequest(
-                                            view: WebView,
-                                            request: WebResourceRequest
-                                        ): WebResourceResponse? {
-                                            return assetLoader.shouldInterceptRequest(request.url)
-                                        }
-
-                                        override fun onPageFinished(view: WebView?, url: String?) {
-                                            super.onPageFinished(view, url)
-                                            view?.evaluateJavascript("loadModel('$modelFile', $isAutoRotate);", null)
-                                        }
-                                    }
-
-                                    settings.apply {
-                                        javaScriptEnabled = true
-                                        domStorageEnabled = true
-                                        allowFileAccess = true
-                                        allowContentAccess = true
-                                        useWideViewPort = true
-                                        loadWithOverviewMode = true
-                                    }
-
-                                    loadUrl("https://appassets.androidplatform.net/assets/model_viewer.html")
-                                }
+                                createConfiguredWebView(ctx, modelFile, isAutoRotate)
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -292,3 +221,73 @@ fun Model3DViewer(
         }
     }
 }
+
+private fun createConfiguredWebView(
+    context: android.content.Context,
+    modelFile: String,
+    isAutoRotate: Boolean,
+    onWebViewCreated: ((WebView) -> Unit)? = null
+): WebView {
+    val assetLoader = WebViewAssetLoader.Builder()
+        .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+        .build()
+
+    return WebView(context).apply {
+        layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        setBackgroundColor(AndroidColor.parseColor("#070A0F"))
+
+        webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                val path = request.url.path ?: ""
+                if (path.endsWith(".glb", ignoreCase = true)) {
+                    val assetPath = path.substringAfter("/assets/")
+                    try {
+                        val stream = context.assets.open(assetPath)
+                        val headers = mapOf(
+                            "Access-Control-Allow-Origin" to "*",
+                            "Access-Control-Allow-Methods" to "GET, OPTIONS",
+                            "Access-Control-Allow-Headers" to "*",
+                            "Content-Type" to "model/gltf-binary"
+                        )
+                        return WebResourceResponse("model/gltf-binary", null, 200, "OK", headers, stream)
+                    } catch (e: Exception) {
+                        android.util.Log.e("Model3DViewer", "Failed to open asset: $assetPath", e)
+                    }
+                }
+                return assetLoader.shouldInterceptRequest(request.url)
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                view?.evaluateJavascript("if (typeof loadModel === 'function') { loadModel('$modelFile', $isAutoRotate); }", null)
+            }
+        }
+
+        webChromeClient = object : android.webkit.WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+                android.util.Log.d("Model3DViewer_JS", "${consoleMessage?.message()} [line ${consoleMessage?.lineNumber()}]")
+                return true
+            }
+        }
+
+        settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = true
+            allowContentAccess = true
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            mediaPlaybackRequiresUserGesture = false
+        }
+
+        loadUrl("https://appassets.androidplatform.net/assets/model_viewer.html")
+        onWebViewCreated?.invoke(this)
+    }
+}
+

@@ -41,7 +41,7 @@ fun Model3DScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.bmsState.collectAsState()
-    var selectedModel by remember { mutableStateOf(Model3DType.PACK_OPEN) }
+    var selectedModel by remember { mutableStateOf(Model3DType.CAR_CLOSED) }
     var selectedSegmentNum by remember { mutableStateOf(1) }
 
     val segmentData = remember(state.segments, selectedSegmentNum) {
