@@ -10,6 +10,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -81,7 +82,7 @@ fun Model3DViewer(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -91,10 +92,15 @@ fun Model3DViewer(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = DarkTextPrimary,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = 0.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
                         )
                     } else {
-                        Spacer(modifier = Modifier.width(1.dp))
+                        Spacer(modifier = Modifier.width(1.dp).weight(1f))
                     }
 
                     if (showControls) {
@@ -104,13 +110,14 @@ fun Model3DViewer(
                         ) {
                             // Thermal Mode Toggle
                             if (onThermalModeToggle != null) {
-                                IconButton(
-                                    onClick = onThermalModeToggle,
+                                Box(
                                     modifier = Modifier
-                                        .size(30.dp)
+                                        .size(32.dp)
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(if (isThermalMode) Color(0xFFFF9500).copy(alpha = 0.25f) else DarkSurfaceElevated)
                                         .border(1.dp, if (isThermalMode) Color(0xFFFF9500) else DarkBorder, RoundedCornerShape(6.dp))
+                                        .clickable { onThermalModeToggle() },
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Thermostat,
@@ -122,16 +129,17 @@ fun Model3DViewer(
                             }
 
                             // Auto-rotate toggle
-                            IconButton(
-                                onClick = {
-                                    isAutoRotate = !isAutoRotate
-                                    webViewRef?.evaluateJavascript("toggleAutoRotate($isAutoRotate);", null)
-                                },
+                            Box(
                                 modifier = Modifier
-                                    .size(30.dp)
+                                    .size(32.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(if (isAutoRotate) LartYellow.copy(alpha = 0.2f) else DarkSurfaceElevated)
                                     .border(1.dp, if (isAutoRotate) LartYellow else DarkBorder, RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        isAutoRotate = !isAutoRotate
+                                        webViewRef?.evaluateJavascript("toggleAutoRotate($isAutoRotate);", null)
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.RotateRight,
@@ -142,15 +150,16 @@ fun Model3DViewer(
                             }
 
                             // Center / Reset Camera
-                            IconButton(
-                                onClick = {
-                                    webViewRef?.evaluateJavascript("resetCamera();", null)
-                                },
+                            Box(
                                 modifier = Modifier
-                                    .size(30.dp)
+                                    .size(32.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(DarkSurfaceElevated)
                                     .border(1.dp, DarkBorder, RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        webViewRef?.evaluateJavascript("resetCamera();", null)
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.CenterFocusStrong,
@@ -160,26 +169,27 @@ fun Model3DViewer(
                                 )
                             }
 
-                            // Maximize to Fullscreen
-                            IconButton(
-                                onClick = {
-                                    if (onMaximize != null) {
-                                        onMaximize()
-                                    } else {
-                                        isMaximized = true
-                                    }
-                                },
+                            // Maximize to Fullscreen (Guaranteed visible and fully formed)
+                            Box(
                                 modifier = Modifier
-                                    .size(30.dp)
+                                    .size(32.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(DarkSurfaceElevated)
-                                    .border(1.dp, DarkBorder, RoundedCornerShape(6.dp))
+                                    .border(1.dp, LartYellow.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        if (onMaximize != null) {
+                                            onMaximize()
+                                        } else {
+                                            isMaximized = true
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Fullscreen,
                                     contentDescription = "Ecrã Inteiro",
                                     tint = LartYellow,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }

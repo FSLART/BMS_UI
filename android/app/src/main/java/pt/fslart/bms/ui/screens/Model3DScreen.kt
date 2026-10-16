@@ -136,48 +136,64 @@ fun Model3DScreen(
                 .clip(RoundedCornerShape(10.dp))
                 .background(DarkSurface)
                 .border(1.dp, DarkBorder, RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text("TENSÃO PACK", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("TENSÃO PACK", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold, maxLines = 1)
                 Text(
                     text = "%.1f V".format(state.pack.voltage),
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = LartYellow,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1
                 )
             }
-            Column {
-                Text("ESTADO SOC", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("ESTADO SOC", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold, maxLines = 1)
                 Text(
                     text = "${state.pack.soc.toInt()}%",
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = StatusOkGlow,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1
                 )
             }
-            Column {
-                Text("TEMP. MÁX", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("TEMP. MÁX", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold, maxLines = 1)
                 Text(
                     text = "%.1f °C".format(state.pack.tempMax),
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = if (state.pack.tempMax >= 50f) StatusWarn else DarkTextPrimary,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1
                 )
             }
-            Column {
-                Text("POTÊNCIA", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("POTÊNCIA", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold, maxLines = 1)
                 Text(
                     text = "%.1f kW".format(state.pack.power),
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = DarkTextPrimary,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1
                 )
             }
         }

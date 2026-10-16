@@ -301,7 +301,11 @@ fun ScrutineeringScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) {
                     Text(
                         text = "INSPEÇÃO TÉCNICA · SCRUTINEERING",
                         fontSize = 11.sp,
@@ -311,13 +315,15 @@ fun ScrutineeringScreen(
                     )
                     Text(
                         text = "Checklist Regulamento FS 2027",
-                        fontSize = 18.sp,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = DarkTextPrimary
+                        color = DarkTextPrimary,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
 
-                // Share Button
+                // Share Button (Never wraps or breaks 'Relatório')
                 OutlinedButton(
                     onClick = { shareReport() },
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurfaceElevated),
@@ -336,7 +342,9 @@ fun ScrutineeringScreen(
                         text = "Relatório",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = LartYellow
+                        color = LartYellow,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -371,7 +379,7 @@ fun ScrutineeringScreen(
                     .clip(RoundedCornerShape(14.dp))
                     .background(heroBg)
                     .border(1.5.dp, heroBorder, RoundedCornerShape(14.dp))
-                    .padding(16.dp),
+                    .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(
@@ -380,6 +388,9 @@ fun ScrutineeringScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -392,19 +403,23 @@ fun ScrutineeringScreen(
                         Column {
                             Text(
                                 text = heroTitle,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
-                                color = heroBorder
+                                color = heroBorder,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "$passedCount de ${checks.size} regras cumpridas (100% regulamentar)",
                                 fontSize = 11.sp,
-                                color = DarkTextSecondary
+                                color = DarkTextSecondary,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                         }
                     }
 
-                    // Score pill
+                    // Score pill (Guaranteed single line, never wraps into vertical digits)
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = heroBorder.copy(alpha = 0.2f),
@@ -415,39 +430,38 @@ fun ScrutineeringScreen(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
                             color = heroBorder,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            fontFamily = FontFamily.Monospace
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
 
                 Divider(color = heroBorder.copy(alpha = 0.25f), thickness = 1.dp)
 
-                // Quick stats row
+                // Quick stats row (3 neat mini cards that never collide or break layout)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "V_pack: %.1f V".format(state.pack.voltage),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkTextPrimary,
-                        fontFamily = FontFamily.Monospace
+                    HeroStatPill(
+                        label = "TENSÃO TOTAL",
+                        value = "%.1f V".format(state.pack.voltage),
+                        valueColor = LartYellow,
+                        modifier = Modifier.weight(1f)
                     )
-                    Text(
-                        text = "Temp_máx: %.1f °C".format(state.pack.tempMax),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkTextPrimary,
-                        fontFamily = FontFamily.Monospace
+                    HeroStatPill(
+                        label = "TEMP. MÁX",
+                        value = "%.1f °C".format(state.pack.tempMax),
+                        valueColor = if (state.pack.tempMax >= 50f) StatusWarn else Color.White,
+                        modifier = Modifier.weight(1f)
                     )
-                    Text(
-                        text = "Células: ${state.cells.size}/144",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkTextPrimary,
-                        fontFamily = FontFamily.Monospace
+                    HeroStatPill(
+                        label = "CÉLULAS",
+                        value = "${state.cells.size}/144",
+                        valueColor = StatusOk,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -497,11 +511,17 @@ private fun ChecklistCard(check: ScrutineeringCheck) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
                 Box(
                     modifier = Modifier
+                        .padding(top = 4.dp)
                         .size(8.dp)
                         .clip(CircleShape)
                         .background(statusColor)
@@ -512,8 +532,10 @@ private fun ChecklistCard(check: ScrutineeringCheck) {
                         text = check.title,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = DarkTextPrimary
+                        color = DarkTextPrimary,
+                        lineHeight = 16.sp
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = check.ruleRef,
                         fontSize = 10.sp,
@@ -534,7 +556,9 @@ private fun ChecklistCard(check: ScrutineeringCheck) {
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     color = statusColor,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }
@@ -551,13 +575,14 @@ private fun ChecklistCard(check: ScrutineeringCheck) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 Text(
                     text = "LIDO EM DIRETO",
                     fontSize = 9.sp,
                     color = DarkTextMuted,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 1.dp)
                 )
                 Text(
                     text = check.liveValue,
@@ -573,13 +598,14 @@ private fun ChecklistCard(check: ScrutineeringCheck) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 Text(
                     text = "LIMITE FSG",
                     fontSize = 9.sp,
                     color = DarkTextMuted,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 1.dp)
                 )
                 Text(
                     text = check.targetLimit,
@@ -598,6 +624,42 @@ private fun ChecklistCard(check: ScrutineeringCheck) {
             fontSize = 10.sp,
             color = DarkTextMuted,
             lineHeight = 14.sp
+        )
+    }
+}
+
+@Composable
+private fun HeroStatPill(
+    label: String,
+    value: String,
+    valueColor: Color = DarkTextPrimary,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.35f))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = label,
+            fontSize = 8.sp,
+            fontWeight = FontWeight.Bold,
+            color = DarkTextMuted,
+            maxLines = 1,
+            softWrap = false
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = valueColor,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
