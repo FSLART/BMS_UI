@@ -970,7 +970,11 @@
     }
 
     function toggleThermalMode() {
-      setThermalMode(!isThermalMode);
+      if (window.AndroidInterface && typeof window.AndroidInterface.toggleThermalMode === 'function') {
+        window.AndroidInterface.toggleThermalMode();
+      } else {
+        setThermalMode(!isThermalMode);
+      }
     }
 
     window.loadModel = loadModel;

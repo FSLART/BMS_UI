@@ -60,9 +60,12 @@ fun Model3DViewer(
         webViewRef?.evaluateJavascript("if (typeof loadModel === 'function') loadModel('$modelFile', $isAutoRotate);", null)
     }
 
-    LaunchedEffect(bmsState, selectedSegment, isThermalMode) {
-        val json = if (bmsState != null) buildTelemetryJson(bmsState, selectedSegment) else buildDefaultTelemetryJson(selectedSegment)
+    LaunchedEffect(isThermalMode) {
         webViewRef?.evaluateJavascript("if (typeof setThermalMode === 'function') setThermalMode($isThermalMode);", null)
+    }
+
+    LaunchedEffect(bmsState, selectedSegment) {
+        val json = if (bmsState != null) buildTelemetryJson(bmsState, selectedSegment) else buildDefaultTelemetryJson(selectedSegment)
         webViewRef?.evaluateJavascript("if (typeof updateTelemetry === 'function') updateTelemetry($json);", null)
     }
 
@@ -192,7 +195,15 @@ fun Model3DViewer(
             ) {
                 AndroidView(
                     factory = { ctx ->
-                        createConfiguredWebView(ctx, modelFile, isAutoRotate, bmsState, selectedSegment) { webViewRef = it }
+                        createConfiguredWebView(
+                            context = ctx,
+                            modelFile = modelFile,
+                            isAutoRotate = isAutoRotate,
+                            bmsState = bmsState,
+                            selectedSegment = selectedSegment,
+                            isThermalMode = isThermalMode,
+                            onThermalModeToggle = onThermalModeToggle
+                        ) { webViewRef = it }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -217,6 +228,8 @@ fun Model3DViewer(
                     isAutoRotate = isAutoRotate
                 ),
                 bmsState = bmsState,
+                isThermalMode = isThermalMode,
+                onThermalModeToggle = onThermalModeToggle,
                 onClose = { isMaximized = false }
             )
         }
@@ -228,8 +241,26 @@ fun Fullscreen3DViewer(
     request: BmsViewModel.Fullscreen3DRequest,
     bmsState: pt.fslart.bms.model.BmsState?,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isThermalMode: Boolean = false,
+    onThermalModeToggle: (() -> Unit)? = null
 ) {
+    var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    var isAutoRotate by remember { mutableStateOf(request.isAutoRotate) }
+
+    LaunchedEffect(request.modelFile) {
+        webViewRef?.evaluateJavascript("if (typeof loadModel === 'function') loadModel('${request.modelFile}', $isAutoRotate);", null)
+    }
+
+    LaunchedEffect(isThermalMode) {
+        webViewRef?.evaluateJavascript("if (typeof setThermalMode === 'function') setThermalMode($isThermalMode);", null)
+    }
+
+    LaunchedEffect(bmsState, request.selectedSegment) {
+        val json = if (bmsState != null) buildTelemetryJson(bmsState, request.selectedSegment) else buildDefaultTelemetryJson(request.selectedSegment)
+        webViewRef?.evaluateJavascript("if (typeof updateTelemetry === 'function') updateTelemetry($json);", null)
+    }
+
     Surface(
         modifier = modifier.fillMaxSize(),
         color = Color(0xFF070A0F)
@@ -279,33 +310,96 @@ fun Fullscreen3DViewer(
                         }
                     }
 
-                    Button(
-                        onClick = onClose,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = DarkSurfaceElevated,
-                            contentColor = Color.White
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(
-                            horizontal = if (isLandscape) 10.dp else 12.dp,
-                            vertical = if (isLandscape) 4.dp else 6.dp
-                        ),
-                        modifier = Modifier.height(if (isLandscape) 30.dp else 36.dp)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.FullscreenExit,
-                            contentDescription = "Minimizar",
-                            modifier = Modifier.size(14.dp),
-                            tint = LartYellow
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            "Fechar",
-                            fontSize = if (isLandscape) 11.sp else 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = LartYellow
-                        )
+                        // Thermal Mode Toggle
+                        if (onThermalModeToggle != null) {
+                            IconButton(
+                                onClick = onThermalModeToggle,
+                                modifier = Modifier
+                                    .size(if (isLandscape) 30.dp else 36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isThermalMode) Color(0xFFFF9500).copy(alpha = 0.25f) else DarkSurfaceElevated)
+                                    .border(1.dp, if (isThermalMode) Color(0xFFFF9500) else DarkBorder, RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Thermostat,
+                                    contentDescription = "Vista Térmica",
+                                    tint = if (isThermalMode) Color(0xFFFF9500) else DarkTextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        // Auto-rotate toggle
+                        IconButton(
+                            onClick = {
+                                isAutoRotate = !isAutoRotate
+                                webViewRef?.evaluateJavascript("toggleAutoRotate($isAutoRotate);", null)
+                            },
+                            modifier = Modifier
+                                .size(if (isLandscape) 30.dp else 36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isAutoRotate) LartYellow.copy(alpha = 0.2f) else DarkSurfaceElevated)
+                                .border(1.dp, if (isAutoRotate) LartYellow else DarkBorder, RoundedCornerShape(8.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.RotateRight,
+                                contentDescription = "Auto-Rodar",
+                                tint = if (isAutoRotate) LartYellow else DarkTextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        // Center / Reset Camera
+                        IconButton(
+                            onClick = {
+                                webViewRef?.evaluateJavascript("resetCamera();", null)
+                            },
+                            modifier = Modifier
+                                .size(if (isLandscape) 30.dp else 36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(DarkSurfaceElevated)
+                                .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CenterFocusStrong,
+                                contentDescription = "Centrar Câmara",
+                                tint = DarkTextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        Button(
+                            onClick = onClose,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = DarkSurfaceElevated,
+                                contentColor = Color.White
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(
+                                horizontal = if (isLandscape) 10.dp else 12.dp,
+                                vertical = if (isLandscape) 4.dp else 6.dp
+                            ),
+                            modifier = Modifier.height(if (isLandscape) 30.dp else 36.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.FullscreenExit,
+                                contentDescription = "Minimizar",
+                                modifier = Modifier.size(14.dp),
+                                tint = LartYellow
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                "Fechar",
+                                fontSize = if (isLandscape) 11.sp else 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = LartYellow
+                            )
+                        }
                     }
                 }
 
@@ -318,17 +412,28 @@ fun Fullscreen3DViewer(
                     AndroidView(
                         factory = { ctx ->
                             createConfiguredWebView(
-                                ctx,
-                                request.modelFile,
-                                request.isAutoRotate,
-                                bmsState,
-                                request.selectedSegment
-                            )
+                                context = ctx,
+                                modelFile = request.modelFile,
+                                isAutoRotate = isAutoRotate,
+                                bmsState = bmsState,
+                                selectedSegment = request.selectedSegment,
+                                isThermalMode = isThermalMode,
+                                onThermalModeToggle = onThermalModeToggle
+                            ) { webViewRef = it }
                         },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
+        }
+    }
+}
+
+private class ModelViewerInterface(private val onToggleThermal: (() -> Unit)?) {
+    @android.webkit.JavascriptInterface
+    fun toggleThermalMode() {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            onToggleThermal?.invoke()
         }
     }
 }
@@ -339,6 +444,8 @@ private fun createConfiguredWebView(
     isAutoRotate: Boolean,
     bmsState: pt.fslart.bms.model.BmsState?,
     selectedSegment: Int = 1,
+    isThermalMode: Boolean = false,
+    onThermalModeToggle: (() -> Unit)? = null,
     onWebViewCreated: ((WebView) -> Unit)? = null
 ): WebView {
     val assetLoader = WebViewAssetLoader.Builder()
@@ -351,6 +458,10 @@ private fun createConfiguredWebView(
             ViewGroup.LayoutParams.MATCH_PARENT
         )
         setBackgroundColor(AndroidColor.parseColor("#070A0F"))
+
+        if (onThermalModeToggle != null) {
+            addJavascriptInterface(ModelViewerInterface(onThermalModeToggle), "AndroidInterface")
+        }
 
         webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
@@ -380,7 +491,7 @@ private fun createConfiguredWebView(
                 super.onPageFinished(view, url)
                 val teleJson = if (bmsState != null) buildTelemetryJson(bmsState, selectedSegment) else buildDefaultTelemetryJson(selectedSegment)
                 view?.evaluateJavascript(
-                    "if (typeof loadModel === 'function') { loadModel('$modelFile', $isAutoRotate); } if (typeof updateTelemetry === 'function') { updateTelemetry($teleJson); }",
+                    "if (typeof loadModel === 'function') { loadModel('$modelFile', $isAutoRotate); } if (typeof setThermalMode === 'function') { setThermalMode($isThermalMode); } if (typeof updateTelemetry === 'function') { updateTelemetry($teleJson); }",
                     null
                 )
             }

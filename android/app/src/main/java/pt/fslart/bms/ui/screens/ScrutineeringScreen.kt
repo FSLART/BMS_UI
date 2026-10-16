@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.fslart.bms.model.Severity
@@ -504,34 +505,55 @@ private fun ChecklistCard(check: ScrutineeringCheck) {
             }
         }
 
-        // MIDDLE ROW: Live value vs target limit
-        Row(
+        // MIDDLE ROW: Live value vs target limit (Clean 2-line layout that never overflows)
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(DarkSurfaceElevated)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            Column {
-                Text(text = "VALOR LIDO EM DIRETO", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "LIDO EM DIRETO",
+                    fontSize = 9.sp,
+                    color = DarkTextMuted,
+                    fontWeight = FontWeight.Bold
+                )
                 Text(
                     text = check.liveValue,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = statusColor,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp)
                 )
             }
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text(text = "LIMITE REGULAMENTAR", fontSize = 8.sp, color = DarkTextMuted, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "LIMITE FSG",
+                    fontSize = 9.sp,
+                    color = DarkTextMuted,
+                    fontWeight = FontWeight.Bold
+                )
                 Text(
                     text = check.targetLimit,
                     fontSize = 11.sp,
                     color = DarkTextSecondary,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp)
                 )
             }
         }

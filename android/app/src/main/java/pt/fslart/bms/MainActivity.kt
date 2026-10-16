@@ -79,6 +79,7 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
     val fullscreen3D by viewModel.fullscreen3D.collectAsState()
     val isCellChartFullscreen by viewModel.isCellChartFullscreen.collectAsState()
     val isThermChartFullscreen by viewModel.isThermChartFullscreen.collectAsState()
+    val isThermalView3D by viewModel.isThermalView3D.collectAsState()
     val selectedSegmentId by viewModel.selectedSegmentId.collectAsState()
 
     val filteredCells = remember(state.cells, selectedSegmentId) {
@@ -271,6 +272,8 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
             Fullscreen3DViewer(
                 request = req,
                 bmsState = state,
+                isThermalMode = isThermalView3D,
+                onThermalModeToggle = { viewModel.toggleThermalView3D() },
                 onClose = { viewModel.closeFullscreen3D() }
             )
         }
