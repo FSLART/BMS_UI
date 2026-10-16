@@ -113,7 +113,7 @@
       justify-content: space-around;
       align-items: center;
       z-index: 90;
-      padding: 0 4px;
+      padding: 0 2px;
     }
     .nav-item {
       display: flex;
@@ -122,14 +122,14 @@
       gap: 2px;
       color: #6E7681;
       cursor: pointer;
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 700;
       transition: all 0.15s ease;
       flex: 1;
-      padding: 6px 0;
-      border-radius: 8px;
+      padding: 4px 0;
+      border-radius: 6px;
     }
-    .nav-item svg { width: 18px; height: 18px; fill: currentColor; }
+    .nav-item svg { width: 17px; height: 17px; fill: currentColor; }
     .nav-item.active {
       color: #FFD60A;
     }
@@ -709,6 +709,270 @@
       margin-right: 6px;
       box-shadow: 0 0 8px #3FB950;
     }
+
+    /* Interactive Preview Toast */
+    .preview-toast {
+      position: absolute;
+      top: 36px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(14, 20, 28, 0.96);
+      border: 1px solid #FFD60A;
+      color: #FFD60A;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.85);
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      z-index: 300;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .preview-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Dashboard Charging Alert Banner */
+    .charging-alert-banner {
+      background: rgba(255, 214, 10, 0.12);
+      border: 1px solid #FFD60A;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .charging-pulse-icon {
+      font-size: 18px;
+      animation: pulse-icon 1.2s infinite ease-in-out;
+    }
+    @keyframes pulse-icon {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px #FFD60A); }
+      50% { transform: scale(1.15); filter: drop-shadow(0 0 8px #FFD60A); }
+    }
+    .sound-test-btn {
+      background: rgba(255, 214, 10, 0.2);
+      border: 1px solid #FFD60A;
+      color: #FFD60A;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .sound-test-btn:hover {
+      background: #FFD60A;
+      color: #000;
+    }
+    .chg-view-btn {
+      background: #FFD60A;
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Scrutineering Quick Card */
+    .scrutineering-quick-card {
+      background: #0E131A;
+      border: 1px solid #1C242F;
+      border-radius: 12px;
+      padding: 10px 12px;
+      transition: border-color 0.2s;
+    }
+    .scrutineering-quick-card:hover {
+      border-color: #32D74B;
+    }
+    .scrut-shield-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: rgba(50, 215, 75, 0.16);
+      border: 1px solid #32D74B;
+      color: #32D74B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    /* Scrutineering Checklist Styles */
+    .checklist-hero {
+      background: linear-gradient(135deg, rgba(20, 50, 30, 0.9) 0%, rgba(10, 26, 16, 0.95) 100%);
+      border: 1.5px solid #32D74B;
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 4px 20px rgba(50, 215, 75, 0.15);
+    }
+    .hero-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .hero-badge {
+      background: #32D74B;
+      color: #000;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 4px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .hero-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #FFF;
+      letter-spacing: 0.3px;
+    }
+    .hero-sub {
+      font-size: 10.5px;
+      color: #8B949E;
+      line-height: 14px;
+    }
+    .hero-progress-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .hero-progress-fill {
+      height: 100%;
+      width: 100%;
+      background: #32D74B;
+      box-shadow: 0 0 10px #32D74B;
+    }
+    .hero-stats-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 700;
+      color: #8B949E;
+    }
+    .rule-card {
+      background: #0E131A;
+      border: 1px solid #1C242F;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .rule-card:hover {
+      border-color: #2D3A4B;
+    }
+    .rule-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .rule-code {
+      font-size: 10px;
+      font-weight: 800;
+      color: #FFD60A;
+      font-family: monospace;
+    }
+    .rule-name {
+      font-size: 12px;
+      font-weight: 800;
+      color: #F0F3F6;
+    }
+    .rule-badge {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .rule-badge.pass {
+      background: rgba(50, 215, 75, 0.18);
+      color: #32D74B;
+      border: 1px solid rgba(50, 215, 75, 0.4);
+    }
+    .rule-badge.warn {
+      background: rgba(255, 214, 10, 0.18);
+      color: #FFD60A;
+      border: 1px solid rgba(255, 214, 10, 0.4);
+    }
+    .rule-metric {
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: 700;
+      color: #32D74B;
+      background: #141B24;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .rule-desc {
+      font-size: 10px;
+      color: #8B949E;
+      line-height: 14px;
+    }
+    .share-btn {
+      background: #161D26;
+      border: 1px solid #FFD60A;
+      color: #FFD60A;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s;
+    }
+    .share-btn:hover {
+      background: #FFD60A;
+      color: #000;
+    }
+
+    /* Thermal scale overlay in 3D viewer */
+    .thermal-scale-bar {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      background: rgba(10, 14, 20, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 6px 10px;
+      z-index: 10;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      backdrop-filter: blur(4px);
+    }
+    .thermal-gradient-line {
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(to right, #0A84FF 0%, #32D74B 25%, #FFD60A 50%, #FF9F0A 75%, #FF453A 100%);
+    }
+    .thermal-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      font-family: monospace;
+      font-weight: 700;
+      color: #8B949E;
+    }
   </style>
 </head>
 <body>
@@ -726,6 +990,7 @@
 
   <div class="phone-container">
     <div class="phone-notch"><div class="phone-speaker"></div></div>
+    <div id="preview-toast" class="preview-toast">⚡ Alerta Ativado</div>
 
     <div class="app-screen">
 
@@ -797,6 +1062,33 @@
             <div style="font-size: 11px; color: #6E7681; font-family: monospace;">40:84:32:61:CE:13</div>
           </div>
           <button style="background: #161D26; border: 1px solid #1C242F; color: #F0F3F6; font-size: 11px; padding: 5px 10px; border-radius: 6px; font-weight: 600; cursor: pointer;" onclick="switchPage('connect')">Desligar</button>
+        </div>
+
+        <!-- Charging Alert Banner -->
+        <div id="dash-charging-banner" class="charging-alert-banner">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="charging-pulse-icon">⚡</span>
+            <div>
+              <div style="font-size: 11px; font-weight: 800; color: #FFD60A; letter-spacing: 0.5px;">BATERIA A CARREGAR</div>
+              <div style="font-size: 10px; color: #8B949E; font-family: monospace;">91% SOC · 592.4 V · 5.95 A</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="sound-test-btn" onclick="testChargingAlert(true)" title="Testar Alarme Sonoro e Vibração">🔔 Alerta</button>
+            <button class="chg-view-btn" onclick="switchPage('charger')">Ver</button>
+          </div>
+        </div>
+
+        <!-- Scrutineering Quick Card -->
+        <div class="scrutineering-quick-card" onclick="switchPage('checklist')" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="scrut-shield-icon">✓</div>
+            <div>
+              <div style="font-size: 11px; font-weight: 800; color: #F0F3F6;">Inspeção Técnica FSG EV</div>
+              <div style="font-size: 10px; color: #32D74B; font-weight: 600;">✓ Conforme com Regulamento Formula Student</div>
+            </div>
+          </div>
+          <span style="font-size: 11px; font-weight: 800; color: #FFD60A;">Checklist ›</span>
         </div>
 
         <!-- KPIs 2x3 Grid -->
@@ -1054,6 +1346,7 @@
           <div class="model-header">
             <span style="font-size: 10px; color: #8B949E; font-weight: 700;">ARRASTA PARA RODAR • PINÇA PARA ZOOM</span>
             <div class="model-controls">
+              <div class="btn-icon" id="btn-3d-thermal" title="Vista Térmica" onclick="toggle3DThermalMode()">🌡️</div>
               <div class="btn-icon active" id="btn-3d-rotate" title="Auto-Rodar" onclick="toggle3DAutoRotate()">🔄</div>
               <div class="btn-icon" title="Repor Vista" onclick="reset3DCamera()">🎯</div>
               <div class="btn-icon" title="Ecrã Inteiro" onclick="openFullscreen3DCurrent()">⤢</div>
@@ -1066,7 +1359,25 @@
               <button class="seg-filter-btn active" id="flt-all" onclick="setSegmentFilterMode('all')">Tudo (36)</button>
               <button class="seg-filter-btn" id="flt-v" onclick="setSegmentFilterMode('v')">⚡ Tensões (24)</button>
               <button class="seg-filter-btn" id="flt-t" onclick="setSegmentFilterMode('t')">🌡️ Temp (12)</button>
+              <button class="seg-filter-btn" id="flt-thermal" onclick="setSegmentFilterMode('thermal')">🔥 Térmico</button>
             </div>
+
+            <!-- Thermal Scale Legend Overlay -->
+            <div id="thermal-scale-bar" class="thermal-scale-bar">
+              <div style="display: flex; justify-content: space-between; font-size: 8px; font-weight: 800; color: #FFD60A;">
+                <span>ESCALA TÉRMICA</span>
+                <span>20°C a 65°C</span>
+              </div>
+              <div class="thermal-gradient-line"></div>
+              <div class="thermal-labels">
+                <span>&lt;28°</span>
+                <span>38°</span>
+                <span>46°</span>
+                <span>54°</span>
+                <span>≥54°C</span>
+              </div>
+            </div>
+
             <model-viewer id="main3DViewer" src="frontend/models/tek26e_closed.glb" camera-controls auto-rotate rotation-per-second="10deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none" camera-orbit="232deg 70deg 110%" field-of-view="26deg" animation-name="fans"></model-viewer>
             <button id="btn-reset-view" class="view-reset-btn" onclick="reset3DCamera()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -1156,6 +1467,150 @@
               <div class="kpi-value" style="color: #FFF;">6.0<span class="kpi-unit">A</span></div>
             </div>
           </div>
+
+          <!-- Charging Alarm & Vibration Simulation Controls -->
+          <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <div class="card-title">
+              <span>Alertas de Carga (Som &amp; Vibração)</span>
+              <span class="badge" style="background:#32D74B; color:#000;">ATIVO</span>
+            </div>
+            <p style="font-size: 10.5px; color: #8B949E; line-height: 14px;">
+              O telemóvel vibra e reproduz avisos sonoros eletrónicos sempre que a carga inicia ou é interrompida.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
+              <button class="sound-test-btn" style="padding: 8px 10px; font-size: 11px;" onclick="testChargingAlert(true)">
+                ▶ Início (2 Pulsos + Bip)
+              </button>
+              <button class="sound-test-btn" style="padding: 8px 10px; font-size: 11px; border-color: #FF453A; color: #FF453A;" onclick="testChargingAlert(false)">
+                ■ Paragem (3 Pulsos + Tom)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. SCRUTINEERING / CHECKLIST PAGE -->
+      <div class="page" id="page-checklist">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 10px; font-weight: 800; color: #8B949E; letter-spacing: 0.8px;">INSPEÇÃO TÉCNICA FSG</div>
+            <div style="font-size: 16px; font-weight: 800; color: #FFF;">Regulamento EV Formula Student</div>
+          </div>
+          <span class="badge" style="background:#32D74B; color:#000;">FSG 2026</span>
+        </div>
+
+        <!-- HERO PASS/FAIL CARD -->
+        <div class="checklist-hero">
+          <div class="hero-top-row">
+            <div>
+              <div class="hero-title">CONFORME · APROVADO</div>
+              <div class="hero-sub">Acumulador apto para Scrutineering elétrico e teste de chuva</div>
+            </div>
+            <div class="hero-badge">100% PASS</div>
+          </div>
+          <div class="hero-progress-track">
+            <div class="hero-progress-fill"></div>
+          </div>
+          <div class="hero-stats-row">
+            <span>8 de 8 Regras Cumpridas</span>
+            <span>0 Falhas Ativas</span>
+          </div>
+        </div>
+
+        <!-- SHARE REPORT BUTTON -->
+        <button class="share-btn" onclick="shareScrutineeringReport()">
+          <span>📋 Copiar Relatório Técnico de Inspeção</span>
+        </button>
+
+        <!-- 8 RULE CARDS -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- EV 4.1.1 -->
+          <div class="rule-card">
+            <div class="rule-header">
+              <span class="rule-code">EV 4.1.1</span>
+              <span class="rule-badge pass">PASS</span>
+            </div>
+            <div class="rule-name">Limite de Tensão por Célula</div>
+            <div class="rule-metric">Mín: 4.092 V · Máx: 4.120 V</div>
+            <div class="rule-desc">Todas as 144 células dentro da janela de operação permitida (2.80 V a 4.25 V).</div>
+          </div>
+
+          <!-- EV 4.1.2 -->
+          <div class="rule-card">
+            <div class="rule-header">
+              <span class="rule-code">EV 4.1.2</span>
+              <span class="rule-badge pass">PASS</span>
+            </div>
+            <div class="rule-name">Equilíbrio de Células (Delta V)</div>
+            <div class="rule-metric">Delta V: 28 mV (Limite ≤ 50 mV)</div>
+            <div class="rule-desc">Desvio máximo entre a célula mais carregada e a menos carregada dentro da tolerância FSG.</div>
+          </div>
+
+          <!-- EV 4.2.1 -->
+          <div class="rule-card">
+            <div class="rule-header">
+              <span class="rule-code">EV 4.2.1</span>
+              <span class="rule-badge pass">PASS</span>
+            </div>
+            <div class="rule-name">Proteção Térmica do Acumulador</div>
+            <div class="rule-metric">Temp Máx: 35.4 °C (Corte BMS: 60.0 °C)</div>
+            <div class="rule-desc">Temperatura de operação segura. Margem de 24.6 °C antes do corte de emergência obrigatório.</div>
+          </div>
+
+          <!-- EV 4.2.2 -->
+          <div class="rule-card">
+            <div class="rule-header">
+              <span class="rule-code">EV 4.2.2</span>
+              <span class="rule-badge pass">PASS</span>
+            </div>
+            <div class="rule-name">Cobertura de Sensores NTC</div>
+            <div class="rule-metric">70 / 72 Sensores (97.2% &gt; 30% Mín)</div>
+            <div class="rule-desc">2 NTCs avariados em bypass validado; cobertura térmica cumpre amplamente o requisito regulamentar.</div>
+          </div>
+
+          <!-- EV 4.3.1 -->
+          <div class="rule-card">
+            <div class="rule-header">
+              <span class="rule-code">EV 4.3.1</span>
+              <span class="rule-badge pass">PASS</span>
+            </div>
+            <div class="rule-name">Deteção de Cablagem Aberta (Open-Wire)</div>
+            <div class="rule-metric">0 Linhas Desconectadas</div>
+            <div class="rule-desc">Diagnóstico de integridade dos chicotes de medição de tensão efetuado pelo LTC6811 sem falhas.</div>
+          </div>
+
+          <!-- EV 5.1.1 -->
+          <div class="rule-card">
+            <div class="rule-header">
+              <span class="rule-code">EV 5.1.1</span>
+              <span class="rule-badge pass">PASS</span>
+            </div>
+            <div class="rule-name">Shutdown Circuit (SDC Loop)</div>
+            <div class="rule-metric">SDC FECHADO · Interlocks Validados</div>
+            <div class="rule-desc">Circuito de segurança fechado, botões de emergência e sensores inerciais operacionais.</div>
+          </div>
+
+          <!-- EV 5.2.1 -->
+          <div class="rule-card">
+            <div class="rule-header">
+              <span class="rule-code">EV 5.2.1</span>
+              <span class="rule-badge pass">PASS</span>
+            </div>
+            <div class="rule-name">Controlo dos Contactores AIR+ e AIR-</div>
+            <div class="rule-metric">AIR+ / AIR- Operacionais · Pré-Carga HV ON</div>
+            <div class="rule-desc">Controlo dos relés de alta tensão sob supervisão do AMS com sequenciamento correto.</div>
+          </div>
+
+          <!-- EV 8.1.1 -->
+          <div class="rule-card">
+            <div class="rule-header">
+              <span class="rule-code">EV 8.1.1</span>
+              <span class="rule-badge pass">PASS</span>
+            </div>
+            <div class="rule-name">Comunicação BMS Daisy-Chain / CAN</div>
+            <div class="rule-metric">6 de 6 Segmentos Online · 0 Erros CRC</div>
+            <div class="rule-desc">Barramento isoSPI e CAN bus a 1 Mbps estáveis com 0 pacotes corrompidos.</div>
+          </div>
         </div>
       </div>
 
@@ -1199,6 +1654,10 @@
         <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
         Carga
       </div>
+      <div class="nav-item" onclick="switchPage('checklist')" id="nav-checklist">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        Check
+      </div>
     </div>
   </div>
 
@@ -1211,6 +1670,200 @@
       document.getElementById('page-' + pageId).classList.add('active');
       const nav = document.getElementById('nav-' + pageId);
       if (nav) nav.classList.add('active');
+    }
+
+    // Toast notification
+    function showToast(msg) {
+      const t = document.getElementById('preview-toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    // Charging Alert Audio (Web Audio API) & Vibration Simulation
+    function testChargingAlert(isStart) {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          const ctx = new AudioContext();
+          if (isStart) {
+            const playBeep = (freq, start, duration) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.value = freq;
+              gain.gain.setValueAtTime(0.25, ctx.currentTime + start);
+              gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.start(ctx.currentTime + start);
+              osc.stop(ctx.currentTime + start + duration);
+            };
+            playBeep(880, 0, 0.12);
+            playBeep(1320, 0.16, 0.18);
+          } else {
+            const playBeep = (freq, start, duration) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.value = freq;
+              gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
+              gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.start(ctx.currentTime + start);
+              osc.stop(ctx.currentTime + start + duration);
+            };
+            playBeep(440, 0, 0.14);
+            playBeep(392, 0.20, 0.14);
+            playBeep(330, 0.40, 0.22);
+          }
+        }
+      } catch (e) { console.log(e); }
+
+      if (navigator.vibrate) {
+        if (isStart) {
+          navigator.vibrate([140, 80, 140]);
+        } else {
+          navigator.vibrate([220, 100, 220, 100, 300]);
+        }
+      }
+
+      showToast(isStart ? '⚡ Início de Carga: Som + Vibração ativados!' : '🛑 Carga Parada: Aviso sonoro + 3 vibrações!');
+    }
+
+    // Scrutineering Report Copy
+    function shareScrutineeringReport() {
+      const report = `════════════════════════════════════════
+📋 FST LART — RELATÓRIO DE SCRUTINEERING FSG EV
+Carro: TEK-26e · Acumulador 144s3p
+Veredito Geral: APROVADO (100% Conforme)
+Data/Hora: ${new Date().toLocaleString('pt-PT')}
+════════════════════════════════════════
+[PASS] EV 4.1.1: Tensões Células (Mín: 4.092V, Máx: 4.120V)
+[PASS] EV 4.1.2: Equilíbrio: Delta V = 28 mV (Limite ≤ 50mV)
+[PASS] EV 4.2.1: Proteção Térmica: Temp Máx 35.4°C (Corte < 60°C)
+[PASS] EV 4.2.2: Cobertura NTC: 70/72 ativos (97.2% > 30%)
+[PASS] EV 4.3.1: Open-Wire: 0 linhas desconectadas
+[PASS] EV 5.1.1: Shutdown Circuit: SDC FECHADO
+[PASS] EV 5.2.1: Contactores AIR: AIR+/AIR- comandados
+[PASS] EV 8.1.1: Comunicação BMS: 6/6 Segmentos OK (isoSPI)
+════════════════════════════════════════
+Gerado pelo LART BMS Mobile System`;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(report).then(() => {
+          showToast('✓ Relatório copiado para a Área de Transferência!');
+        }).catch(() => {
+          showToast('✓ Relatório Técnico gerado!');
+        });
+      } else {
+        showToast('✓ Relatório Técnico gerado!');
+      }
+    }
+
+    // 3D Thermal View Mode
+    let isThermal3D = false;
+
+    function toggle3DThermalMode() {
+      isThermal3D = !isThermal3D;
+      const btn = document.getElementById('btn-3d-thermal');
+      if (btn) btn.classList.toggle('active', isThermal3D);
+
+      const scale = document.getElementById('thermal-scale-bar');
+      if (scale) scale.style.display = isThermal3D ? 'flex' : 'none';
+
+      applyThermalColorsToHotspots();
+      showToast(isThermal3D ? '🌡️ Vista Térmica Ativada' : '🧊 Vista Térmica Desativada');
+    }
+
+    function getThermalColor(temp) {
+      if (temp < 28) return '#0A84FF'; // Azul Frio
+      if (temp < 38) return '#32D74B'; // Verde Ideal
+      if (temp < 46) return '#FFD60A'; // Amarelo Atenção
+      if (temp < 54) return '#FF9F0A'; // Laranja Quente
+      return '#FF453A';               // Vermelho Crítico
+    }
+
+    function applyThermalColorsToHotspots() {
+      const mv = document.getElementById('main3DViewer');
+      if (!mv) return;
+
+      // Segment NTCs and cells
+      mv.querySelectorAll('.hotspot[data-type="t"]').forEach(el => {
+        const text = el.querySelector('.val')?.textContent || '';
+        const temp = parseFloat(text) || 30.0;
+        const dot = el.querySelector('.dot');
+        const val = el.querySelector('.val');
+        if (isThermal3D) {
+          const col = getThermalColor(temp);
+          if (dot) {
+            dot.style.background = col;
+            dot.style.boxShadow = `0 0 8px ${col}`;
+          }
+          if (val) val.style.color = col;
+          el.style.borderColor = col;
+        } else {
+          if (dot) {
+            dot.style.background = '';
+            dot.style.boxShadow = '';
+          }
+          if (val) val.style.color = '';
+          el.style.borderColor = '';
+        }
+      });
+
+      mv.querySelectorAll('.hotspot[data-type="v"]').forEach(el => {
+        const slot = el.getAttribute('slot') || '';
+        const match = slot.match(/hotspot-par-(\d+)/);
+        const cellIdx = match ? parseInt(match[1]) : 1;
+        const ntcIdx = Math.min(12, Math.max(1, Math.ceil(cellIdx / 2)));
+        const approxTemp = 28.5 + (ntcIdx * 1.4);
+        const dot = el.querySelector('.dot');
+        const val = el.querySelector('.val');
+
+        if (isThermal3D) {
+          const col = getThermalColor(approxTemp);
+          if (dot) {
+            dot.style.background = col;
+            dot.style.boxShadow = `0 0 6px ${col}`;
+          }
+          if (val) val.style.color = col;
+          el.style.borderColor = col;
+        } else {
+          if (dot) {
+            dot.style.background = '';
+            dot.style.boxShadow = '';
+          }
+          if (val) val.style.color = '';
+          el.style.borderColor = '';
+        }
+      });
+
+      // Pack segment hotspots
+      mv.querySelectorAll('.hotspot[slot^="hotspot-seg-"]').forEach(el => {
+        const text = el.querySelector('.val')?.textContent || '';
+        const temp = parseFloat(text.split('•')[1]) || 32.0;
+        const dot = el.querySelector('.dot');
+        const val = el.querySelector('.val');
+        if (isThermal3D) {
+          const col = getThermalColor(temp);
+          if (dot) {
+            dot.style.background = col;
+            dot.style.boxShadow = `0 0 8px ${col}`;
+          }
+          if (val) val.style.color = col;
+          el.style.borderColor = col;
+        } else {
+          if (dot) {
+            dot.style.background = '';
+            dot.style.boxShadow = '';
+          }
+          if (val) val.style.color = '';
+          el.style.borderColor = '';
+        }
+      });
     }
 
     // Toggle Cells Mode (Chart vs Grid)
@@ -1355,12 +2008,15 @@
       document.querySelectorAll('.seg-filter-btn').forEach(b => b.classList.remove('active'));
       const activeBtn = document.getElementById('flt-' + mode);
       if (activeBtn) activeBtn.classList.add('active');
+      if (mode === 'thermal') {
+        if (!isThermal3D) toggle3DThermalMode();
+      }
       applySegmentFilter();
     }
 
     function applySegmentFilter() {
-      const showV = (segmentFilterMode === 'all' || segmentFilterMode === 'v');
-      const showT = (segmentFilterMode === 'all' || segmentFilterMode === 't');
+      const showV = (segmentFilterMode === 'all' || segmentFilterMode === 'v' || segmentFilterMode === 'thermal');
+      const showT = (segmentFilterMode === 'all' || segmentFilterMode === 't' || segmentFilterMode === 'thermal');
 
       const mv = document.getElementById('main3DViewer');
       if (!mv) return;
@@ -1370,6 +2026,9 @@
       mv.querySelectorAll('.hotspot[data-type="t"]').forEach(el => {
         el.style.display = showT ? 'flex' : 'none';
       });
+      if (isThermal3D) {
+        applyThermalColorsToHotspots();
+      }
     }
 
     let leaderRAF = 0;
@@ -1421,6 +2080,9 @@
           btn.innerHTML = `<span class="dot"></span><span class="val">${h.label}</span>`;
           mv.appendChild(btn);
         });
+        if (isThermal3D) {
+          applyThermalColorsToHotspots();
+        }
       }
 
       if (cfg.standoffs && sc && svg) {
@@ -1551,6 +2213,9 @@
           btn.dataset.sev = isHot ? 'warn' : 'ok';
         }
       }
+      if (isThermal3D) {
+        applyThermalColorsToHotspots();
+      }
     }
 
     function switch3DModel(modelKey, chipEl) {
@@ -1581,6 +2246,9 @@
 
       setup3DHotspots(modelKey);
       setFanSpeed(59);
+      if (isThermal3D) {
+        applyThermalColorsToHotspots();
+      }
     }
 
     function reset3DCamera() {
