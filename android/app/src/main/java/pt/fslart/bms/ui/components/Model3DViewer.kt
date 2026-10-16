@@ -37,16 +37,22 @@ import pt.fslart.bms.ui.theme.*
 fun Model3DViewer(
     modelFile: String,
     modifier: Modifier = Modifier,
+    bmsState: pt.fslart.bms.model.BmsState? = null,
     height: Dp = 320.dp,
     showControls: Boolean = true,
     title: String? = null
 ) {
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
-    var isAutoRotate by remember { mutableStateOf(true) }
+    var isAutoRotate by remember { mutableStateOf(false) }
     var isMaximized by remember { mutableStateOf(false) }
 
     LaunchedEffect(modelFile) {
         webViewRef?.evaluateJavascript("if (typeof loadModel === 'function') loadModel('$modelFile', $isAutoRotate);", null)
+    }
+
+    LaunchedEffect(bmsState) {
+        val json = if (bmsState != null) buildTelemetryJson(bmsState) else buildDefaultTelemetryJson()
+        webViewRef?.evaluateJavascript("if (typeof updateTelemetry === 'function') updateTelemetry($json);", null)
     }
 
     Box(
@@ -148,9 +154,9 @@ fun Model3DViewer(
                     .fillMaxWidth()
                     .height(height)
             ) {
-                AndroidView(
+                    AndroidView(
                     factory = { ctx ->
-                        createConfiguredWebView(ctx, modelFile, isAutoRotate) { webViewRef = it }
+                        createConfiguredWebView(ctx, modelFile, isAutoRotate, bmsState) { webViewRef = it }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -211,7 +217,7 @@ fun Model3DViewer(
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         AndroidView(
                             factory = { ctx ->
-                                createConfiguredWebView(ctx, modelFile, isAutoRotate)
+                                createConfiguredWebView(ctx, modelFile, isAutoRotate, bmsState)
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -226,6 +232,7 @@ private fun createConfiguredWebView(
     context: android.content.Context,
     modelFile: String,
     isAutoRotate: Boolean,
+    bmsState: pt.fslart.bms.model.BmsState?,
     onWebViewCreated: ((WebView) -> Unit)? = null
 ): WebView {
     val assetLoader = WebViewAssetLoader.Builder()
@@ -265,7 +272,11 @@ private fun createConfiguredWebView(
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                view?.evaluateJavascript("if (typeof loadModel === 'function') { loadModel('$modelFile', $isAutoRotate); }", null)
+                val teleJson = if (bmsState != null) buildTelemetryJson(bmsState) else buildDefaultTelemetryJson()
+                view?.evaluateJavascript(
+                    "if (typeof loadModel === 'function') { loadModel('$modelFile', $isAutoRotate); } if (typeof updateTelemetry === 'function') { updateTelemetry($teleJson); }",
+                    null
+                )
             }
         }
 
@@ -289,5 +300,55 @@ private fun createConfiguredWebView(
         loadUrl("https://appassets.androidplatform.net/assets/model_viewer.html")
         onWebViewCreated?.invoke(this)
     }
+}
+
+private fun buildTelemetryJson(state: pt.fslart.bms.model.BmsState): String {
+    val hottest = state.segments.maxByOrNull { it.tempMax }
+    val segJson = state.segments.joinToString(",") { s ->
+        """{"id": ${s.id}, "tempMax": ${s.tempMax}, "status": "${s.status.name.lowercase()}"}"""
+    }
+    val current = state.pack.current
+    val fanPwm = state.ams.fanPwm ?: (if (current > 0.5f || state.isCharging) 59f else 0f)
+
+    return """
+    {
+      "pack": { "current": $current, "voltage": ${state.pack.voltage} },
+      "safety": {
+        "amsOk": ${state.safety.amsOk},
+        "airPositive": ${state.safety.airPositive},
+        "airNegative": ${state.safety.airNegative},
+        "prechargeDone": ${state.safety.prechargeDone}
+      },
+      "ams": { "fanPwm": $fanPwm },
+      "charger": { "charging": ${state.isCharging} },
+      "hottestSegId": ${hottest?.id ?: 2},
+      "segments": [$segJson]
+    }
+    """.trimIndent()
+}
+
+private fun buildDefaultTelemetryJson(): String {
+    return """
+    {
+      "pack": { "current": 30.9, "voltage": 581.5 },
+      "safety": {
+        "amsOk": true,
+        "airPositive": true,
+        "airNegative": true,
+        "prechargeDone": true
+      },
+      "ams": { "fanPwm": 59 },
+      "charger": { "charging": false },
+      "hottestSegId": 2,
+      "segments": [
+        {"id": 1, "tempMax": 41.9, "status": "ok"},
+        {"id": 2, "tempMax": 44.8, "status": "warn"},
+        {"id": 3, "tempMax": 41.8, "status": "ok"},
+        {"id": 4, "tempMax": 40.9, "status": "ok"},
+        {"id": 5, "tempMax": 41.1, "status": "ok"},
+        {"id": 6, "tempMax": 40.4, "status": "ok"}
+      ]
+    }
+    """.trimIndent()
 }
 

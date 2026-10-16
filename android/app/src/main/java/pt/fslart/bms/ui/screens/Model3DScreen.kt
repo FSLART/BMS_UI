@@ -184,6 +184,7 @@ fun Model3DScreen(
         // THE 3D VIEWER CANVAS
         Model3DViewer(
             modelFile = selectedModel.fileName,
+            bmsState = state,
             height = 340.dp,
             showControls = true,
             title = "${selectedModel.title} — ${selectedModel.subtitle}",

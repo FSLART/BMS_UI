@@ -315,6 +315,144 @@
       outline: none;
       --poster-color: transparent;
     }
+
+    /* 3D Hotspots */
+    .hotspot {
+      background: rgba(11, 15, 20, 0.92);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
+      border-radius: 6px;
+      padding: 3px 7px;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      pointer-events: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .hotspot:hover {
+      transform: scale(1.1);
+    }
+    .hotspot .dot {
+      width: 6.5px;
+      height: 6.5px;
+      border-radius: 50%;
+      background: #8B949E;
+      box-shadow: 0 0 5px currentColor;
+    }
+    .hotspot .val {
+      font-family: inherit;
+      letter-spacing: 0.3px;
+    }
+
+    .hotspot[data-sev="ok"] .dot { background: #32D74B; color: #32D74B; }
+    .hotspot[data-sev="warn"] .dot { background: #FFD60A; color: #FFD60A; }
+    .hotspot[data-sev="fault"] .dot { background: #FF453A; color: #FF453A; }
+    .hotspot[data-sev="idle"] .dot { background: #8B949E; color: #8B949E; }
+
+    .hotspot[data-sev="ok"] { border-color: rgba(50, 215, 75, 0.45); }
+    .hotspot[data-sev="warn"] { border-color: rgba(255, 214, 10, 0.65); }
+    .hotspot[data-sev="fault"] { border-color: rgba(255, 69, 58, 0.65); }
+
+    /* Hottest segment highlight */
+    .hotspot.is-hot {
+      border: 2px solid #FFD60A;
+      background: rgba(24, 20, 10, 0.95);
+      color: #FFD60A;
+      transform: scale(1.15);
+      box-shadow: 0 0 14px rgba(255, 214, 10, 0.5);
+    }
+    .hotspot.is-hot .dot {
+      background: #FFD60A;
+      color: #FFD60A;
+    }
+
+    /* Standoff Lines & Badges */
+    .hs-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .hs-line {
+      stroke: #8B949E;
+      stroke-width: 1.5;
+      stroke-dasharray: 4 4;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .hs-line.on { opacity: 0.85; }
+    .hs-line[data-sev="ok"] { stroke: #32D74B; }
+    .hs-line[data-sev="warn"] { stroke: #FFD60A; }
+    .hs-line[data-sev="idle"] { stroke: #8B949E; }
+    .hs-line.behind { opacity: 0.2; }
+
+    .hs-standoff {
+      position: absolute;
+      z-index: 6;
+      pointer-events: auto;
+    }
+    .hs-standoff[data-corner="top-right"] { top: 14px; right: 14px; }
+    .hs-standoff[data-corner="bottom-right"] { bottom: 18px; right: 18px; }
+    .hs-standoff[data-corner="top-left"] { top: 14px; left: 14px; }
+    .hs-standoff[data-corner="bottom-left"] { bottom: 18px; left: 18px; }
+
+    .hs-standoff .standoff-badge {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      background: rgba(11, 15, 20, 0.92);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+    }
+    .hs-standoff[data-sev="ok"] .standoff-badge {
+      color: #32D74B;
+      border: 1.5px solid #32D74B;
+      background: rgba(8, 28, 14, 0.92);
+    }
+    .hs-standoff[data-sev="idle"] .standoff-badge {
+      color: #8B949E;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(15, 18, 24, 0.92);
+    }
+
+    /* "Repor vista" button at bottom right */
+    .view-reset-btn {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 10;
+      background: rgba(14, 19, 26, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      color: #C9D1D9;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .view-reset-btn:hover {
+      background: rgba(25, 33, 44, 0.95);
+      color: #FFD60A;
+      border-color: #FFD60A;
+    }
+    .view-reset-btn svg {
+      width: 12px;
+      height: 12px;
+    }
     .model-card {
       background: #0E131A;
       border: 1px solid #1C242F;
@@ -826,12 +964,21 @@
             <span style="font-size: 10px; color: #8B949E; font-weight: 700;">ARRASTA PARA RODAR • PINÇA PARA ZOOM</span>
             <div class="model-controls">
               <div class="btn-icon active" id="btn-3d-rotate" title="Auto-Rodar" onclick="toggle3DAutoRotate()">🔄</div>
-              <div class="btn-icon" title="Centrar Câmara" onclick="reset3DCamera()">🎯</div>
+              <div class="btn-icon" title="Repor Vista" onclick="reset3DCamera()">🎯</div>
               <div class="btn-icon" title="Ecrã Inteiro" onclick="openFullscreen3DCurrent()">⤢</div>
             </div>
           </div>
-          <div style="height: 310px; width: 100%;">
-            <model-viewer id="main3DViewer" src="frontend/models/tek26e_closed.glb" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none" camera-orbit="45deg 70deg 110%"></model-viewer>
+          <div style="height: 310px; width: 100%; position: relative; overflow: hidden;">
+            <svg id="hs-svg" class="hs-lines"></svg>
+            <div id="standoff-container"></div>
+            <model-viewer id="main3DViewer" src="frontend/models/tek26e_closed.glb" camera-controls auto-rotate rotation-per-second="10deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none" camera-orbit="232deg 70deg 110%" field-of-view="26deg" animation-name="fans"></model-viewer>
+            <button id="btn-reset-view" class="view-reset-btn" onclick="reset3DCamera()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              <span>Repor vista</span>
+            </button>
           </div>
         </div>
 
@@ -861,11 +1008,21 @@
             <div class="model-header">
               <span style="font-size: 10px; color: #8B949E; font-weight: 700;">HANDCART COM ACUMULADOR</span>
               <div class="model-controls">
+                <div class="btn-icon" title="Repor Vista" onclick="resetCharger3DCamera()">🎯</div>
                 <div class="btn-icon" title="Ecrã Inteiro" onclick="openFullscreen3D('frontend/models/tek26e_charger.glb', 'Trolley de Carregamento')">⤢</div>
               </div>
             </div>
-            <div style="height: 280px; width: 100%;">
-              <model-viewer src="frontend/models/tek26e_charger.glb" camera-controls auto-rotate rotation-per-second="18deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none"></model-viewer>
+            <div style="height: 280px; width: 100%; position: relative; overflow: hidden;">
+              <svg id="chg-hs-svg" class="hs-lines"></svg>
+              <div id="chg-standoff-container"></div>
+              <model-viewer id="charger3DViewer" src="frontend/models/tek26e_charger.glb" camera-controls auto-rotate rotation-per-second="10deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none" camera-orbit="200deg 72deg 70%" field-of-view="32deg" animation-name="fans"></model-viewer>
+              <button class="view-reset-btn" onclick="resetCharger3DCamera()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+                <span>Repor vista</span>
+              </button>
             </div>
           </div>
         </div>
@@ -975,29 +1132,248 @@
       document.getElementById('btn-charger-3d').classList.toggle('active', !isDash);
       document.getElementById('charger-dash-view').style.display = isDash ? 'flex' : 'none';
       document.getElementById('charger-3d-view').style.display = isDash ? 'none' : 'block';
+      if (!isDash) {
+        setupCharger3DHotspots();
+      }
     }
 
-    // Switch 3D Model in 3D CAD page
-    const MODEL_FILES = {
-      'pack': { file: 'frontend/models/tek26e_open_light.glb', title: 'Acumulador Aberto (Pack HV)', desc: 'Montagem com 6 segmentos de 24 paralelos cada (144s3p, Molicel P45B). Células refrigeradas a ar com condutas dedicadas.' },
-      'car': { file: 'frontend/models/tek26e_closed.glb', title: 'Carro TEK-26e (Montagem Completa)', desc: 'Carroçaria em fibra de carbono, chassis tubular e acumulador protegido dentro do monocoque.' },
-      'segment': { file: 'frontend/models/seguemento.glb', title: 'Módulo de Segmento (24 Células)', desc: 'Módulo padrão com duas placas BMS Slave e barramentos niquelados com monitorização individual.' },
-      'charger': { file: 'frontend/models/tek26e_charger.glb', title: 'Trolley de Carregamento (Handcart)', desc: 'Carro de transporte oficial de pitlane com acumulador de 518 V montado na plataforma de carga.' }
+    // 3D Model Configurations & Telemetry Hotspots
+    const MODEL_CONFIGS = {
+      'pack': {
+        file: 'frontend/models/tek26e_open_light.glb',
+        title: 'Acumulador Aberto (Pack HV)',
+        desc: 'Montagem com 6 segmentos de 24 paralelos cada (144s3p, Molicel P45B). Células refrigeradas a ar com condutas dedicadas.',
+        orbit: '0deg 18deg 66%',
+        fov: '32deg',
+        target: 'auto auto auto',
+        hotspots: [
+          { id: 'ams', label: 'AMS', position: '-0.187m 0.276m 1.770m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'imd', label: 'IMD', position: '-0.054m 0.261m 1.774m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'fuse', label: 'Fusível', position: '0.051m 0.270m 1.765m', normal: '0m 1m 0m', sev: 'idle' },
+          { id: 'air-pos', label: 'AIR+ fechado', position: '0.100m 0.274m 1.797m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'air-neg', label: 'AIR- fechado', position: '0.170m 0.280m 1.789m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'precharge', label: 'Pré-carga ok', position: '0.131m 0.241m 1.745m', normal: '0.697m 0m -0.717m', sev: 'ok' },
+          { id: 'ivt', label: 'IVT 30.9 A', position: '0.210m 0.310m 1.768m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'fans', label: 'Ventoinhas 59%', position: '-0.213m 0.152m 1.907m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-1', label: 'S1', position: '-0.212m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-2', label: 'S2 45°', position: '-0.127m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'warn', hot: true },
+          { id: 'seg-3', label: 'S3', position: '-0.042m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-4', label: 'S4', position: '0.042m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-5', label: 'S5', position: '0.127m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-6', label: 'S6', position: '0.212m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+        ]
+      },
+      'charger': {
+        file: 'frontend/models/tek26e_charger.glb',
+        title: 'Trolley de Carregamento (Handcart)',
+        desc: 'Carro de transporte oficial de pitlane com acumulador de 518 V montado na plataforma de carga.',
+        orbit: '200deg 72deg 70%',
+        fov: '32deg',
+        target: 'auto auto auto',
+        standoffs: [
+          { id: 'chg-precharge', label: 'HV_ON', position: '0.175m 0.819m 0.266m', normal: '0m 1m 0m', corner: 'top-right', sev: 'ok' },
+          { id: 'chg-control', label: 'Parado', position: '-0.198m 0.128m 0.584m', normal: '-1m 0m 0m', corner: 'bottom-right', sev: 'idle' }
+        ]
+      },
+      'car': {
+        file: 'frontend/models/tek26e_closed.glb',
+        title: 'Carro TEK-26e (Montagem Completa)',
+        desc: 'Carroçaria em fibra de carbono, chassis tubular e acumulador protegido dentro do monocoque.',
+        orbit: '232deg 70deg 110%',
+        fov: '26deg',
+        target: 'auto auto auto',
+        standoffs: [
+          { id: 'rts', label: 'Online', position: '-0.128m 0.327m 1.755m', normal: '0m 1m 0m', corner: 'top-right', sev: 'ok' }
+        ]
+      },
+      'segment': {
+        file: 'frontend/models/seguemento.glb',
+        title: 'Módulo de Segmento (24 Células)',
+        desc: 'Módulo padrão com duas placas BMS Slave e barramentos niquelados com monitorização individual.',
+        orbit: '-18deg 86deg 110%',
+        fov: '34deg',
+        target: 'auto auto auto'
+      }
     };
+    const MODEL_FILES = MODEL_CONFIGS;
+
+    let leaderRAF = 0;
+    const leaders = new Map();
+
+    function clear3DHotspots(viewerId = 'main3DViewer', containerId = 'standoff-container', svgId = 'hs-svg') {
+      const mv = document.getElementById(viewerId);
+      if (mv) mv.querySelectorAll('.hotspot').forEach(el => el.remove());
+      const sc = document.getElementById(containerId);
+      if (sc) sc.innerHTML = '';
+      const svg = document.getElementById(svgId);
+      if (svg) svg.innerHTML = '';
+      leaders.clear();
+      if (leaderRAF) {
+        cancelAnimationFrame(leaderRAF);
+        leaderRAF = 0;
+      }
+    }
+
+    function setup3DHotspots(modelKey, viewerId = 'main3DViewer', containerId = 'standoff-container', svgId = 'hs-svg') {
+      clear3DHotspots(viewerId, containerId, svgId);
+      const cfg = MODEL_CONFIGS[modelKey];
+      if (!cfg) return;
+
+      const mv = document.getElementById(viewerId);
+      const sc = document.getElementById(containerId);
+      const svg = document.getElementById(svgId);
+      if (!mv) return;
+
+      if (cfg.hotspots) {
+        cfg.hotspots.forEach(h => {
+          const btn = document.createElement('button');
+          btn.className = 'hotspot' + (h.hot ? ' is-hot' : '');
+          btn.slot = 'hotspot-' + h.id;
+          btn.setAttribute('data-position', h.position);
+          if (h.normal) btn.setAttribute('data-normal', h.normal);
+          btn.setAttribute('data-visibility-attribute', 'visible');
+          btn.setAttribute('data-sev', h.sev || 'ok');
+          btn.innerHTML = `<span class="dot"></span><span class="val">${h.label}</span>`;
+          mv.appendChild(btn);
+        });
+      }
+
+      if (cfg.standoffs && sc && svg) {
+        cfg.standoffs.forEach(s => {
+          const btn = document.createElement('button');
+          btn.className = 'hotspot is-standoff';
+          btn.slot = 'hotspot-' + s.id;
+          btn.setAttribute('data-position', s.position);
+          if (s.normal) btn.setAttribute('data-normal', s.normal);
+          btn.setAttribute('data-visibility-attribute', 'visible');
+          btn.style.opacity = '0';
+          btn.style.pointerEvents = 'none';
+          mv.appendChild(btn);
+
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('class', 'hs-line on');
+          line.setAttribute('data-sev', s.sev || 'ok');
+          svg.appendChild(line);
+
+          const el = document.createElement('div');
+          el.className = 'hs-standoff';
+          el.setAttribute('data-corner', s.corner);
+          el.setAttribute('data-sev', s.sev || 'ok');
+          el.innerHTML = `<span class="standoff-badge">${s.label}</span>`;
+          sc.appendChild(el);
+
+          leaders.set(s.id, { el, line, btn, viewer: mv });
+        });
+        startLeaderAnimation();
+      }
+    }
+
+    function startLeaderAnimation() {
+      if (leaderRAF) return;
+      const step = () => {
+        if (!leaders.size) { leaderRAF = 0; return; }
+        leaderRAF = requestAnimationFrame(step);
+        paintLeaders();
+      };
+      leaderRAF = requestAnimationFrame(step);
+    }
+
+    function paintLeaders() {
+      for (const [id, l] of leaders) {
+        const mv = l.viewer || document.getElementById('main3DViewer');
+        if (!mv) continue;
+        const base = mv.getBoundingClientRect();
+        if (!base.width) continue;
+
+        const box = l.el.getBoundingClientRect();
+        const a = l.btn.getBoundingClientRect();
+        if (!box.width || !a.width) {
+          l.line.classList.remove('on');
+          continue;
+        }
+
+        const x1 = a.left - base.left + a.width / 2;
+        const y1 = a.top - base.top + a.height / 2;
+        const x2 = box.left - base.left + box.width / 2;
+        const y2 = box.top - base.top + box.height / 2;
+
+        l.line.setAttribute('x1', x1);
+        l.line.setAttribute('y1', y1);
+        l.line.setAttribute('x2', x2);
+        l.line.setAttribute('y2', y2);
+        l.line.classList.add('on');
+      }
+    }
+
+    function setFanSpeed(pwm, viewerId = 'main3DViewer') {
+      const mv = document.getElementById(viewerId);
+      if (!mv) return;
+      const spinning = pwm != null && pwm > 0.5;
+      const FAN_SPIN_MIN = 0.12;
+      const FAN_SPIN_MAX = 0.8;
+      const scale = spinning ? Math.max(FAN_SPIN_MIN, (pwm / 100) * FAN_SPIN_MAX) : 0;
+
+      if (mv.availableAnimations && mv.availableAnimations.includes('fans')) {
+        mv.animationName = 'fans';
+      }
+      mv.timeScale = scale;
+      if (spinning) {
+        if (mv.paused) mv.play();
+      } else {
+        if (!mv.paused) mv.pause();
+      }
+    }
 
     function switch3DModel(modelKey, chipEl) {
       active3DModel = modelKey;
       document.querySelectorAll('#page-model3d .chip').forEach(c => c.classList.remove('active'));
       if (chipEl) chipEl.classList.add('active');
 
-      const info = MODEL_FILES[modelKey];
+      const info = MODEL_CONFIGS[modelKey];
+      if (!info) return;
+
       document.getElementById('model3d-title').textContent = info.title.split('(')[0];
       const mv = document.getElementById('main3DViewer');
+      if (info.orbit) mv.cameraOrbit = info.orbit;
+      if (info.fov) mv.fieldOfView = info.fov;
+      if (info.target) mv.cameraTarget = info.target;
       mv.src = info.file;
+      mv.jumpCameraToGoal();
+
       document.getElementById('model3d-context-card').innerHTML = `
         <div class="card-title">${info.title}</div>
         <p style="font-size: 11px; color: #8B949E; line-height: 15px;">${info.desc}</p>
       `;
+
+      setup3DHotspots(modelKey);
+      setFanSpeed(59);
+    }
+
+    function reset3DCamera() {
+      const mv = document.getElementById('main3DViewer');
+      if (!mv) return;
+      const info = MODEL_CONFIGS[active3DModel];
+      if (info && info.orbit) {
+        mv.cameraOrbit = info.orbit;
+        if (info.fov) mv.fieldOfView = info.fov;
+        if (info.target) mv.cameraTarget = info.target;
+      } else {
+        mv.cameraOrbit = '45deg 70deg 110%';
+      }
+      mv.jumpCameraToGoal();
+    }
+
+    function resetCharger3DCamera() {
+      const mv = document.getElementById('charger3DViewer');
+      if (!mv) return;
+      mv.cameraOrbit = '200deg 72deg 70%';
+      mv.fieldOfView = '32deg';
+      mv.jumpCameraToGoal();
+    }
+
+    function setupCharger3DHotspots() {
+      setup3DHotspots('charger', 'charger3DViewer', 'chg-standoff-container', 'chg-hs-svg');
+      setFanSpeed(59, 'charger3DViewer');
     }
 
     function toggle3DAutoRotate() {
@@ -1010,12 +1386,6 @@
         mv.setAttribute('auto-rotate', '');
         btn.classList.add('active');
       }
-    }
-
-    function reset3DCamera() {
-      const mv = document.getElementById('main3DViewer');
-      mv.cameraOrbit = '45deg 70deg 110%';
-      mv.jumpCameraToGoal();
     }
 
     // Fullscreen Controls
@@ -1245,9 +1615,37 @@
       voltageHistory.push(parseFloat(volt));
 
       drawSparkline();
+
+      // Update 3D telemetry
+      const ivtEl = document.querySelector('#main3DViewer [slot="hotspot-ivt"]');
+      if (ivtEl) {
+        ivtEl.querySelector('.val').textContent = `IVT ${cur} A`;
+      }
+      setFanSpeed(59);
     }, 600);
 
     drawSparkline();
+
+    // 3D Viewers initialization
+    const mainMv = document.getElementById('main3DViewer');
+    if (mainMv) {
+      mainMv.addEventListener('load', () => {
+        setup3DHotspots(active3DModel);
+        setFanSpeed(59);
+      });
+      // In case already loaded or first render
+      customElements.whenDefined('model-viewer').then(() => {
+        setup3DHotspots(active3DModel);
+        setFanSpeed(59);
+      });
+    }
+
+    const chgMv = document.getElementById('charger3DViewer');
+    if (chgMv) {
+      chgMv.addEventListener('load', () => {
+        setupCharger3DHotspots();
+      });
+    }
 
     // Protocol check for desktop preview
     if (window.location.protocol === 'file:') {

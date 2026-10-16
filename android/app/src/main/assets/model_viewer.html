@@ -19,6 +19,7 @@
       background: #070A0F;
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      position: relative;
     }
     model-viewer {
       width: 100%;
@@ -42,7 +43,7 @@
       font-size: 12px;
       font-weight: bold;
       letter-spacing: 1px;
-      z-index: 10;
+      z-index: 20;
       transition: opacity 0.3s;
       pointer-events: none;
     }
@@ -58,30 +59,143 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* 3D Hotspots */
     .hotspot {
-      background: rgba(11, 15, 20, 0.9);
-      border: 1.5px solid #FFD60A;
+      background: rgba(11, 15, 20, 0.92);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
       border-radius: 6px;
-      padding: 4px 8px;
+      padding: 3px 7px;
       color: #fff;
-      font-size: 11px;
-      font-weight: bold;
+      font-size: 10.5px;
+      font-weight: 700;
       pointer-events: auto;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 5px;
+      white-space: nowrap;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .hotspot:hover {
+      transform: scale(1.1);
     }
     .hotspot .dot {
-      width: 6px;
-      height: 6px;
+      width: 6.5px;
+      height: 6.5px;
       border-radius: 50%;
-      background: #32D74B;
+      background: #8B949E;
+      box-shadow: 0 0 5px currentColor;
     }
     .hotspot .val {
+      font-family: inherit;
+      letter-spacing: 0.3px;
+    }
+
+    .hotspot[data-sev="ok"] .dot { background: #32D74B; color: #32D74B; }
+    .hotspot[data-sev="warn"] .dot { background: #FFD60A; color: #FFD60A; }
+    .hotspot[data-sev="fault"] .dot { background: #FF453A; color: #FF453A; }
+    .hotspot[data-sev="idle"] .dot { background: #8B949E; color: #8B949E; }
+
+    .hotspot[data-sev="ok"] { border-color: rgba(50, 215, 75, 0.45); }
+    .hotspot[data-sev="warn"] { border-color: rgba(255, 214, 10, 0.65); }
+    .hotspot[data-sev="fault"] { border-color: rgba(255, 69, 58, 0.65); }
+
+    /* Hottest segment highlight (matching S2 45° in Screenshot 2) */
+    .hotspot.is-hot {
+      border: 2px solid #FFD60A;
+      background: rgba(24, 20, 10, 0.95);
       color: #FFD60A;
-      font-family: monospace;
+      transform: scale(1.15);
+      box-shadow: 0 0 14px rgba(255, 214, 10, 0.5);
+    }
+    .hotspot.is-hot .dot {
+      background: #FFD60A;
+      color: #FFD60A;
+    }
+
+    /* Standoff Lines & Badges (matching HV_ON, Parado in Screenshot 1) */
+    .hs-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .hs-line {
+      stroke: #8B949E;
+      stroke-width: 1.5;
+      stroke-dasharray: 4 4;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .hs-line.on { opacity: 0.85; }
+    .hs-line[data-sev="ok"] { stroke: #32D74B; }
+    .hs-line[data-sev="warn"] { stroke: #FFD60A; }
+    .hs-line[data-sev="idle"] { stroke: #8B949E; }
+    .hs-line.behind { opacity: 0.2; }
+
+    .hs-standoff {
+      position: absolute;
+      z-index: 6;
+      pointer-events: auto;
+    }
+    .hs-standoff[data-corner="top-right"] { top: 14px; right: 14px; }
+    .hs-standoff[data-corner="bottom-right"] { bottom: 18px; right: 18px; }
+    .hs-standoff[data-corner="top-left"] { top: 14px; left: 14px; }
+    .hs-standoff[data-corner="bottom-left"] { bottom: 18px; left: 18px; }
+
+    .hs-standoff .standoff-badge {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      background: rgba(11, 15, 20, 0.92);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+    }
+    .hs-standoff[data-sev="ok"] .standoff-badge {
+      color: #32D74B;
+      border: 1.5px solid #32D74B;
+      background: rgba(8, 28, 14, 0.92);
+    }
+    .hs-standoff[data-sev="idle"] .standoff-badge {
+      color: #8B949E;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(15, 18, 24, 0.92);
+    }
+
+    /* "Repor vista" button at bottom right (matching Screenshot 2) */
+    .view-reset-btn {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      z-index: 10;
+      background: rgba(14, 19, 26, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      color: #C9D1D9;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .view-reset-btn:hover {
+      background: rgba(25, 33, 44, 0.95);
+      color: #FFD60A;
+      border-color: #FFD60A;
+    }
+    .view-reset-btn svg {
+      width: 13px;
+      height: 13px;
     }
   </style>
 </head>
@@ -91,26 +205,89 @@
     <span id="loader-text">A CARREGAR MODELO 3D...</span>
   </div>
 
+  <svg id="hs-svg" class="hs-lines"></svg>
+  <div id="standoff-container"></div>
+
   <model-viewer id="viewer"
     camera-controls
     touch-action="pan-y"
     auto-rotate
-    rotation-per-second="18deg"
+    rotation-per-second="10deg"
     shadow-intensity="1.2"
     shadow-softness="0.9"
     exposure="0.88"
-    camera-orbit="45deg 70deg 110%"
-    min-camera-orbit="auto auto 5%"
-    max-camera-orbit="auto auto 350%"
-    interaction-prompt="none">
+    camera-orbit="0deg 18deg 66%"
+    field-of-view="32deg"
+    interaction-prompt="none"
+    animation-name="fans">
   </model-viewer>
+
+  <button id="btn-reset-view" class="view-reset-btn" onclick="resetCamera()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+      <path d="M3 3v5h5"/>
+    </svg>
+    <span>Repor vista</span>
+  </button>
 
   <script>
     const viewerEl = document.getElementById('viewer');
     const loader = document.getElementById('loader');
     const loaderText = document.getElementById('loader-text');
+    const svgEl = document.getElementById('hs-svg');
+    const standoffContainer = document.getElementById('standoff-container');
+
     let currentModel = '';
     let loadTimeout = null;
+    let leaderRAF = 0;
+    const leaders = new Map();
+    let lastTelemetry = null;
+
+    const MODEL_CONFIGS = {
+      'tek26e_open_light.glb': {
+        orbit: '0deg 18deg 66%',
+        fov: '32deg',
+        target: 'auto auto auto',
+        hotspots: [
+          { id: 'ams', label: 'AMS', position: '-0.187m 0.276m 1.770m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'imd', label: 'IMD', position: '-0.054m 0.261m 1.774m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'fuse', label: 'Fusível', position: '0.051m 0.270m 1.765m', normal: '0m 1m 0m', sev: 'idle' },
+          { id: 'air-pos', label: 'AIR+ fechado', position: '0.100m 0.274m 1.797m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'air-neg', label: 'AIR- fechado', position: '0.170m 0.280m 1.789m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'precharge', label: 'Pré-carga ok', position: '0.131m 0.241m 1.745m', normal: '0.697m 0m -0.717m', sev: 'ok' },
+          { id: 'ivt', label: 'IVT 30.9 A', position: '0.210m 0.310m 1.768m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'fans', label: 'Ventoinhas 59%', position: '-0.213m 0.152m 1.907m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-1', label: 'S1', position: '-0.212m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-2', label: 'S2 45°', position: '-0.127m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'warn', hot: true },
+          { id: 'seg-3', label: 'S3', position: '-0.042m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-4', label: 'S4', position: '0.042m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-5', label: 'S5', position: '0.127m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+          { id: 'seg-6', label: 'S6', position: '0.212m 0.219m 1.650m', normal: '0m 1m 0m', sev: 'ok' },
+        ]
+      },
+      'tek26e_charger.glb': {
+        orbit: '200deg 72deg 70%',
+        fov: '32deg',
+        target: 'auto auto auto',
+        standoffs: [
+          { id: 'chg-precharge', label: 'HV_ON', position: '0.175m 0.819m 0.266m', normal: '0m 1m 0m', corner: 'top-right', sev: 'ok' },
+          { id: 'chg-control', label: 'Parado', position: '-0.198m 0.128m 0.584m', normal: '-1m 0m 0m', corner: 'bottom-right', sev: 'idle' }
+        ]
+      },
+      'tek26e_closed.glb': {
+        orbit: '232deg 70deg 110%',
+        fov: '26deg',
+        target: 'auto auto auto',
+        standoffs: [
+          { id: 'rts', label: 'Online', position: '-0.128m 0.327m 1.755m', normal: '0m 1m 0m', corner: 'top-right', sev: 'ok' }
+        ]
+      },
+      'seguemento.glb': {
+        orbit: '-18deg 86deg 110%',
+        fov: '34deg',
+        target: 'auto auto auto'
+      }
+    };
 
     function hideLoader() {
       if (loader) {
@@ -127,6 +304,124 @@
       }
     }
 
+    function clearHotspots() {
+      viewerEl.querySelectorAll('.hotspot').forEach(el => el.remove());
+      standoffContainer.innerHTML = '';
+      svgEl.innerHTML = '';
+      leaders.clear();
+      if (leaderRAF) {
+        cancelAnimationFrame(leaderRAF);
+        leaderRAF = 0;
+      }
+    }
+
+    function setupHotspots(fileName) {
+      clearHotspots();
+      const cfg = MODEL_CONFIGS[fileName];
+      if (!cfg) return;
+
+      // Regular 3D pinned hotspots
+      if (cfg.hotspots) {
+        cfg.hotspots.forEach(h => {
+          const btn = document.createElement('button');
+          btn.className = 'hotspot' + (h.hot ? ' is-hot' : '');
+          btn.slot = 'hotspot-' + h.id;
+          btn.setAttribute('data-position', h.position);
+          if (h.normal) btn.setAttribute('data-normal', h.normal);
+          btn.setAttribute('data-visibility-attribute', 'visible');
+          btn.setAttribute('data-sev', h.sev || 'ok');
+          btn.innerHTML = `<span class="dot"></span><span class="val">${h.label}</span>`;
+          viewerEl.appendChild(btn);
+        });
+      }
+
+      // Standoff labels with leader lines
+      if (cfg.standoffs) {
+        cfg.standoffs.forEach(s => {
+          const btn = document.createElement('button');
+          btn.className = 'hotspot is-standoff';
+          btn.slot = 'hotspot-' + s.id;
+          btn.setAttribute('data-position', s.position);
+          if (s.normal) btn.setAttribute('data-normal', s.normal);
+          btn.setAttribute('data-visibility-attribute', 'visible');
+          btn.style.opacity = '0';
+          btn.style.pointerEvents = 'none';
+          viewerEl.appendChild(btn);
+
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('class', 'hs-line on');
+          line.setAttribute('data-sev', s.sev || 'ok');
+          svgEl.appendChild(line);
+
+          const el = document.createElement('div');
+          el.className = 'hs-standoff';
+          el.setAttribute('data-corner', s.corner);
+          el.setAttribute('data-sev', s.sev || 'ok');
+          el.innerHTML = `<span class="standoff-badge">${s.label}</span>`;
+          standoffContainer.appendChild(el);
+
+          leaders.set(s.id, { el, line, btn });
+        });
+        startLeaderAnimation();
+      }
+
+      if (lastTelemetry) {
+        updateTelemetry(lastTelemetry);
+      }
+    }
+
+    function startLeaderAnimation() {
+      if (leaderRAF) return;
+      const step = () => {
+        if (!leaders.size) { leaderRAF = 0; return; }
+        leaderRAF = requestAnimationFrame(step);
+        paintLeaders();
+      };
+      leaderRAF = requestAnimationFrame(step);
+    }
+
+    function paintLeaders() {
+      const base = viewerEl.getBoundingClientRect();
+      if (!base.width) return;
+
+      for (const [id, l] of leaders) {
+        const box = l.el.getBoundingClientRect();
+        const a = l.btn.getBoundingClientRect();
+        if (!box.width || !a.width) {
+          l.line.classList.remove('on');
+          continue;
+        }
+
+        const x1 = a.left - base.left + a.width / 2;
+        const y1 = a.top - base.top + a.height / 2;
+        const x2 = box.left - base.left + box.width / 2;
+        const y2 = box.top - base.top + box.height / 2;
+
+        l.line.setAttribute('x1', x1);
+        l.line.setAttribute('y1', y1);
+        l.line.setAttribute('x2', x2);
+        l.line.setAttribute('y2', y2);
+        l.line.classList.add('on');
+      }
+    }
+
+    function setFanSpeed(pwm) {
+      const spinning = pwm != null && pwm > 0.5;
+      const FAN_SPIN_MIN = 0.12;
+      const FAN_SPIN_MAX = 0.8;
+      const scale = spinning ? Math.max(FAN_SPIN_MIN, (pwm / 100) * FAN_SPIN_MAX) : 0;
+
+      if (viewerEl.availableAnimations && viewerEl.availableAnimations.includes('fans')) {
+        viewerEl.animationName = 'fans';
+      }
+      viewerEl.timeScale = scale;
+      if (spinning) {
+        if (viewerEl.paused) viewerEl.play();
+      } else {
+        if (!viewerEl.paused) viewerEl.pause();
+      }
+    }
+
     function loadModel(modelFile, autoRotate = true) {
       if (!modelFile) return;
       const targetSrc = 'models/' + modelFile;
@@ -137,14 +432,14 @@
         return;
       }
 
-      if (currentModel === targetSrc && viewerEl.loaded) {
-        hideLoader();
-        if (autoRotate) viewerEl.setAttribute('auto-rotate', '');
-        else viewerEl.removeAttribute('auto-rotate');
-        return;
+      const cfg = MODEL_CONFIGS[modelFile];
+      if (cfg) {
+        if (cfg.orbit) viewerEl.cameraOrbit = cfg.orbit;
+        if (cfg.fov) viewerEl.fieldOfView = cfg.fov;
+        if (cfg.target) viewerEl.cameraTarget = cfg.target;
       }
 
-      currentModel = targetSrc;
+      currentModel = modelFile;
       showLoader('A CARREGAR ' + modelFile.replace('.glb', '').toUpperCase() + '...');
 
       if (viewerEl.getAttribute('src') !== targetSrc) {
@@ -156,6 +451,8 @@
       } else {
         viewerEl.removeAttribute('auto-rotate');
       }
+
+      setupHotspots(modelFile);
 
       clearTimeout(loadTimeout);
       loadTimeout = setTimeout(() => {
@@ -191,6 +488,12 @@
     viewerEl.addEventListener('load', () => {
       clearTimeout(loadTimeout);
       hideLoader();
+      setupHotspots(currentModel);
+      // Fan speed initial trigger
+      const fanPwm = (lastTelemetry && lastTelemetry.ams && lastTelemetry.ams.fanPwm != null)
+        ? lastTelemetry.ams.fanPwm
+        : 59;
+      setFanSpeed(fanPwm);
       if (window.AndroidInterface && window.AndroidInterface.onModelLoaded) {
         window.AndroidInterface.onModelLoaded();
       }
@@ -204,8 +507,15 @@
     });
 
     function resetCamera() {
-      viewerEl.cameraOrbit = '45deg 70deg 110%';
-      viewerEl.cameraTarget = 'auto auto auto';
+      const cfg = MODEL_CONFIGS[currentModel];
+      if (cfg) {
+        if (cfg.orbit) viewerEl.cameraOrbit = cfg.orbit;
+        if (cfg.fov) viewerEl.fieldOfView = cfg.fov;
+        if (cfg.target) viewerEl.cameraTarget = cfg.target;
+      } else {
+        viewerEl.cameraOrbit = '45deg 70deg 110%';
+        viewerEl.cameraTarget = 'auto auto auto';
+      }
       viewerEl.jumpCameraToGoal();
     }
 
@@ -228,9 +538,93 @@
       }
     }
 
+    function updateTelemetry(data) {
+      if (!data) return;
+      lastTelemetry = data;
+
+      // 1. Control Fan Animation
+      const fanPwm = (data.ams && data.ams.fanPwm != null)
+        ? data.ams.fanPwm
+        : (data.pack && (data.pack.current > 0.5 || data.charger?.charging) ? 59 : 0);
+      setFanSpeed(fanPwm);
+
+      // 2. Open pack hotspots
+      const ivtEl = viewerEl.querySelector('[slot="hotspot-ivt"]');
+      if (ivtEl && data.pack) {
+        const cur = data.pack.current || 0;
+        ivtEl.querySelector('.val').textContent = `IVT ${cur.toFixed(1)} A`;
+      }
+
+      const fansEl = viewerEl.querySelector('[slot="hotspot-fans"]');
+      if (fansEl) {
+        if (fanPwm > 0) {
+          fansEl.querySelector('.val').textContent = `Ventoinhas ${Math.round(fanPwm)}%`;
+          fansEl.dataset.sev = 'ok';
+        } else {
+          fansEl.querySelector('.val').textContent = 'Ventoinhas';
+          fansEl.dataset.sev = 'idle';
+        }
+      }
+
+      if (data.safety) {
+        const amsEl = viewerEl.querySelector('[slot="hotspot-ams"]');
+        if (amsEl) {
+          amsEl.querySelector('.val').textContent = data.safety.amsOk ? 'AMS' : 'AMS falha';
+          amsEl.dataset.sev = data.safety.amsOk ? 'ok' : 'fault';
+        }
+        const airPos = viewerEl.querySelector('[slot="hotspot-air-pos"]');
+        if (airPos) {
+          airPos.querySelector('.val').textContent = data.safety.airPositive ? 'AIR+ fechado' : 'AIR+ aberto';
+          airPos.dataset.sev = data.safety.airPositive ? 'ok' : 'idle';
+        }
+        const airNeg = viewerEl.querySelector('[slot="hotspot-air-neg"]');
+        if (airNeg) {
+          airNeg.querySelector('.val').textContent = data.safety.airNegative ? 'AIR- fechado' : 'AIR- aberto';
+          airNeg.dataset.sev = data.safety.airNegative ? 'ok' : 'idle';
+        }
+        const precharge = viewerEl.querySelector('[slot="hotspot-precharge"]');
+        if (precharge) {
+          precharge.querySelector('.val').textContent = data.safety.prechargeDone ? 'Pré-carga ok' : 'Pré-carga';
+          precharge.dataset.sev = data.safety.prechargeDone ? 'ok' : 'warn';
+        }
+      }
+
+      if (data.segments && data.segments.length) {
+        const hotId = data.hottestSegId || 2;
+        data.segments.forEach(seg => {
+          const segBtn = viewerEl.querySelector(`[slot="hotspot-seg-${seg.id}"]`);
+          if (segBtn) {
+            const isHot = seg.id === hotId;
+            segBtn.classList.toggle('is-hot', isHot);
+            const temp = seg.tempMax ? `${Math.round(seg.tempMax)}°` : '45°';
+            segBtn.querySelector('.val').textContent = isHot ? `S${seg.id} ${temp}` : `S${seg.id}`;
+            segBtn.dataset.sev = seg.status || (isHot ? 'warn' : 'ok');
+          }
+        });
+      }
+
+      // Charger standoffs
+      if (leaders.has('chg-precharge')) {
+        const l = leaders.get('chg-precharge');
+        const isHvOn = data.safety ? data.safety.prechargeDone : true;
+        l.el.querySelector('.standoff-badge').textContent = isHvOn ? 'HV_ON' : 'Pré-carga aberta';
+        l.el.dataset.sev = isHvOn ? 'ok' : 'idle';
+        l.line.dataset.sev = isHvOn ? 'ok' : 'idle';
+      }
+      if (leaders.has('chg-control')) {
+        const l = leaders.get('chg-control');
+        const isChg = data.charger ? data.charger.charging : false;
+        l.el.querySelector('.standoff-badge').textContent = isChg ? 'A carregar' : 'Parado';
+        l.el.dataset.sev = isChg ? 'ok' : 'idle';
+        l.line.dataset.sev = isChg ? 'ok' : 'idle';
+      }
+    }
+
     window.loadModel = loadModel;
     window.resetCamera = resetCamera;
     window.toggleAutoRotate = toggleAutoRotate;
+    window.setFanSpeed = setFanSpeed;
+    window.updateTelemetry = updateTelemetry;
   </script>
 </body>
 </html>

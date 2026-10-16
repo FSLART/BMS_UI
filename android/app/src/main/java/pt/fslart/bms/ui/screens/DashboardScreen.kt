@@ -228,6 +228,7 @@ fun DashboardScreen(
         item {
             Model3DViewer(
                 modelFile = "tek26e_closed.glb",
+                bmsState = state,
                 height = 260.dp,
                 title = "CARRO TEK-26e 3D · SOLIDWORKS CAD",
                 modifier = Modifier.fillMaxWidth()
