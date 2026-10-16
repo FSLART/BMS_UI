@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LART 3D Charging Assembly</title>
+  <script src="js/model-viewer.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      background: #05080D;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      position: relative;
+    }
+
+    .viewer-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    model-viewer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background-color: transparent;
+      --poster-color: transparent;
+      outline: none;
+      transition: opacity 0.4s ease-out;
+    }
+
+    #viewerClosed {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #animCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Flash Overlay */
+    .flash-overlay {
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 15;
+      transition: opacity 0.08s ease-out;
+    }
+
+    /* Reset view & Orbit controls button */
+    .btn-3d-reset {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      z-index: 25;
+      background: rgba(14, 20, 29, 0.88);
+      border: 1px solid rgba(255, 214, 10, 0.5);
+      border-radius: 8px;
+      color: #FFD60A;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+    }
+
+    /* Loading Spinner */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #05080D;
+      color: #FFD60A;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      z-index: 30;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255, 214, 10, 0.2);
+      border-top-color: #FFD60A;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Screen -->
+  <div id="loader" class="loading-overlay">
+    <div class="spinner"></div>
+    <span>A CARREGAR MODELOS 3D DO ACUMULADOR...</span>
+  </div>
+
+  <!-- Screen Flash Effect -->
+  <div id="flash" class="flash-overlay"></div>
+
+  <!-- 3D Model Viewers Layer (Open & Closed Assemblies) -->
+  <div class="viewer-container">
+    <!-- Open Battery 3D Assembly (No Lid, Segments & Busbars Exposed) -->
+    <model-viewer id="viewerOpen"
+      src="models/tek26e_open_light.glb"
+      camera-controls
+      touch-action="pan-y"
+      auto-rotate
+      rotation-per-second="14deg"
+      camera-orbit="220deg 68deg 95%"
+      field-of-view="28deg"
+      shadow-intensity="1.2"
+      shadow-softness="0.8"
+      exposure="0.85"
+      interaction-prompt="none"
+      animation-name="fans">
+    </model-viewer>
+
+    <!-- Closed Battery 3D Assembly (Sealed Lid & Screws Mounted) -->
+    <model-viewer id="viewerClosed"
+      src="models/tek26e_closed.glb"
+      camera-controls
+      touch-action="pan-y"
+      auto-rotate
+      rotation-per-second="14deg"
+      camera-orbit="220deg 68deg 95%"
+      field-of-view="28deg"
+      shadow-intensity="1.2"
+      shadow-softness="0.8"
+      exposure="0.85"
+      interaction-prompt="none"
+      animation-name="fans">
+    </model-viewer>
+  </div>
+
+  <!-- Real-time 2D/3D Canvas Overlay for Lightning, Exploded Guides, Sparks -->
+  <canvas id="animCanvas"></canvas>
+
+  <!-- 3D View Reset Button -->
+  <button class="btn-3d-reset" onclick="reset3DCamera()">
+    <span>🎯</span> Centrar 3D
+  </button>
+
+  <script>
+    const viewerOpen = document.getElementById('viewerOpen');
+    const viewerClosed = document.getElementById('viewerClosed');
+    const canvas = document.getElementById('animCanvas');
+    const ctx = canvas.getContext('2d');
+    const loader = document.getElementById('loader');
+    const flash = document.getElementById('flash');
+
+    let isLoaded = false;
+    let animStartTime = 0;
+    const ANIM_DURATION = 3600; // ms
+    let animRAF = 0;
+    let sparks = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth * window.devicePixelRatio;
+      canvas.height = window.innerHeight * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function initSparks() {
+      sparks = [];
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const originX = w * 0.50;
+      const originY = h * 0.44;
+
+      for (let i = 0; i < 32; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 40 + Math.random() * 140;
+        sparks.push({
+          x: originX,
+          y: originY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed * 0.65 - 20, // isometric flat projection
+          size: 1.5 + Math.random() * 3.5,
+          life: 0,
+          maxLife: 0.35 + Math.random() * 0.55,
+          color: Math.random() > 0.4 ? '#FFD60A' : '#00E5FF'
+        });
+      }
+    }
+
+    // Material enhancement to make CAD models look authentic (matte composite & titanium)
+    function enhanceMaterials(mv) {
+      if (!mv.model || !mv.model.materials) return;
+      for (const mat of mv.model.materials) {
+        const pbr = mat.pbrMetallicRoughness;
+        if (!pbr) continue;
+        if (pbr.roughnessFactor < 0.65) pbr.setRoughnessFactor(0.65);
+      }
+    }
+
+    let loadedCount = 0;
+    function checkBothLoaded() {
+      loadedCount++;
+      if (loadedCount >= 2) {
+        enhanceMaterials(viewerOpen);
+        enhanceMaterials(viewerClosed);
+        loader.style.opacity = '0';
+        setTimeout(() => { loader.style.display = 'none'; }, 300);
+        isLoaded = true;
+        startAssemblySequence();
+      }
+    }
+
+    viewerOpen.addEventListener('load', () => { checkBothLoaded(); });
+    viewerClosed.addEventListener('load', () => { checkBothLoaded(); });
+
+    // Fallback if load takes longer than 2s
+    setTimeout(() => {
+      if (!isLoaded) {
+        loader.style.opacity = '0';
+        setTimeout(() => { loader.style.display = 'none'; }, 300);
+        isLoaded = true;
+        startAssemblySequence();
+      }
+    }, 2000);
+
+    // Sync camera orbits between open and closed model viewers
+    viewerOpen.addEventListener('camera-change', () => {
+      if (viewerClosed.style.opacity > '0.1') {
+        viewerClosed.cameraOrbit = viewerOpen.cameraOrbit;
+      }
+    });
+    viewerClosed.addEventListener('camera-change', () => {
+      viewerOpen.cameraOrbit = viewerClosed.cameraOrbit;
+    });
+
+    function reset3DCamera() {
+      viewerOpen.cameraOrbit = '220deg 68deg 95%';
+      viewerClosed.cameraOrbit = '220deg 68deg 95%';
+    }
+
+    function startAssemblySequence() {
+      if (animRAF) cancelAnimationFrame(animRAF);
+      initSparks();
+      animStartTime = performance.now();
+      runAnimLoop();
+    }
+
+    function runAnimLoop() {
+      const now = performance.now();
+      const elapsed = now - animStartTime;
+      const progress = Math.min(1.0, elapsed / ANIM_DURATION);
+
+      renderFrame(progress, now);
+
+      animRAF = requestAnimationFrame(runAnimLoop);
+    }
+
+    function renderFrame(progress, now) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      // Phase 1: 0.0 - 0.45 -> Open 3D Battery View
+      // Phase 2: 0.45 - 0.78 -> Lid Lowers, Closed 3D Battery crossfades in
+      // Phase 3: 0.78 - 0.88 -> Sealing SDC, Contact closure
+      // Phase 4: 0.85 - 1.00 -> Lightning Bolt Strike & Shockwave!
+
+      // Crossfade 3D model-viewer
+      if (progress < 0.45) {
+        viewerOpen.style.opacity = '1';
+        viewerClosed.style.opacity = '0';
+        viewerClosed.style.pointerEvents = 'none';
+        viewerOpen.style.pointerEvents = 'auto';
+      } else if (progress < 0.78) {
+        const lidEase = (progress - 0.45) / 0.33;
+        // Smoothstep crossfade
+        const t = lidEase * lidEase * (3 - 2 * lidEase);
+        viewerOpen.style.opacity = (1 - t).toString();
+        viewerClosed.style.opacity = t.toString();
+        viewerClosed.style.pointerEvents = 'auto';
+        viewerOpen.style.pointerEvents = 'none';
+      } else {
+        viewerOpen.style.opacity = '0';
+        viewerClosed.style.opacity = '1';
+        viewerClosed.style.pointerEvents = 'auto';
+        viewerOpen.style.pointerEvents = 'none';
+      }
+
+      const centerX = w * 0.50;
+      const centerY = h * 0.44;
+
+      // DRAW EXPLODED VIEW GUIDES & HOVERING LID (0.0 to 0.75)
+      if (progress < 0.75) {
+        const lidProgress = Math.min(1.0, Math.max(0.0, (progress - 0.40) / 0.35));
+        const lidElev = (1.0 - Math.sin(lidProgress * Math.PI / 2)) * 120; // px above
+
+        // Corner trajectory guides
+        ctx.strokeStyle = "rgba(255, 214, 10, 0.4)";
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([4, 4]);
+
+        const boxW = w * 0.55;
+        const boxH = h * 0.28;
+
+        // 4 Trajectory Lasers
+        ctx.beginPath();
+        ctx.moveTo(centerX - boxW * 0.4, centerY - boxH * 0.3 - lidElev);
+        ctx.lineTo(centerX - boxW * 0.4, centerY - boxH * 0.3);
+        ctx.moveTo(centerX + boxW * 0.4, centerY - boxH * 0.3 - lidElev);
+        ctx.lineTo(centerX + boxW * 0.4, centerY - boxH * 0.3);
+        ctx.moveTo(centerX - boxW * 0.35, centerY + boxH * 0.25 - lidElev);
+        ctx.lineTo(centerX - boxW * 0.35, centerY + boxH * 0.25);
+        ctx.moveTo(centerX + boxW * 0.35, centerY + boxH * 0.25 - lidElev);
+        ctx.lineTo(centerX + boxW * 0.35, centerY + boxH * 0.25);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Hovering M6 Screws Guides
+        if (progress < 0.70) {
+          const screwElev = (1.0 - Math.min(1.0, progress / 0.70)) * 140;
+          for (let i = 0; i < 8; i++) {
+            const sx = centerX + (i - 3.5) * (boxW * 0.11);
+            const sy = centerY - boxH * 0.35 - screwElev;
+            // Draw Screw
+            ctx.fillStyle = "#FFD60A";
+            ctx.beginPath();
+            ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+            ctx.fill();
+            // Guide line
+            ctx.strokeStyle = "rgba(255, 214, 10, 0.3)";
+            ctx.setLineDash([2, 3]);
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(sx, centerY - boxH * 0.35);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+      }
+
+      // LIGHTNING STRIKE & SHOCKWAVE (Progress >= 0.82)
+      if (progress >= 0.82) {
+        const strikePhase = (progress - 0.82) / 0.18; // 0 to 1
+
+        // Flash of Light on impact (at strikePhase ~ 0.05 - 0.25)
+        if (strikePhase < 0.25) {
+          const flashAlpha = (1.0 - (strikePhase / 0.25)) * 0.65;
+          flash.style.opacity = flashAlpha.toString();
+        } else {
+          flash.style.opacity = '0';
+        }
+
+        // Radial Shockwave Ring radiating across 3D model
+        const shockRadius = 25 + strikePhase * (w * 0.48);
+        const shockAlpha = Math.max(0, 1.0 - strikePhase * 1.15);
+        ctx.strokeStyle = `rgba(0, 229, 255, ${shockAlpha * 0.85})`;
+        ctx.lineWidth = 3.5 * (1.0 - strikePhase);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, shockRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(255, 214, 10, ${shockAlpha * 0.65})`;
+        ctx.lineWidth = 2.0 * (1.0 - strikePhase);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, shockRadius * 0.75, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 32 Flying Spark Particles
+        sparks.forEach(p => {
+          p.x += p.vx * 0.016;
+          p.y += p.vy * 0.016;
+          p.life += 0.016;
+          if (p.life < p.maxLife) {
+            const pAlpha = 1.0 - (p.life / p.maxLife);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = pAlpha;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+          }
+        });
+
+        // GIANT ELECTRIC LIGHTNING BOLT STRIKING INTO 3D ACCUMULATOR
+        const startX = centerX + Math.sin(now * 0.03) * 12;
+        const startY = 10;
+        const targetX = centerX;
+        const targetY = centerY;
+
+        const boltPoints = [
+          { x: startX, y: startY },
+          { x: centerX - 18 + Math.sin(now * 0.04) * 8, y: h * 0.12 },
+          { x: centerX + 22, y: h * 0.20 },
+          { x: centerX - 14, y: h * 0.28 },
+          { x: centerX + 26, y: h * 0.36 },
+          { x: targetX, y: targetY }
+        ];
+
+        // 1. Outer Golden Glow Aura
+        ctx.shadowColor = "#FFD60A";
+        ctx.shadowBlur = 22;
+        ctx.strokeStyle = "rgba(255, 214, 10, 0.85)";
+        ctx.lineWidth = 9;
+        drawJaggedPath(ctx, boltPoints);
+
+        // 2. Bright Cyan Electric Arc
+        ctx.shadowColor = "#00E5FF";
+        ctx.shadowBlur = 14;
+        ctx.strokeStyle = "#00E5FF";
+        ctx.lineWidth = 4;
+        drawJaggedPath(ctx, boltPoints);
+
+        // 3. Ultra Bright Pure White Core
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 2.2;
+        drawJaggedPath(ctx, boltPoints);
+
+        // Branching Arc
+        const subBranch = [
+          boltPoints[3],
+          { x: boltPoints[3].x - 35, y: boltPoints[3].y + 22 },
+          { x: boltPoints[3].x - 48, y: boltPoints[3].y + 42 }
+        ];
+        ctx.strokeStyle = "rgba(0, 229, 255, 0.8)";
+        ctx.lineWidth = 2.5;
+        drawJaggedPath(ctx, subBranch);
+
+        // Continuous Electric Terminal Glow
+        const pulse = (Math.sin(now * 0.02) + 1) / 2;
+        ctx.fillStyle = `rgba(255, 214, 10, ${0.45 + pulse * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(centerX - w * 0.18, centerY - 8, 8 + pulse * 5, 0, Math.PI * 2);
+        ctx.arc(centerX + w * 0.18, centerY - 8, 8 + pulse * 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawJaggedPath(ctx, points) {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+    }
+
+    // Public API for Android / Web callers
+    window.restartAnimation = function() {
+      startAssemblySequence();
+    };
+
+    window.updateTelemetry = function(data) {
+      // Available for dynamic telemetry injection if needed
+    };
+  </script>
+</body>
+</html>

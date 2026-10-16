@@ -1,5 +1,12 @@
 package pt.fslart.bms.ui.components
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.view.ViewGroup
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -11,13 +18,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ElectricBolt
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.webkit.WebViewAssetLoader
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -87,10 +98,13 @@ fun ChargingAssemblyContent(
     // Animation Progress: 0.0f (Exploded) -> 1.0f (Mounted & Lightning Strike)
     var isPlaying by remember { mutableStateOf(true) }
     var restartTrigger by remember { mutableStateOf(0) }
+    var is3DMode by remember { mutableStateOf(true) }
+    var webViewRef by remember { mutableStateOf<WebView?>(null) }
 
     val animProgress = remember { Animatable(0f) }
 
     LaunchedEffect(restartTrigger) {
+        webViewRef?.evaluateJavascript("if (typeof restartAnimation === 'function') restartAnimation();", null)
         animProgress.snapTo(0f)
         animProgress.animateTo(
             targetValue = 1f,
@@ -114,9 +128,9 @@ fun ChargingAssemblyContent(
 
     // Status description based on animation phase
     val stageText = when {
-        progress < 0.28f -> "VISTA EXPLODIDA · BATERIA ABERTA (SEM TAMPA NEM PARAFUSOS)"
-        progress < 0.58f -> "A MONTAR 6 SEGMENTOS DE CÉLULAS NO CHASSI..."
-        progress < 0.78f -> "A BAIXAR TAMPA SUPERIOR E APERTAR PARAFUSOS M6..."
+        progress < 0.28f -> if (is3DMode) "3D · BATERIA ABERTA (SEM TAMPA NEM PARAFUSOS)" else "VISTA EXPLODIDA · BATERIA ABERTA (SEM TAMPA NEM PARAFUSOS)"
+        progress < 0.58f -> if (is3DMode) "3D · A ENCAIXAR 6 SEGMENTOS E BUSBARS NO CHASSI..." else "A MONTAR 6 SEGMENTOS DE CÉLULAS NO CHASSI..."
+        progress < 0.78f -> "3D · A BAIXAR TAMPA SUPERIOR E APERTAR 8 PARAFUSOS M6..."
         progress < 0.88f -> "ACUMULADOR SELADO · SDC FECHADO"
         else -> "⚡ RELÂMPAGO DE CARGA · 588 V ATIVO!"
     }
@@ -158,14 +172,14 @@ fun ChargingAssemblyContent(
                 }
                 Column {
                     Text(
-                        text = "ANIMAÇÃO DE CARGA · VISTA EXPLODIDA",
+                        text = "ANIMAÇÃO DE CARGA · MODELOS 3D CAD",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = DarkTextMuted,
                         letterSpacing = 0.8.sp
                     )
                     Text(
-                        text = "Montagem Automática & Relâmpago",
+                        text = "Montagem da Bateria & Relâmpago ⚡",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
@@ -191,6 +205,63 @@ fun ChargingAssemblyContent(
             }
         }
 
+        // VIEW MODE TOGGLE PILL: [ 🧊 3D CAD Real | ⚡ 2.5D Esquemático ]
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(DarkSurfaceElevated)
+                .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
+                .padding(2.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (is3DMode) LartYellow else Color.Transparent)
+                    .clickable { is3DMode = true }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.ViewInAr,
+                        contentDescription = null,
+                        tint = if (is3DMode) Color.Black else DarkTextSecondary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "3D CAD SolidWorks",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (is3DMode) Color.Black else DarkTextSecondary
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (!is3DMode) LartYellow else Color.Transparent)
+                    .clickable { is3DMode = false }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Layers,
+                        contentDescription = null,
+                        tint = if (!is3DMode) Color.Black else DarkTextSecondary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "2.5D Esquemático",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (!is3DMode) Color.Black else DarkTextSecondary
+                    )
+                }
+            }
+        }
+
         // STATUS BADGE PILL
         Box(
             modifier = Modifier
@@ -203,7 +274,7 @@ fun ChargingAssemblyContent(
         ) {
             Text(
                 text = stageText,
-                fontSize = 10.5.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = stageColor,
                 fontFamily = FontFamily.Monospace,
@@ -211,7 +282,7 @@ fun ChargingAssemblyContent(
             )
         }
 
-        // CANVAS 2.5D EXPLODED BATTERY & LIGHTNING STRIKE
+        // 3D MODEL-VIEWER / 2.5D EXPLODED BATTERY & LIGHTNING STRIKE
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -220,13 +291,22 @@ fun ChargingAssemblyContent(
                 .background(Color(0xFF05080D))
                 .border(1.dp, Color(0xFF1B2432), RoundedCornerShape(14.dp))
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawBatteryAssemblyScene(
-                    progress = progress,
-                    sparkPulse = sparkPulse,
-                    packVoltage = bmsState.pack.voltage,
-                    tempMax = bmsState.pack.tempMax
+            if (is3DMode) {
+                AndroidView(
+                    factory = { ctx ->
+                        createCharging3DWebView(ctx) { webViewRef = it }
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
+            } else {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawBatteryAssemblyScene(
+                        progress = progress,
+                        sparkPulse = sparkPulse,
+                        packVoltage = bmsState.pack.voltage,
+                        tempMax = bmsState.pack.tempMax
+                    )
+                }
             }
         }
 
@@ -703,5 +783,68 @@ private fun bounceEaseOut(t: Float): Float {
     } else {
         val f = t - 2.625f / 2.75f
         7.5625f * f * f + 0.984375f
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+private fun createCharging3DWebView(
+    context: Context,
+    onWebViewCreated: ((WebView) -> Unit)? = null
+): WebView {
+    val assetLoader = WebViewAssetLoader.Builder()
+        .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+        .build()
+
+    return WebView(context).apply {
+        layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        setBackgroundColor(android.graphics.Color.parseColor("#05080D"))
+
+        webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                val path = request.url.path ?: ""
+                if (path.endsWith(".glb", ignoreCase = true)) {
+                    val assetPath = path.substringAfter("/assets/")
+                    try {
+                        val stream = context.assets.open(assetPath)
+                        val headers = mapOf(
+                            "Access-Control-Allow-Origin" to "*",
+                            "Access-Control-Allow-Methods" to "GET, OPTIONS",
+                            "Access-Control-Allow-Headers" to "*",
+                            "Content-Type" to "model/gltf-binary"
+                        )
+                        return WebResourceResponse("model/gltf-binary", null, 200, "OK", headers, stream)
+                    } catch (e: Exception) {
+                        android.util.Log.e("Charging3DViewer", "Failed to open asset: $assetPath", e)
+                    }
+                }
+                return assetLoader.shouldInterceptRequest(request.url)
+            }
+        }
+
+        webChromeClient = object : android.webkit.WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+                android.util.Log.d("Charging3D_JS", "${consoleMessage?.message()} [line ${consoleMessage?.lineNumber()}]")
+                return true
+            }
+        }
+
+        settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = true
+            allowContentAccess = true
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            mediaPlaybackRequiresUserGesture = false
+        }
+
+        loadUrl("https://appassets.androidplatform.net/assets/charging_3d_viewer.html")
+        onWebViewCreated?.invoke(this)
     }
 }

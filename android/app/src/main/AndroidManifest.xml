@@ -33,6 +33,11 @@
     <!-- Vibration for Charging & Safety alarms -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Persistent Spotify-style charging notification permissions -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
     <!-- Internet access to check and download updates from GitHub -->
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -69,6 +74,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Spotify-style Persistent Charging Notification Foreground Service -->
+        <service
+            android:name=".service.ChargingNotificationService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
     </application>
 
 </manifest>

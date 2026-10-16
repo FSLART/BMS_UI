@@ -1677,14 +1677,27 @@
         <button style="background: #161D26; border: 1px solid #2B3848; color: #8B949E; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;" onclick="closeChargingAssemblyAnimation()">✕</button>
       </div>
 
+      <!-- Mode Switcher Pill: [ 🧊 3D CAD SolidWorks | ⚡ 2.5D Esquemático ] -->
+      <div style="display: flex; background: #161D26; border-radius: 8px; border: 1px solid #2B3848; padding: 2px; align-self: flex-start;">
+        <button id="assemblyMode3DBtn" onclick="setChargingAssemblyMode(true)" style="background: #FFD60A; color: #000; border: none; border-radius: 6px; padding: 4px 10px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+          <span>🧊</span> 3D CAD SolidWorks
+        </button>
+        <button id="assemblyMode2DBtn" onclick="setChargingAssemblyMode(false)" style="background: transparent; color: #8B949E; border: none; border-radius: 6px; padding: 4px 10px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+          <span>⚡</span> 2.5D Esquemático
+        </button>
+      </div>
+
       <!-- Stage Status Badge -->
       <div id="assemblyStageBadge" style="background: rgba(255,214,10,0.12); border: 1px solid rgba(255,214,10,0.4); border-radius: 8px; padding: 6px 10px; text-align: center; font-size: 10px; font-family: monospace; font-weight: 800; color: #FFD60A;">
         VISTA EXPLODIDA · BATERIA ABERTA (SEM TAMPA NEM PARAFUSOS)
       </div>
 
-      <!-- Canvas Area -->
+      <!-- Visual Display Area (3D SolidWorks Assembly or 2.5D Canvas) -->
       <div style="position: relative; width: 100%; height: 310px; background: #04060A; border-radius: 14px; border: 1px solid #1B2432; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-        <canvas id="assemblyCanvas" width="370" height="310" style="width: 100%; height: 100%;"></canvas>
+        <div id="assembly3DContainer" style="width: 100%; height: 100%; position: absolute; inset: 0;">
+          <iframe id="assembly3DIframe" src="android/app/src/main/assets/charging_3d_viewer.html" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+        </div>
+        <canvas id="assemblyCanvas" width="370" height="310" style="width: 100%; height: 100%; display: none;"></canvas>
       </div>
 
       <!-- Telemetry Row -->
@@ -2673,6 +2686,36 @@ Gerado pelo LART BMS Mobile System`;
       }
     }
 
+    let isChargingAssembly3D = true;
+
+    function setChargingAssemblyMode(mode3d) {
+      isChargingAssembly3D = mode3d;
+      const btn3D = document.getElementById('assemblyMode3DBtn');
+      const btn2D = document.getElementById('assemblyMode2DBtn');
+      const container3D = document.getElementById('assembly3DContainer');
+      const container2D = document.getElementById('assemblyCanvas');
+      const iframe = document.getElementById('assembly3DIframe');
+
+      if (mode3d) {
+        if (btn3D) { btn3D.style.background = '#FFD60A'; btn3D.style.color = '#000'; }
+        if (btn2D) { btn2D.style.background = 'transparent'; btn2D.style.color = '#8B949E'; }
+        if (container3D) container3D.style.display = 'block';
+        if (container2D) container2D.style.display = 'none';
+        if (assemblyAnimRAF) { cancelAnimationFrame(assemblyAnimRAF); assemblyAnimRAF = 0; }
+        try {
+          if (iframe && iframe.contentWindow && typeof iframe.contentWindow.restartAnimation === 'function') {
+            iframe.contentWindow.restartAnimation();
+          }
+        } catch (e) {}
+      } else {
+        if (btn3D) { btn3D.style.background = 'transparent'; btn3D.style.color = '#8B949E'; }
+        if (btn2D) { btn2D.style.background = '#FFD60A'; btn2D.style.color = '#000'; }
+        if (container3D) container3D.style.display = 'none';
+        if (container2D) container2D.style.display = 'block';
+        restartChargingAssemblyAnimation();
+      }
+    }
+
     function openChargingAssemblyAnimation() {
       const modal = document.getElementById('chargingAssemblyModal');
       if (!modal) return;
@@ -2690,10 +2733,23 @@ Gerado pelo LART BMS Mobile System`;
     }
 
     function restartChargingAssemblyAnimation() {
-      if (assemblyAnimRAF) cancelAnimationFrame(assemblyAnimRAF);
-      initSparkParticles();
-      assemblyStartTime = performance.now();
-      renderAssemblyLoop();
+      const iframe = document.getElementById('assembly3DIframe');
+      if (isChargingAssembly3D) {
+        try {
+          if (iframe && iframe.contentWindow && typeof iframe.contentWindow.restartAnimation === 'function') {
+            iframe.contentWindow.restartAnimation();
+          } else if (iframe) {
+            iframe.src = iframe.src;
+          }
+        } catch (e) {
+          if (iframe) iframe.src = iframe.src;
+        }
+      } else {
+        if (assemblyAnimRAF) cancelAnimationFrame(assemblyAnimRAF);
+        initSparkParticles();
+        assemblyStartTime = performance.now();
+        renderAssemblyLoop();
+      }
     }
 
     function renderAssemblyLoop() {

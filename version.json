@@ -1,8 +1,8 @@
 {
-  "versionCode": 4,
-  "versionName": "1.2.0",
+  "versionCode": 5,
+  "versionName": "1.3.0",
   "releaseDate": "2026-10-16",
-  "title": "Animação de Carga com Vista Explodida & Relâmpago",
-  "changelog": "Nova animação cinematográfica ao iniciar carga: acumulador em vista explodida sem tampa nem parafusos, montagem sequencial dos 6 segmentos, descida e fixação da tampa e parafusos M6 com relâmpago de alta voltagem e telemetria de carga ativa.",
+  "title": "Animação 3D SolidWorks & Notificação Spotify de Carga",
+  "changelog": "Nova funcionalidade completa de carga: Animação 3D pop-up com os modelos CAD SolidWorks reais da bateria aberta (tek26e_open_light.glb mostrando os 6 segmentos internos e barramentos) e montagem com fecho da tampa (tek26e_closed.glb), aperto de parafusos M6 e relâmpago elétrico de alta potência. Adicionada notificação contínua e persistente em primeiro plano estilo Spotify que permanece ativa no ecrã de bloqueio e painel de notificações enquanto o veículo carrega, com telemetria em tempo real (tensão, corrente +30A, potência kW, SoC % e barra de progresso viva).",
   "apkUrl": "https://github.com/FSLART/BMS_UI/releases/latest/download/LART_BMS.apk"
 }

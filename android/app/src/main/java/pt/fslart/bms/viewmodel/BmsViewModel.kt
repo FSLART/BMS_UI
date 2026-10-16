@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import pt.fslart.bms.ble.*
 import pt.fslart.bms.model.*
 import pt.fslart.bms.simulator.BmsSimulator
+import pt.fslart.bms.service.ChargingNotificationService
 import pt.fslart.bms.util.ChargingAlertManager
 
 enum class ScreenTab {
@@ -82,8 +83,13 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
                     _bmsState.value = state
                     appendHistory(state.pack.current, state.pack.voltage)
                     chargingAlertManager.onChargingStateUpdated(state.isCharging)
-                    if (state.isCharging && !previousChargingState) {
-                        _showChargingAnimation.value = true
+                    if (state.isCharging) {
+                        ChargingNotificationService.startOrUpdate(getApplication(), state)
+                        if (!previousChargingState) {
+                            _showChargingAnimation.value = true
+                        }
+                    } else if (previousChargingState) {
+                        ChargingNotificationService.stop(getApplication())
                     }
                     previousChargingState = state.isCharging
                 }
@@ -168,8 +174,13 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
                     bleManager.injectSimulatorState(fakeState)
                     appendHistory(fakeState.pack.current, fakeState.pack.voltage)
                     chargingAlertManager.onChargingStateUpdated(fakeState.isCharging)
-                    if (fakeState.isCharging && !previousChargingState) {
-                        _showChargingAnimation.value = true
+                    if (fakeState.isCharging) {
+                        ChargingNotificationService.startOrUpdate(getApplication(), fakeState)
+                        if (!previousChargingState) {
+                            _showChargingAnimation.value = true
+                        }
+                    } else if (previousChargingState) {
+                        ChargingNotificationService.stop(getApplication())
                     }
                     previousChargingState = fakeState.isCharging
                     delay(1000L) // 1 sample per second like the real RN4871
@@ -178,6 +189,7 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             simulatorJob?.cancel()
             simulatorJob = null
+            ChargingNotificationService.stop(getApplication())
             _bmsState.value = BmsState(car = _selectedCar.value)
             _currentTab.value = ScreenTab.CONNECT
         }
@@ -271,5 +283,6 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         simulatorJob?.cancel()
         bleManager.disconnect()
         bleScanner.stopScan()
+        ChargingNotificationService.stop(getApplication())
     }
 }
