@@ -38,6 +38,7 @@ fun Model3DViewer(
     modelFile: String,
     modifier: Modifier = Modifier,
     bmsState: pt.fslart.bms.model.BmsState? = null,
+    selectedSegment: Int = 1,
     height: Dp = 320.dp,
     showControls: Boolean = true,
     title: String? = null
@@ -50,8 +51,8 @@ fun Model3DViewer(
         webViewRef?.evaluateJavascript("if (typeof loadModel === 'function') loadModel('$modelFile', $isAutoRotate);", null)
     }
 
-    LaunchedEffect(bmsState) {
-        val json = if (bmsState != null) buildTelemetryJson(bmsState) else buildDefaultTelemetryJson()
+    LaunchedEffect(bmsState, selectedSegment) {
+        val json = if (bmsState != null) buildTelemetryJson(bmsState, selectedSegment) else buildDefaultTelemetryJson(selectedSegment)
         webViewRef?.evaluateJavascript("if (typeof updateTelemetry === 'function') updateTelemetry($json);", null)
     }
 
@@ -154,9 +155,9 @@ fun Model3DViewer(
                     .fillMaxWidth()
                     .height(height)
             ) {
-                    AndroidView(
+                AndroidView(
                     factory = { ctx ->
-                        createConfiguredWebView(ctx, modelFile, isAutoRotate, bmsState) { webViewRef = it }
+                        createConfiguredWebView(ctx, modelFile, isAutoRotate, bmsState, selectedSegment) { webViewRef = it }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -217,7 +218,7 @@ fun Model3DViewer(
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         AndroidView(
                             factory = { ctx ->
-                                createConfiguredWebView(ctx, modelFile, isAutoRotate, bmsState)
+                                createConfiguredWebView(ctx, modelFile, isAutoRotate, bmsState, selectedSegment)
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -233,6 +234,7 @@ private fun createConfiguredWebView(
     modelFile: String,
     isAutoRotate: Boolean,
     bmsState: pt.fslart.bms.model.BmsState?,
+    selectedSegment: Int = 1,
     onWebViewCreated: ((WebView) -> Unit)? = null
 ): WebView {
     val assetLoader = WebViewAssetLoader.Builder()
@@ -272,7 +274,7 @@ private fun createConfiguredWebView(
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                val teleJson = if (bmsState != null) buildTelemetryJson(bmsState) else buildDefaultTelemetryJson()
+                val teleJson = if (bmsState != null) buildTelemetryJson(bmsState, selectedSegment) else buildDefaultTelemetryJson(selectedSegment)
                 view?.evaluateJavascript(
                     "if (typeof loadModel === 'function') { loadModel('$modelFile', $isAutoRotate); } if (typeof updateTelemetry === 'function') { updateTelemetry($teleJson); }",
                     null
@@ -302,13 +304,60 @@ private fun createConfiguredWebView(
     }
 }
 
-private fun buildTelemetryJson(state: pt.fslart.bms.model.BmsState): String {
+private fun buildDefaultSegmentCellsJson(): String {
+    val voltages = listOf(
+        3.877f, 3.880f, 3.857f, 3.889f, 3.870f, 3.888f,
+        3.885f, 3.875f, 3.874f, 3.889f, 3.862f, 3.900f,
+        3.868f, 3.883f, 3.875f, 3.877f, 3.880f, 3.869f,
+        3.852f, 3.855f, 3.864f, 3.871f, 3.885f, 3.857f
+    )
+    return voltages.mapIndexed { idx, v ->
+        val cellIdx = idx + 1
+        val isBalancing = cellIdx == 14 || cellIdx == 24
+        """{"index": $cellIdx, "voltage": $v, "balancing": $isBalancing, "openWire": false, "status": "${if (isBalancing) "warn" else "ok"}"}"""
+    }.joinToString(",")
+}
+
+private fun buildDefaultSegmentThermsJson(): String {
+    val temps = listOf(
+        47.2f, 48.6f, 47.7f,
+        48.6f, 49.1f, 46.9f,
+        50.5f, 56.8f, 47.1f,
+        50.6f, 46.2f, 49.7f
+    )
+    return temps.mapIndexed { idx, t ->
+        val ntcIdx = idx + 1
+        val isHot = t >= 50f
+        """{"index": $ntcIdx, "temperature": $t, "status": "${if (isHot) "warn" else "ok"}"}"""
+    }.joinToString(",")
+}
+
+private fun buildTelemetryJson(state: pt.fslart.bms.model.BmsState, selectedSegment: Int = 1): String {
     val hottest = state.segments.maxByOrNull { it.tempMax }
     val segJson = state.segments.joinToString(",") { s ->
         """{"id": ${s.id}, "tempMax": ${s.tempMax}, "status": "${s.status.name.lowercase()}"}"""
     }
     val current = state.pack.current
     val fanPwm = state.ams.fanPwm ?: (if (current > 0.5f || state.isCharging) 59f else 0f)
+
+    val segCells = state.cells.filter { it.segment == selectedSegment }
+    val segCellsJson = if (segCells.isNotEmpty()) {
+        segCells.joinToString(",") { c ->
+            """{"index": ${c.index}, "voltage": ${c.voltage}, "balancing": ${c.balancing}, "openWire": ${c.openWire}, "status": "${c.status.name.lowercase()}"}"""
+        }
+    } else {
+        buildDefaultSegmentCellsJson()
+    }
+
+    val segTherms = state.thermistors.filter { it.segment == selectedSegment }
+    val segThermsJson = if (segTherms.isNotEmpty()) {
+        segTherms.mapIndexed { idx, t ->
+            val temp = t.temperature ?: 45.0f
+            """{"index": ${idx + 1}, "temperature": $temp, "status": "${t.status.name.lowercase()}"}"""
+        }.joinToString(",")
+    } else {
+        buildDefaultSegmentThermsJson()
+    }
 
     return """
     {
@@ -322,12 +371,15 @@ private fun buildTelemetryJson(state: pt.fslart.bms.model.BmsState): String {
       "ams": { "fanPwm": $fanPwm },
       "charger": { "charging": ${state.isCharging} },
       "hottestSegId": ${hottest?.id ?: 2},
-      "segments": [$segJson]
+      "selectedSegment": $selectedSegment,
+      "segments": [$segJson],
+      "segmentCells": [$segCellsJson],
+      "segmentThermistors": [$segThermsJson]
     }
     """.trimIndent()
 }
 
-private fun buildDefaultTelemetryJson(): String {
+private fun buildDefaultTelemetryJson(selectedSegment: Int = 1): String {
     return """
     {
       "pack": { "current": 30.9, "voltage": 581.5 },
@@ -340,6 +392,7 @@ private fun buildDefaultTelemetryJson(): String {
       "ams": { "fanPwm": 59 },
       "charger": { "charging": false },
       "hottestSegId": 2,
+      "selectedSegment": $selectedSegment,
       "segments": [
         {"id": 1, "tempMax": 41.9, "status": "ok"},
         {"id": 2, "tempMax": 44.8, "status": "warn"},
@@ -347,7 +400,9 @@ private fun buildDefaultTelemetryJson(): String {
         {"id": 4, "tempMax": 40.9, "status": "ok"},
         {"id": 5, "tempMax": 41.1, "status": "ok"},
         {"id": 6, "tempMax": 40.4, "status": "ok"}
-      ]
+      ],
+      "segmentCells": [${buildDefaultSegmentCellsJson()}],
+      "segmentThermistors": [${buildDefaultSegmentThermsJson()}]
     }
     """.trimIndent()
 }

@@ -453,6 +453,75 @@
       width: 12px;
       height: 12px;
     }
+
+    /* Compact Segment Hotspots (24 Cells + 12 NTCs) */
+    .hotspot.hs-compact {
+      padding: 2.5px 5.5px;
+      font-size: 9.5px;
+      gap: 4.5px;
+      border-radius: 5px;
+      background: rgba(10, 14, 20, 0.94);
+      border: 1.2px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+    }
+    .hotspot.hs-compact .dot {
+      width: 5.5px;
+      height: 5.5px;
+    }
+    .hotspot.hs-v .val, .hotspot.hs-t .val {
+      font-family: monospace;
+      color: #32D74B;
+      font-weight: 800;
+      letter-spacing: -0.2px;
+    }
+    .hotspot.hs-v[data-sev="warn"] .val,
+    .hotspot.hs-t[data-sev="warn"] .val,
+    .hotspot.hs-compact.is-hot .val,
+    .hotspot.hs-compact.is-balancing .val {
+      color: #FFD60A;
+    }
+    .hotspot.hs-compact.is-balancing {
+      border-color: #FFD60A;
+      box-shadow: 0 0 10px rgba(255, 214, 10, 0.4);
+    }
+    .hotspot.hs-compact.is-balancing .dot {
+      background: #FFD60A;
+      color: #FFD60A;
+    }
+
+    /* Segment Filter Pill Bar */
+    .segment-filters {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      display: flex;
+      gap: 5px;
+      background: rgba(14, 19, 26, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 8px;
+      padding: 3px;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    }
+    .seg-filter-btn {
+      background: transparent;
+      border: none;
+      color: #8B949E;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .seg-filter-btn:hover {
+      color: #FFF;
+    }
+    .seg-filter-btn.active {
+      background: #FFD60A;
+      color: #000;
+    }
     .model-card {
       background: #0E131A;
       border: 1px solid #1C242F;
@@ -971,6 +1040,11 @@
           <div style="height: 310px; width: 100%; position: relative; overflow: hidden;">
             <svg id="hs-svg" class="hs-lines"></svg>
             <div id="standoff-container"></div>
+            <div id="segment-filter-bar" class="segment-filters" style="display: none;">
+              <button class="seg-filter-btn active" id="flt-all" onclick="setSegmentFilterMode('all')">Tudo (36)</button>
+              <button class="seg-filter-btn" id="flt-v" onclick="setSegmentFilterMode('v')">⚡ Tensões (24)</button>
+              <button class="seg-filter-btn" id="flt-t" onclick="setSegmentFilterMode('t')">🌡️ Temp (12)</button>
+            </div>
             <model-viewer id="main3DViewer" src="frontend/models/tek26e_closed.glb" camera-controls auto-rotate rotation-per-second="10deg" shadow-intensity="1.2" exposure="0.88" interaction-prompt="none" camera-orbit="232deg 70deg 110%" field-of-view="26deg" animation-name="fans"></model-viewer>
             <button id="btn-reset-view" class="view-reset-btn" onclick="reset3DCamera()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -980,6 +1054,16 @@
               <span>Repor vista</span>
             </button>
           </div>
+        </div>
+
+        <!-- Segment Selector (when Segment 3D CAD is active) -->
+        <div id="seg-selector-row" class="filter-chips" style="display: none; margin-top: 4px;">
+          <span class="chip active" onclick="switchPreviewSegment(1, this)">Segmento 1</span>
+          <span class="chip" onclick="switchPreviewSegment(2, this)">Segmento 2</span>
+          <span class="chip" onclick="switchPreviewSegment(3, this)">Segmento 3</span>
+          <span class="chip" onclick="switchPreviewSegment(4, this)">Segmento 4</span>
+          <span class="chip" onclick="switchPreviewSegment(5, this)">Segmento 5</span>
+          <span class="chip" onclick="switchPreviewSegment(6, this)">Segmento 6</span>
         </div>
 
         <div class="card" id="model3d-context-card">
@@ -1190,12 +1274,81 @@
         file: 'frontend/models/seguemento.glb',
         title: 'Módulo de Segmento (24 Células)',
         desc: 'Módulo padrão com duas placas BMS Slave e barramentos niquelados com monitorização individual.',
-        orbit: '-18deg 86deg 110%',
+        orbit: '-18deg 86deg 0.561m',
         fov: '34deg',
-        target: 'auto auto auto'
+        orientation: '0deg 90deg 0deg',
+        target: 'auto auto auto',
+        hotspots: [
+          // 24 Parallel cell voltages (par-1..par-24)
+          { id: 'par-1', label: '3.877 V', position: '-0.184m 0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-2', label: '3.880 V', position: '-0.110m 0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-3', label: '3.857 V', position: '-0.037m 0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-4', label: '3.889 V', position: '0.037m 0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-5', label: '3.870 V', position: '0.110m 0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-6', label: '3.888 V', position: '0.184m 0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+
+          { id: 'par-7', label: '3.885 V', position: '-0.184m 0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-8', label: '3.875 V', position: '-0.110m 0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-9', label: '3.874 V', position: '-0.037m 0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-10', label: '3.889 V', position: '0.037m 0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-11', label: '3.862 V', position: '0.110m 0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-12', label: '3.900 V', position: '0.184m 0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+
+          { id: 'par-13', label: '3.868 V', position: '-0.184m -0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-14', label: '3.883 V', position: '-0.110m -0.013m -0.000m', normal: '0m 0m 1m', sev: 'warn', hot: true, type: 'v' },
+          { id: 'par-15', label: '3.875 V', position: '-0.037m -0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-16', label: '3.877 V', position: '0.037m -0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-17', label: '3.880 V', position: '0.110m -0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-18', label: '3.869 V', position: '0.184m -0.013m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+
+          { id: 'par-19', label: '3.852 V', position: '-0.184m -0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-20', label: '3.855 V', position: '-0.110m -0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-21', label: '3.864 V', position: '-0.037m -0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-22', label: '3.871 V', position: '0.037m -0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-23', label: '3.885 V', position: '0.110m -0.038m -0.000m', normal: '0m 0m 1m', sev: 'ok', type: 'v' },
+          { id: 'par-24', label: '3.857 V', position: '0.184m -0.038m -0.000m', normal: '0m 0m 1m', sev: 'warn', hot: true, type: 'v' },
+
+          // 12 NTC temperatures (ntc-1..ntc-12)
+          { id: 'ntc-1', label: '47.2 °C', position: '-0.121m 0.040m 0.037m', normal: '0m 0m 1m', sev: 'ok', type: 't' },
+          { id: 'ntc-2', label: '48.6 °C', position: '0.025m 0.040m 0.037m', normal: '0m 0m 1m', sev: 'ok', type: 't' },
+          { id: 'ntc-3', label: '47.7 °C', position: '0.171m 0.040m 0.037m', normal: '0m 0m 1m', sev: 'ok', type: 't' },
+          { id: 'ntc-4', label: '48.6 °C', position: '-0.194m 0.014m 0.037m', normal: '0m 0m 1m', sev: 'ok', type: 't' },
+          { id: 'ntc-5', label: '49.1 °C', position: '-0.048m 0.014m 0.037m', normal: '0m 0m 1m', sev: 'ok', type: 't' },
+          { id: 'ntc-6', label: '46.9 °C', position: '0.098m 0.014m 0.037m', normal: '0m 0m 1m', sev: 'ok', type: 't' },
+          { id: 'ntc-7', label: '50.5 °C', position: '-0.121m -0.012m 0.037m', normal: '0m 0m 1m', sev: 'warn', hot: true, type: 't' },
+          { id: 'ntc-8', label: '56.8 °C', position: '0.025m -0.012m 0.037m', normal: '0m 0m 1m', sev: 'warn', hot: true, type: 't' },
+          { id: 'ntc-9', label: '47.1 °C', position: '0.171m -0.012m 0.037m', normal: '0m 0m 1m', sev: 'ok', type: 't' },
+          { id: 'ntc-10', label: '50.6 °C', position: '-0.194m -0.038m 0.037m', normal: '0m 0m 1m', sev: 'warn', hot: true, type: 't' },
+          { id: 'ntc-11', label: '46.2 °C', position: '-0.048m -0.038m 0.037m', normal: '0m 0m 1m', sev: 'ok', type: 't' },
+          { id: 'ntc-12', label: '49.7 °C', position: '0.098m -0.038m 0.037m', normal: '0m 0m 1m', sev: 'ok', type: 't' },
+        ]
       }
     };
     const MODEL_FILES = MODEL_CONFIGS;
+
+    let segmentFilterMode = 'all';
+
+    function setSegmentFilterMode(mode) {
+      segmentFilterMode = mode;
+      document.querySelectorAll('.seg-filter-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('flt-' + mode);
+      if (activeBtn) activeBtn.classList.add('active');
+      applySegmentFilter();
+    }
+
+    function applySegmentFilter() {
+      const showV = (segmentFilterMode === 'all' || segmentFilterMode === 'v');
+      const showT = (segmentFilterMode === 'all' || segmentFilterMode === 't');
+
+      const mv = document.getElementById('main3DViewer');
+      if (!mv) return;
+      mv.querySelectorAll('.hotspot[data-type="v"]').forEach(el => {
+        el.style.display = showV ? 'flex' : 'none';
+      });
+      mv.querySelectorAll('.hotspot[data-type="t"]').forEach(el => {
+        el.style.display = showT ? 'flex' : 'none';
+      });
+    }
 
     let leaderRAF = 0;
     const leaders = new Map();
@@ -1224,15 +1377,25 @@
       const svg = document.getElementById(svgId);
       if (!mv) return;
 
+      const isSegment = (modelKey === 'segment');
+      const filterBar = document.getElementById('segment-filter-bar');
+      if (filterBar && viewerId === 'main3DViewer') {
+        filterBar.style.display = isSegment ? 'flex' : 'none';
+        if (isSegment) {
+          applySegmentFilter();
+        }
+      }
+
       if (cfg.hotspots) {
         cfg.hotspots.forEach(h => {
           const btn = document.createElement('button');
-          btn.className = 'hotspot' + (h.hot ? ' is-hot' : '');
+          btn.className = 'hotspot' + (h.hot ? ' is-hot' : '') + (isSegment ? ' hs-compact' : '') + (h.type ? ' hs-' + h.type : '');
           btn.slot = 'hotspot-' + h.id;
           btn.setAttribute('data-position', h.position);
           if (h.normal) btn.setAttribute('data-normal', h.normal);
           btn.setAttribute('data-visibility-attribute', 'visible');
           btn.setAttribute('data-sev', h.sev || 'ok');
+          if (h.type) btn.setAttribute('data-type', h.type);
           btn.innerHTML = `<span class="dot"></span><span class="val">${h.label}</span>`;
           mv.appendChild(btn);
         });
@@ -1324,6 +1487,50 @@
       }
     }
 
+    let activePreviewSegment = 1;
+
+    function switchPreviewSegment(segNum, chipEl) {
+      activePreviewSegment = segNum;
+      document.querySelectorAll('#seg-selector-row .chip').forEach(c => c.classList.remove('active'));
+      if (chipEl) chipEl.classList.add('active');
+
+      const voltages = [
+        3.877, 3.880, 3.857, 3.889, 3.870, 3.888,
+        3.885, 3.875, 3.874, 3.889, 3.862, 3.900,
+        3.868, 3.883, 3.875, 3.877, 3.880, 3.869,
+        3.852, 3.855, 3.864, 3.871, 3.885, 3.857
+      ];
+      const delta = (segNum - 1) * 0.006;
+      for (let i = 1; i <= 24; i++) {
+        const btn = document.querySelector(`#main3DViewer [slot="hotspot-par-${i}"]`);
+        if (btn) {
+          const v = (voltages[i - 1] + (Math.sin(segNum * 3 + i) * 0.005) - delta).toFixed(3);
+          btn.querySelector('.val').textContent = `${v} V`;
+          const isBal = (i === 14 || i === 24) && segNum === 1;
+          btn.classList.toggle('is-balancing', isBal);
+          btn.classList.toggle('is-hot', isBal);
+          btn.dataset.sev = isBal ? 'warn' : 'ok';
+        }
+      }
+
+      const temps = [
+        47.2, 48.6, 47.7,
+        48.6, 49.1, 46.9,
+        50.5, 56.8, 47.1,
+        50.6, 46.2, 49.7
+      ];
+      for (let i = 1; i <= 12; i++) {
+        const btn = document.querySelector(`#main3DViewer [slot="hotspot-ntc-${i}"]`);
+        if (btn) {
+          const t = (temps[i - 1] + (segNum === 2 ? 2.5 : 0) - (segNum * 0.4)).toFixed(1);
+          btn.querySelector('.val').textContent = `${t} °C`;
+          const isHot = parseFloat(t) >= 50.0;
+          btn.classList.toggle('is-hot', isHot);
+          btn.dataset.sev = isHot ? 'warn' : 'ok';
+        }
+      }
+    }
+
     function switch3DModel(modelKey, chipEl) {
       active3DModel = modelKey;
       document.querySelectorAll('#page-model3d .chip').forEach(c => c.classList.remove('active'));
@@ -1334,11 +1541,16 @@
 
       document.getElementById('model3d-title').textContent = info.title.split('(')[0];
       const mv = document.getElementById('main3DViewer');
+      if (info.orientation) mv.setAttribute('orientation', info.orientation);
+      else mv.removeAttribute('orientation');
       if (info.orbit) mv.cameraOrbit = info.orbit;
       if (info.fov) mv.fieldOfView = info.fov;
       if (info.target) mv.cameraTarget = info.target;
       mv.src = info.file;
       mv.jumpCameraToGoal();
+
+      const segRow = document.getElementById('seg-selector-row');
+      if (segRow) segRow.style.display = (modelKey === 'segment') ? 'flex' : 'none';
 
       document.getElementById('model3d-context-card').innerHTML = `
         <div class="card-title">${info.title}</div>
@@ -1353,11 +1565,14 @@
       const mv = document.getElementById('main3DViewer');
       if (!mv) return;
       const info = MODEL_CONFIGS[active3DModel];
-      if (info && info.orbit) {
-        mv.cameraOrbit = info.orbit;
+      if (info) {
+        if (info.orientation) mv.setAttribute('orientation', info.orientation);
+        else mv.removeAttribute('orientation');
+        if (info.orbit) mv.cameraOrbit = info.orbit;
         if (info.fov) mv.fieldOfView = info.fov;
         if (info.target) mv.cameraTarget = info.target;
       } else {
+        mv.removeAttribute('orientation');
         mv.cameraOrbit = '45deg 70deg 110%';
       }
       mv.jumpCameraToGoal();

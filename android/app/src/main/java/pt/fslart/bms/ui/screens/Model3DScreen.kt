@@ -185,6 +185,7 @@ fun Model3DScreen(
         Model3DViewer(
             modelFile = selectedModel.fileName,
             bmsState = state,
+            selectedSegment = selectedSegmentNum,
             height = 340.dp,
             showControls = true,
             title = "${selectedModel.title} — ${selectedModel.subtitle}",
