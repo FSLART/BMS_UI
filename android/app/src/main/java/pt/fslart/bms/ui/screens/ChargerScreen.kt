@@ -5,15 +5,18 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -181,6 +184,89 @@ fun ChargerScreen(
                         .clip(RoundedCornerShape(7.dp))
                         .background(if (isCharging) StatusOk else DarkTextMuted)
                 )
+            }
+        }
+
+        // EXPLODED BATTERY & LIGHTNING STRIKE ANIMATION TRIGGER CARD
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFF1B1602), Color(0xFF261F03), Color(0xFF0F1A12))
+                        )
+                    )
+                    .border(1.2.dp, LartYellow.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
+                    .clickable { viewModel.triggerChargingAnimation() }
+                    .padding(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(LartYellow.copy(alpha = 0.22f))
+                                .border(1.dp, LartYellow, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ElectricBolt,
+                                contentDescription = "Relâmpago",
+                                tint = LartYellow,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "ANIMAÇÃO DE CARGA EXPLODIDA",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = LartYellow,
+                                letterSpacing = 0.6.sp
+                            )
+                            Text(
+                                text = "Ver Montagem 3D & Relâmpago ⚡",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    Surface(
+                        color = LartYellow,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "VER",
+                                color = Color.Black,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+                }
             }
         }
 

@@ -103,4 +103,4 @@ if ($GhCli -and (Test-Path $GhCli)) {
     Write-Host "ℹ️ GitHub Actions publicará a release automaticamente com o APK e EXE assim que o git push for efetuado." -ForegroundColor Yellow
 }
 
-Write-Host "✨ Concluído! Para publicar as alterações no GitHub executa: git push origin android-app --tags" -ForegroundColor Green
+Write-Host "✨ Concluído! Para publicar as alterações no GitHub executa: git push origin main --tags" -ForegroundColor Green

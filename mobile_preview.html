@@ -1470,6 +1470,18 @@
             </div>
           </div>
 
+          <!-- Exploded Battery Assembly & Lightning Animation Card -->
+          <div class="card" style="background: linear-gradient(135deg, #1C1802 0%, #282103 50%, #0F1B12 100%); border: 1.5px solid #FFD60A; padding: 12px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;" onclick="openChargingAssemblyAnimation()">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(255, 214, 10, 0.22); border: 1.2px solid #FFD60A; display: flex; align-items: center; justify-content: center; font-size: 18px;">⚡</div>
+              <div>
+                <div style="font-size: 9.5px; font-weight: 800; color: #FFD60A; letter-spacing: 0.6px;">ANIMAÇÃO DE CARGA EXPLODIDA</div>
+                <div style="font-size: 13px; font-weight: 800; color: #FFF;">Ver Montagem 3D &amp; Relâmpago ⚡</div>
+              </div>
+            </div>
+            <div style="background: #FFD60A; color: #000; font-size: 11px; font-weight: 900; padding: 6px 12px; border-radius: 6px;">VER</div>
+          </div>
+
           <!-- Charging Alarm & Vibration Simulation Controls -->
           <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 8px;">
             <div class="card-title">
@@ -1652,6 +1664,60 @@
       <div id="fsModalBody" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;"></div>
     </div>
 
+    <!-- CHARGING ASSEMBLY & LIGHTNING ANIMATION MODAL -->
+    <div class="fs-modal" id="chargingAssemblyModal" style="background: rgba(5, 8, 13, 0.96); backdrop-filter: blur(8px); padding: 26px 14px 14px; gap: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255, 214, 10, 0.2); border: 1px solid #FFD60A; display: flex; align-items: center; justify-content: center; font-size: 16px;">⚡</div>
+          <div>
+            <div style="font-size: 9px; font-weight: 800; color: #8B949E; letter-spacing: 0.8px;">ANIMAÇÃO DE CARGA · VISTA EXPLODIDA</div>
+            <div style="font-size: 14px; font-weight: 900; color: #FFF;">Montagem Automática &amp; Relâmpago</div>
+          </div>
+        </div>
+        <button style="background: #161D26; border: 1px solid #2B3848; color: #8B949E; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;" onclick="closeChargingAssemblyAnimation()">✕</button>
+      </div>
+
+      <!-- Stage Status Badge -->
+      <div id="assemblyStageBadge" style="background: rgba(255,214,10,0.12); border: 1px solid rgba(255,214,10,0.4); border-radius: 8px; padding: 6px 10px; text-align: center; font-size: 10px; font-family: monospace; font-weight: 800; color: #FFD60A;">
+        VISTA EXPLODIDA · BATERIA ABERTA (SEM TAMPA NEM PARAFUSOS)
+      </div>
+
+      <!-- Canvas Area -->
+      <div style="position: relative; width: 100%; height: 310px; background: #04060A; border-radius: 14px; border: 1px solid #1B2432; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+        <canvas id="assemblyCanvas" width="370" height="310" style="width: 100%; height: 100%;"></canvas>
+      </div>
+
+      <!-- Telemetry Row -->
+      <div style="background: #0D131C; border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #1C2735;">
+        <div style="text-align: center;">
+          <div style="font-size: 8px; font-weight: 800; color: #8B949E;">TENSÃO TOTAL</div>
+          <div style="font-size: 13px; font-weight: 800; color: #FFD60A; font-family: monospace;" id="animVoltage">588.6 V</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 8px; font-weight: 800; color: #8B949E;">CORRENTE CARGA</div>
+          <div style="font-size: 13px; font-weight: 800; color: #32D74B; font-family: monospace;">+30.0 A</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 8px; font-weight: 800; color: #8B949E;">POTÊNCIA</div>
+          <div style="font-size: 13px; font-weight: 800; color: #0A84FF; font-family: monospace;">17.6 kW</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 8px; font-weight: 800; color: #8B949E;">TEMP MÁX</div>
+          <div style="font-size: 13px; font-weight: 800; color: #FFF; font-family: monospace;">34.2 °C</div>
+        </div>
+      </div>
+
+      <!-- Actions / Controls -->
+      <div style="display: flex; gap: 8px;">
+        <button style="flex: 1; background: #161D26; border: 1px solid #2B3848; color: #F0F3F6; padding: 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="restartChargingAssemblyAnimation()">
+          <span>🔄</span> Repetir Animação
+        </button>
+        <button style="background: #FFD60A; border: none; color: #000; padding: 10px 18px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer;" onclick="closeChargingAssemblyAnimation()">
+          Fechar
+        </button>
+      </div>
+    </div>
+
     <!-- BOTTOM NAVIGATION -->
     <div class="bottom-nav">
       <div class="nav-item" onclick="switchPage('connect')" id="nav-connect">
@@ -1726,6 +1792,11 @@
             };
             playBeep(880, 0, 0.12);
             playBeep(1320, 0.16, 0.18);
+            setTimeout(() => {
+              if (typeof openChargingAssemblyAnimation === 'function') {
+                openChargingAssemblyAnimation();
+              }
+            }, 350);
           } else {
             const playBeep = (freq, start, duration) => {
               const osc = ctx.createOscillator();
@@ -2574,6 +2645,375 @@ Gerado pelo LART BMS Mobile System`;
       chgMv.addEventListener('load', () => {
         setupCharger3DHotspots();
       });
+    }
+
+    // ==========================================
+    // CHARGING EXPLODED ASSEMBLY & LIGHTNING ANIMATION
+    // ==========================================
+    let assemblyAnimRAF = 0;
+    let assemblyStartTime = 0;
+    const ASSEMBLY_DURATION = 3600; // ms
+    let sparkParticles = [];
+
+    function initSparkParticles() {
+      sparkParticles = [];
+      for (let i = 0; i < 26; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 25 + Math.random() * 85;
+        sparkParticles.push({
+          x: 185,
+          y: 175,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 15,
+          size: 1.5 + Math.random() * 3,
+          life: 0,
+          maxLife: 0.4 + Math.random() * 0.6,
+          color: Math.random() > 0.4 ? '#FFD60A' : '#0A84FF'
+        });
+      }
+    }
+
+    function openChargingAssemblyAnimation() {
+      const modal = document.getElementById('chargingAssemblyModal');
+      if (!modal) return;
+      modal.classList.add('active');
+      restartChargingAssemblyAnimation();
+    }
+
+    function closeChargingAssemblyAnimation() {
+      const modal = document.getElementById('chargingAssemblyModal');
+      if (modal) modal.classList.remove('active');
+      if (assemblyAnimRAF) {
+        cancelAnimationFrame(assemblyAnimRAF);
+        assemblyAnimRAF = 0;
+      }
+    }
+
+    function restartChargingAssemblyAnimation() {
+      if (assemblyAnimRAF) cancelAnimationFrame(assemblyAnimRAF);
+      initSparkParticles();
+      assemblyStartTime = performance.now();
+      renderAssemblyLoop();
+    }
+
+    function renderAssemblyLoop() {
+      const now = performance.now();
+      const elapsed = now - assemblyStartTime;
+      const progress = Math.min(1.0, elapsed / ASSEMBLY_DURATION);
+
+      drawAssemblyScene(progress, now);
+
+      assemblyAnimRAF = requestAnimationFrame(renderAssemblyLoop);
+    }
+
+    function drawAssemblyScene(progress, now) {
+      const c = document.getElementById('assemblyCanvas');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width;
+      const h = c.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Status text & colors
+      const badge = document.getElementById('assemblyStageBadge');
+      if (badge) {
+        if (progress < 0.28) {
+          badge.textContent = "VISTA EXPLODIDA · BATERIA ABERTA (SEM TAMPA NEM PARAFUSOS)";
+          badge.style.color = "#0A84FF";
+          badge.style.borderColor = "rgba(10,132,255,0.4)";
+          badge.style.background = "rgba(10,132,255,0.12)";
+        } else if (progress < 0.58) {
+          badge.textContent = "A MONTAR 6 SEGMENTOS DE CÉLULAS NO CHASSI...";
+          badge.style.color = "#FF9500";
+          badge.style.borderColor = "rgba(255,149,0,0.4)";
+          badge.style.background = "rgba(255,149,0,0.12)";
+        } else if (progress < 0.78) {
+          badge.textContent = "A BAIXAR TAMPA SUPERIOR E APERTAR PARAFUSOS M6...";
+          badge.style.color = "#FFD60A";
+          badge.style.borderColor = "rgba(255,214,10,0.4)";
+          badge.style.background = "rgba(255,214,10,0.12)";
+        } else if (progress < 0.88) {
+          badge.textContent = "ACUMULADOR SELADO · SDC FECHADO";
+          badge.style.color = "#32D74B";
+          badge.style.borderColor = "rgba(50,215,75,0.4)";
+          badge.style.background = "rgba(50,215,75,0.12)";
+        } else {
+          badge.textContent = "⚡ RELÂMPAGO DE CARGA · 588 V ATIVO!";
+          badge.style.color = "#FFD60A";
+          badge.style.borderColor = "#FFD60A";
+          badge.style.background = "rgba(255,214,10,0.2)";
+        }
+      }
+
+      // Background subtle grid
+      ctx.strokeStyle = "rgba(27,36,50,0.3)";
+      ctx.lineWidth = 1;
+      for (let x = 20; x < w; x += 30) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = 20; y < h; y += 30) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      const centerX = w / 2;
+      const chassisY = 210;
+      const chassisW = 280;
+      const chassisH = 68;
+
+      // Draw Chassis Shadow
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.beginPath();
+      ctx.ellipse(centerX, chassisY + chassisH + 4, chassisW * 0.48, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw Battery Enclosure Lower Chassis
+      ctx.fillStyle = "#121822";
+      ctx.strokeStyle = progress >= 0.78 ? "#FFD60A" : "#2E3B4E";
+      ctx.lineWidth = progress >= 0.78 ? 2 : 1.5;
+      roundRect(ctx, centerX - chassisW / 2, chassisY, chassisW, chassisH, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      // Lower Chassis internal bays (6 slots)
+      const slotW = (chassisW - 28) / 6;
+      for (let i = 0; i < 6; i++) {
+        const sx = centerX - chassisW / 2 + 14 + i * slotW;
+        ctx.fillStyle = "#0A0E15";
+        ctx.strokeStyle = "#1A2330";
+        ctx.lineWidth = 1;
+        roundRect(ctx, sx + 2, chassisY + 10, slotW - 4, chassisH - 18, 4);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // 6 Levitation / Assembly Segments
+      const segT = Math.min(1.0, Math.max(0.0, (progress - 0.28) / 0.30));
+      for (let i = 0; i < 6; i++) {
+        const delay = i * 0.12;
+        const indT = Math.min(1.0, Math.max(0.0, (segT - delay) / 0.40));
+        const smoothT = indT * indT * (3 - 2 * indT);
+
+        const targetX = centerX - chassisW / 2 + 14 + i * slotW + 2;
+        const targetY = chassisY + 12;
+
+        const explodedY = targetY - 65 - Math.sin((i / 5) * Math.PI) * 20;
+        const currentY = explodedY + (targetY - explodedY) * smoothT;
+
+        if (smoothT < 0.95) {
+          ctx.strokeStyle = "rgba(10,132,255,0.3)";
+          ctx.setLineDash([3, 4]);
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(targetX + (slotW - 4) / 2, currentY + 36);
+          ctx.lineTo(targetX + (slotW - 4) / 2, targetY + 30);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        ctx.fillStyle = smoothT < 0.95 ? "#1A2536" : "#223145";
+        ctx.strokeStyle = smoothT < 0.95 ? "#0A84FF" : (progress >= 0.88 ? "#FFD60A" : "#3D5370");
+        ctx.lineWidth = 1.2;
+        roundRect(ctx, targetX, currentY, slotW - 4, chassisH - 22, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = progress >= 0.88 ? "#32D74B" : "#FF9500";
+        ctx.beginPath();
+        ctx.arc(targetX + 6, currentY + 5, 2, 0, Math.PI * 2);
+        ctx.arc(targetX + slotW - 10, currentY + 5, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#8B949E";
+        ctx.font = "bold 9px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`S${i+1}`, targetX + (slotW - 4) / 2, currentY + 22);
+      }
+
+      // Top Lid and 8 M6 Screws
+      const lidT = Math.min(1.0, Math.max(0.0, (progress - 0.58) / 0.20));
+      let lidEase = lidT;
+      if (lidT > 0 && lidT < 1.0) {
+        lidEase = Math.sin(lidT * Math.PI / 2);
+      }
+      const lidTargetY = chassisY - 8;
+      const lidExplodedY = 48;
+      const currentLidY = lidExplodedY + (lidTargetY - lidExplodedY) * lidEase;
+
+      if (lidT < 0.95) {
+        ctx.strokeStyle = "rgba(255,214,10,0.35)";
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(centerX - chassisW / 2 + 10, currentLidY + 16);
+        ctx.lineTo(centerX - chassisW / 2 + 10, chassisY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(centerX + chassisW / 2 - 10, currentLidY + 16);
+        ctx.lineTo(centerX + chassisW / 2 - 10, chassisY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      ctx.fillStyle = "#161D26";
+      ctx.strokeStyle = progress >= 0.78 ? "#FFD60A" : "#4A5D75";
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, centerX - chassisW / 2 - 3, currentLidY, chassisW + 6, 18, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#FFD60A";
+      ctx.font = "8px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("FSLART TEK-26e · 588V TS ACCUMULATOR", centerX, currentLidY + 12);
+
+      // 8 Screws M6
+      const screwT = Math.min(1.0, Math.max(0.0, (progress - 0.70) / 0.15));
+      const screwXs = [
+        centerX - chassisW / 2 + 8,
+        centerX - chassisW / 2 + 48,
+        centerX - chassisW / 2 + 95,
+        centerX - chassisW / 2 + 138,
+        centerX + chassisW / 2 - 138,
+        centerX + chassisW / 2 - 95,
+        centerX + chassisW / 2 - 48,
+        centerX + chassisW / 2 - 8
+      ];
+
+      screwXs.forEach((sx, idx) => {
+        const screwTargetY = (progress >= 0.78 ? lidTargetY + 9 : currentLidY + 9);
+        const screwExplodedY = 22 + (idx % 2 === 0 ? 0 : 8);
+        const curSy = screwExplodedY + (screwTargetY - screwExplodedY) * screwT;
+
+        if (screwT < 0.95) {
+          ctx.strokeStyle = "rgba(255,214,10,0.4)";
+          ctx.setLineDash([2, 3]);
+          ctx.beginPath();
+          ctx.moveTo(sx, curSy);
+          ctx.lineTo(sx, currentLidY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        ctx.save();
+        ctx.translate(sx, curSy);
+        ctx.rotate(screwT * Math.PI * 6 + idx);
+        ctx.fillStyle = progress >= 0.85 ? "#FFD60A" : "#8B949E";
+        ctx.beginPath();
+        ctx.arc(0, 0, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-2, 0); ctx.lineTo(2, 0);
+        ctx.moveTo(0, -2); ctx.lineTo(0, 2);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // LIGHTNING STRIKE & ELECTRIC SHOCKWAVE (Progress >= 0.85)
+      if (progress >= 0.85) {
+        const strikePhase = (progress - 0.85) / 0.15;
+
+        // Flash of Light
+        if (strikePhase < 0.35) {
+          const flashAlpha = (1.0 - (strikePhase / 0.35)) * 0.45;
+          ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
+          ctx.fillRect(0, 0, w, h);
+        }
+
+        // Radial Shockwave Ring
+        const shockRadius = 20 + strikePhase * 160;
+        const shockAlpha = Math.max(0, 1.0 - strikePhase * 1.1);
+        ctx.strokeStyle = `rgba(10, 132, 255, ${shockAlpha})`;
+        ctx.lineWidth = 3 * (1.0 - strikePhase);
+        ctx.beginPath();
+        ctx.arc(centerX, chassisY + chassisH / 2, shockRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Flying Spark Particles
+        sparkParticles.forEach(p => {
+          p.x += p.vx * 0.016;
+          p.y += p.vy * 0.016;
+          p.life += 0.016;
+          if (p.life < p.maxLife) {
+            const pAlpha = 1.0 - (p.life / p.maxLife);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = pAlpha;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+          }
+        });
+
+        // GIANT ELECTRIC LIGHTNING BOLT
+        const boltPoints = [
+          { x: centerX + (Math.sin(now * 0.02) * 6), y: 12 },
+          { x: centerX - 14 + (Math.sin(now * 0.03) * 8), y: 45 },
+          { x: centerX + 18, y: 85 },
+          { x: centerX - 10, y: 125 },
+          { x: centerX + 24, y: 165 },
+          { x: centerX - 6, y: chassisY - 8 },
+          { x: centerX, y: chassisY + 20 }
+        ];
+
+        ctx.shadowColor = "#FFD60A";
+        ctx.shadowBlur = 18;
+        ctx.strokeStyle = "rgba(255, 214, 10, 0.8)";
+        ctx.lineWidth = 7;
+        drawJaggedPath(ctx, boltPoints);
+
+        ctx.shadowColor = "#0A84FF";
+        ctx.shadowBlur = 12;
+        ctx.strokeStyle = "#00F0FF";
+        ctx.lineWidth = 3.5;
+        drawJaggedPath(ctx, boltPoints);
+
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 2;
+        drawJaggedPath(ctx, boltPoints);
+
+        const subBranch = [
+          boltPoints[3],
+          { x: boltPoints[3].x - 28, y: boltPoints[3].y + 25 },
+          { x: boltPoints[3].x - 38, y: boltPoints[3].y + 45 }
+        ];
+        ctx.strokeStyle = "rgba(10, 132, 255, 0.75)";
+        ctx.lineWidth = 2;
+        drawJaggedPath(ctx, subBranch);
+
+        const pulse = (Math.sin(now * 0.015) + 1) / 2;
+        ctx.fillStyle = `rgba(255, 214, 10, ${0.4 + pulse * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(centerX - 90, chassisY + 12, 6 + pulse * 4, 0, Math.PI * 2);
+        ctx.arc(centerX + 90, chassisY + 12, 6 + pulse * 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawJaggedPath(ctx, points) {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
     }
 
     // Protocol check for desktop preview

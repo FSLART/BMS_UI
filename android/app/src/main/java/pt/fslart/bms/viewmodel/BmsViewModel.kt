@@ -69,6 +69,11 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
     private val _voltageHistory = MutableStateFlow<List<Float>>(emptyList())
     val voltageHistory: StateFlow<List<Float>> = _voltageHistory.asStateFlow()
 
+    // Charging Animation Modal state (exploded battery assembly & lightning)
+    private val _showChargingAnimation = MutableStateFlow(false)
+    val showChargingAnimation: StateFlow<Boolean> = _showChargingAnimation.asStateFlow()
+    private var previousChargingState: Boolean = false
+
     init {
         // Collect real BLE state
         viewModelScope.launch {
@@ -77,6 +82,10 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
                     _bmsState.value = state
                     appendHistory(state.pack.current, state.pack.voltage)
                     chargingAlertManager.onChargingStateUpdated(state.isCharging)
+                    if (state.isCharging && !previousChargingState) {
+                        _showChargingAnimation.value = true
+                    }
+                    previousChargingState = state.isCharging
                 }
             }
         }
@@ -159,6 +168,10 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
                     bleManager.injectSimulatorState(fakeState)
                     appendHistory(fakeState.pack.current, fakeState.pack.voltage)
                     chargingAlertManager.onChargingStateUpdated(fakeState.isCharging)
+                    if (fakeState.isCharging && !previousChargingState) {
+                        _showChargingAnimation.value = true
+                    }
+                    previousChargingState = fakeState.isCharging
                     delay(1000L) // 1 sample per second like the real RN4871
                 }
             }
@@ -243,6 +256,14 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
     fun triggerChargingAlert(start: Boolean) {
         if (start) chargingAlertManager.triggerChargingStartedAlert()
         else chargingAlertManager.triggerChargingStoppedAlert()
+    }
+
+    fun triggerChargingAnimation() {
+        _showChargingAnimation.value = true
+    }
+
+    fun dismissChargingAnimation() {
+        _showChargingAnimation.value = false
     }
 
     override fun onCleared() {

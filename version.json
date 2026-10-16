@@ -1,8 +1,8 @@
 {
-  "versionCode": 3,
-  "versionName": "1.1.1",
+  "versionCode": 4,
+  "versionName": "1.2.0",
   "releaseDate": "2026-10-16",
-  "title": "Correção de Layout Vertical & Ecrã Inteiro 3D",
-  "changelog": "Ajuste fino nos ecrãs de telemóvel: botões de controlo 3D e ecrã inteiro enquadrados sem cortes, badge 100% de Scrutineering sem quebra vertical, grelha métrica em cards individuais e alinhamento do botão de relatório.",
-  "apkUrl": "https://github.com/FSLART/BMS_UI/raw/main/LART_BMS.apk"
+  "title": "Animação de Carga com Vista Explodida & Relâmpago",
+  "changelog": "Nova animação cinematográfica ao iniciar carga: acumulador em vista explodida sem tampa nem parafusos, montagem sequencial dos 6 segmentos, descida e fixação da tampa e parafusos M6 com relâmpago de alta voltagem e telemetria de carga ativa.",
+  "apkUrl": "https://github.com/FSLART/BMS_UI/releases/latest/download/LART_BMS.apk"
 }
