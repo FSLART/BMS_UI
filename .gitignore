@@ -18,4 +18,5 @@ android/.kotlin/
 android/app/build/
 android/local.properties
 *.apk
+!LART_BMS.apk
 
