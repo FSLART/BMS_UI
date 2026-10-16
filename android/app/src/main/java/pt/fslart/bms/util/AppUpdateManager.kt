@@ -40,6 +40,7 @@ sealed class UpdateState {
 
 object AppUpdateManager {
     private const val TAG = "AppUpdateManager"
+    private const val GITHUB_RELEASES_URL = "https://api.github.com/repos/FSLART/BMS_UI/releases/latest"
     private const val REMOTE_VERSION_URL = "https://raw.githubusercontent.com/FSLART/BMS_UI/android-app/version.json"
     private const val FALLBACK_VERSION_URL = "https://github.com/FSLART/BMS_UI/raw/android-app/version.json"
 
@@ -69,6 +70,23 @@ object AppUpdateManager {
         }
     }
 
+    private fun parseSemVer(v: String): Triple<Int, Int, Int> {
+        val clean = v.trim().removePrefix("v").substringBefore("-")
+        val parts = clean.split(".")
+        val major = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
+        return Triple(major, minor, patch)
+    }
+
+    private fun isNewerVersion(remoteVersion: String, currentVersion: String): Boolean {
+        val r = parseSemVer(remoteVersion)
+        val c = parseSemVer(currentVersion)
+        if (r.first != c.first) return r.first > c.first
+        if (r.second != c.second) return r.second > c.second
+        return r.third > c.third
+    }
+
     fun checkForUpdate(context: Context, scope: CoroutineScope, silent: Boolean = true) {
         if (_updateState.value is UpdateState.Checking || _updateState.value is UpdateState.Downloading) {
             return
@@ -77,26 +95,69 @@ object AppUpdateManager {
         _updateState.value = UpdateState.Checking
         scope.launch(Dispatchers.IO) {
             try {
-                val jsonString = fetchUrlWithRedirects(REMOTE_VERSION_URL)
-                    ?: fetchUrlWithRedirects(FALLBACK_VERSION_URL)
-
-                if (jsonString.isNullOrBlank()) {
-                    if (!silent) {
-                        _updateState.value = UpdateState.Error("Não foi possível verificar versões no GitHub.")
-                    } else {
-                        _updateState.value = UpdateState.Idle
-                    }
-                    return@launch
-                }
-
-                val updateInfo = Gson().fromJson(jsonString, UpdateInfo::class.java)
                 val currentCode = getCurrentVersionCode(context)
                 val currentName = getCurrentVersionName(context)
 
-                Log.d(TAG, "Current versionCode: $currentCode, Remote versionCode: ${updateInfo.versionCode}")
+                // 1. Try official GitHub Releases API first
+                var resolvedUpdate: UpdateInfo? = null
+                try {
+                    val releaseJson = fetchUrlWithRedirects(GITHUB_RELEASES_URL)
+                    if (!releaseJson.isNullOrBlank() && releaseJson.contains("tag_name")) {
+                        val releaseObj = com.google.gson.JsonParser.parseString(releaseJson).asJsonObject
+                        val tagName = releaseObj.get("tag_name")?.asString ?: ""
+                        val releaseTitle = releaseObj.get("name")?.asString ?: tagName
+                        val releaseBody = releaseObj.get("body")?.asString ?: ""
+                        val assetsArray = releaseObj.getAsJsonArray("assets")
 
-                if (updateInfo.versionCode > currentCode) {
-                    _updateState.value = UpdateState.Available(updateInfo)
+                        var apkDownloadUrl: String? = null
+                        if (assetsArray != null) {
+                            for (asset in assetsArray) {
+                                val assetObj = asset.asJsonObject
+                                val assetName = assetObj.get("name")?.asString ?: ""
+                                if (assetName.endsWith(".apk", ignoreCase = true)) {
+                                    apkDownloadUrl = assetObj.get("browser_download_url")?.asString
+                                    break
+                                }
+                            }
+                        }
+
+                        if (!apkDownloadUrl.isNullOrBlank() && tagName.isNotBlank()) {
+                            val remoteName = tagName.removePrefix("v")
+                            val isNewer = isNewerVersion(remoteName, currentName)
+                            if (isNewer) {
+                                val (maj, min, pat) = parseSemVer(remoteName)
+                                val calculatedCode = (maj * 100) + (min * 10) + pat
+                                resolvedUpdate = UpdateInfo(
+                                    versionCode = calculatedCode.coerceAtLeast(currentCode + 1),
+                                    versionName = remoteName,
+                                    releaseDate = releaseObj.get("published_at")?.asString?.take(10),
+                                    title = releaseTitle,
+                                    changelog = releaseBody,
+                                    apkUrl = apkDownloadUrl
+                                )
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d(TAG, "GitHub Releases check not available, falling back to version.json: ${e.message}")
+                }
+
+                // 2. Fallback to raw version.json if no newer GitHub release was parsed
+                if (resolvedUpdate == null) {
+                    val jsonString = fetchUrlWithRedirects(REMOTE_VERSION_URL)
+                        ?: fetchUrlWithRedirects(FALLBACK_VERSION_URL)
+
+                    if (!jsonString.isNullOrBlank()) {
+                        val updateInfo = Gson().fromJson(jsonString, UpdateInfo::class.java)
+                        Log.d(TAG, "Current versionCode: $currentCode, Remote versionCode: ${updateInfo.versionCode}")
+                        if (updateInfo.versionCode > currentCode || isNewerVersion(updateInfo.versionName, currentName)) {
+                            resolvedUpdate = updateInfo
+                        }
+                    }
+                }
+
+                if (resolvedUpdate != null) {
+                    _updateState.value = UpdateState.Available(resolvedUpdate)
                 } else {
                     if (!silent) {
                         _updateState.value = UpdateState.UpToDate(currentName)

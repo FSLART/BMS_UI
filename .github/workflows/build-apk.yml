@@ -1,25 +1,26 @@
-name: Build and Release Android APK
+name: Build and Release BMS UI
 
 on:
   push:
     branches:
       - android-app
-    paths:
-      - 'android/**'
-      - 'version.json'
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build Android APK
+  build-and-release:
+    name: Build Android APK & Publish GitHub Release
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -37,8 +38,53 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
+      - name: Prepare Release Assets and Notes
+        id: prep
+        run: |
+          VERSION=$(jq -r '.versionName' version.json)
+          TITLE=$(jq -r '.title' version.json)
+          CHANGELOG=$(jq -r '.changelog' version.json)
+          TAG="v$VERSION"
+          
+          # Copy APK to root release name
+          cp android/app/build/outputs/apk/debug/app-debug.apk LART_BMS.apk
+          
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          
+          # Create release notes markdown file
+          cat << EOF > release_notes.md
+          ## 🏁 LART BMS Monitor — $TAG
+
+          **$TITLE**
+
+          $CHANGELOG
+
+          ### 📦 Binários e Executáveis Disponíveis:
+          - **Android (APK)**: \`LART_BMS.apk\` — Instalar no telemóvel/tablet Android. Suporta atualizações automáticas integradas (OTA).
+          - **Windows (EXE)**: \`BMS_UI_Windows.exe\` — Executável portátil para Windows (sem necessidade de instalação de dependências).
+
+          ---
+          *Release gerada e assinada automaticamente via GitHub Actions.*
+          EOF
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.prep.outputs.tag }}
+          name: "${{ steps.prep.outputs.tag }} — ${{ steps.prep.outputs.title }}"
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          files: |
+            LART_BMS.apk
+            BMS_UI_Windows.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LART_BMS-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: LART_BMS-apk
+          path: LART_BMS.apk

@@ -19,4 +19,5 @@ android/app/build/
 android/local.properties
 *.apk
 !LART_BMS.apk
+!BMS_UI_Windows.exe
 
