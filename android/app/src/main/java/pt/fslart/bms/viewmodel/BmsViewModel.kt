@@ -70,9 +70,6 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
     private val _voltageHistory = MutableStateFlow<List<Float>>(emptyList())
     val voltageHistory: StateFlow<List<Float>> = _voltageHistory.asStateFlow()
 
-    // Charging Animation Modal state (exploded battery assembly & lightning)
-    private val _showChargingAnimation = MutableStateFlow(false)
-    val showChargingAnimation: StateFlow<Boolean> = _showChargingAnimation.asStateFlow()
     private var previousChargingState: Boolean = false
 
     init {
@@ -85,9 +82,6 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
                     chargingAlertManager.onChargingStateUpdated(state.isCharging)
                     if (state.isCharging) {
                         ChargingNotificationService.startOrUpdate(getApplication(), state)
-                        if (!previousChargingState) {
-                            _showChargingAnimation.value = true
-                        }
                     } else if (previousChargingState) {
                         ChargingNotificationService.stop(getApplication())
                     }
@@ -176,9 +170,6 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
                     chargingAlertManager.onChargingStateUpdated(fakeState.isCharging)
                     if (fakeState.isCharging) {
                         ChargingNotificationService.startOrUpdate(getApplication(), fakeState)
-                        if (!previousChargingState) {
-                            _showChargingAnimation.value = true
-                        }
                     } else if (previousChargingState) {
                         ChargingNotificationService.stop(getApplication())
                     }
@@ -268,14 +259,6 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
     fun triggerChargingAlert(start: Boolean) {
         if (start) chargingAlertManager.triggerChargingStartedAlert()
         else chargingAlertManager.triggerChargingStoppedAlert()
-    }
-
-    fun triggerChargingAnimation() {
-        _showChargingAnimation.value = true
-    }
-
-    fun dismissChargingAnimation() {
-        _showChargingAnimation.value = false
     }
 
     override fun onCleared() {

@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import pt.fslart.bms.ui.components.ChargingAssemblyModal
+
 import pt.fslart.bms.ui.components.Fullscreen3DViewer
 import pt.fslart.bms.ui.components.FullscreenCellChartOverlay
 import pt.fslart.bms.ui.components.FullscreenThermChartOverlay
@@ -81,6 +81,11 @@ class MainActivity : ComponentActivity() {
             permissionLauncher.launch(permissionsToRequest.toTypedArray())
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        pt.fslart.bms.service.ChargingNotificationService.resetBackgroundFailure()
+    }
 }
 
 @Composable
@@ -92,10 +97,15 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
     val isThermChartFullscreen by viewModel.isThermChartFullscreen.collectAsState()
     val isThermalView3D by viewModel.isThermalView3D.collectAsState()
     val selectedSegmentId by viewModel.selectedSegmentId.collectAsState()
-    val showChargingAnimation by viewModel.showChargingAnimation.collectAsState()
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+
+    val isAnyOverlayActive = fullscreen3D != null || isCellChartFullscreen || isThermChartFullscreen
+    BackHandler(enabled = !isAnyOverlayActive) {
+        // Spotify-style backgrounding: minimizes app without destroying session, BLE connection or telemetry
+        (context as? ComponentActivity)?.moveTaskToBack(true)
+    }
 
     LaunchedEffect(Unit) {
         AppUpdateManager.checkForUpdate(context, coroutineScope, silent = true)
@@ -334,17 +344,6 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
                 tFault = state.car.limits.tempFault,
                 brokenThermistors = state.car.brokenThermistors,
                 onClose = { viewModel.closeThermChartFullscreen() }
-            )
-        }
-
-        // FULLSCREEN CHARGING ASSEMBLY & LIGHTNING ANIMATION OVERLAY
-        if (showChargingAnimation) {
-            BackHandler {
-                viewModel.dismissChargingAnimation()
-            }
-            ChargingAssemblyModal(
-                bmsState = state,
-                onDismiss = { viewModel.dismissChargingAnimation() }
             )
         }
     }
