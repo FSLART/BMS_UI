@@ -20,12 +20,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import pt.fslart.bms.ui.components.Fullscreen3DViewer
 import pt.fslart.bms.ui.components.FullscreenCellChartOverlay
 import pt.fslart.bms.ui.components.FullscreenThermChartOverlay
+import pt.fslart.bms.ui.components.UpdateNotificationBanner
 import pt.fslart.bms.ui.screens.*
 import pt.fslart.bms.ui.theme.*
+import pt.fslart.bms.util.AppUpdateManager
 import pt.fslart.bms.viewmodel.BmsViewModel
 import pt.fslart.bms.viewmodel.ScreenTab
 
@@ -81,6 +84,13 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
     val isThermChartFullscreen by viewModel.isThermChartFullscreen.collectAsState()
     val isThermalView3D by viewModel.isThermalView3D.collectAsState()
     val selectedSegmentId by viewModel.selectedSegmentId.collectAsState()
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        AppUpdateManager.checkForUpdate(context, coroutineScope, silent = true)
+    }
 
     val filteredCells = remember(state.cells, selectedSegmentId) {
         if (selectedSegmentId == null) {
@@ -258,7 +268,16 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
                 }
             ) { padding ->
                 Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-                    ScreenContent(currentTab, viewModel)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        UpdateNotificationBanner(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            ScreenContent(currentTab, viewModel)
+                        }
+                    }
                 }
             }
         }

@@ -1,0 +1,8 @@
+{
+  "versionCode": 2,
+  "versionName": "1.1.0",
+  "releaseDate": "2026-10-16",
+  "title": "Atualização Formula Student Rules 2027",
+  "changelog": "Regras oficiais FS 2027 (EV 4.1.1, EV 5.2.3, EV 5.3.4, EV 5.8.4, EV 5.8.3, EV 5.8.13, EV 5.7.1, EV 5.6, EV 6.1, EV 5.8.15), sincronização térmica 3D contínua e sistema de atualizações automáticas OTA.",
+  "apkUrl": "https://github.com/FSLART/BMS_UI/raw/android-app/LART_BMS.apk"
+}

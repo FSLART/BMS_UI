@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,6 +24,8 @@ import androidx.compose.ui.unit.sp
 import pt.fslart.bms.ble.BleConnectionState
 import pt.fslart.bms.model.CarProfile
 import pt.fslart.bms.ui.theme.*
+import pt.fslart.bms.util.AppUpdateManager
+import pt.fslart.bms.util.UpdateState
 import pt.fslart.bms.viewmodel.BmsViewModel
 
 @Composable
@@ -407,6 +410,101 @@ fun ConnectScreen(
                         uncheckedTrackColor = DarkSurfaceElevated
                     )
                 )
+            }
+        }
+
+        // APP VERSION & GITHUB OTA UPDATE CARD
+        item {
+            val context = LocalContext.current
+            val coroutineScope = rememberCoroutineScope()
+            val updateState by AppUpdateManager.updateState.collectAsState()
+            val currentVersion = remember(context) { AppUpdateManager.getCurrentVersionName(context) }
+            val currentBuild = remember(context) { AppUpdateManager.getCurrentVersionCode(context) }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(DarkSurface)
+                    .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "ATUALIZAÇÕES AUTOMÁTICAS",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = DarkTextMuted,
+                            letterSpacing = 0.6.sp
+                        )
+                        Text(
+                            text = "v$currentVersion (Build $currentBuild)",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = DarkTextPrimary,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            AppUpdateManager.checkForUpdate(context, coroutineScope, silent = false)
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
+                        colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurfaceElevated),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        if (updateState is UpdateState.Checking) {
+                            CircularProgressIndicator(
+                                color = LartYellow,
+                                modifier = Modifier.size(13.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.CloudSync,
+                                contentDescription = null,
+                                tint = LartYellow,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text(
+                            text = "Verificar no GitHub",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LartYellow
+                        )
+                    }
+                }
+
+                if (updateState is UpdateState.UpToDate) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = StatusOkGlow,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "A aplicação está sincronizada com a versão mais recente.",
+                            fontSize = 11.sp,
+                            color = StatusOkGlow
+                        )
+                    }
+                }
             }
         }
     }
