@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="js/model-viewer.min.js"></script>
+</head>
+<body>
+  <model-viewer id="v" src="models/tek26e_open_light.glb" animation-name="fans"></model-viewer>
+  <div id="res">Waiting...</div>
+  <script>
+    const v = document.getElementById('v');
+    v.addEventListener('load', () => {
+      document.getElementById('res').innerText = 'Loaded! Anims: ' + JSON.stringify(v.availableAnimations) + ' | CurrentAnim: ' + v.animationName;
+    });
+  </script>
+</body>
+</html>

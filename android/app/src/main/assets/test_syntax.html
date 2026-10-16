@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script>
+window.onerror = function(msg, url, line, col, err) {
+  document.getElementById('res').innerText = 'ERROR: ' + msg + ' (' + line + ':' + col + ')';
+};
+</script>
+<script src="js/model-viewer.min.js"></script>
+</head>
+<body>
+<div id="res">Element: <script>document.write(typeof customElements.get('model-viewer'));</script></div>
+</body>
+</html>
