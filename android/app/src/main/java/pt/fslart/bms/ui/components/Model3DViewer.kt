@@ -35,6 +35,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.webkit.WebViewAssetLoader
 import pt.fslart.bms.ui.theme.*
+import pt.fslart.bms.viewmodel.BmsViewModel
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -45,7 +46,8 @@ fun Model3DViewer(
     selectedSegment: Int = 1,
     height: Dp = 320.dp,
     showControls: Boolean = true,
-    title: String? = null
+    title: String? = null,
+    onMaximize: (() -> Unit)? = null
 ) {
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var isAutoRotate by remember { mutableStateOf(false) }
@@ -134,7 +136,13 @@ fun Model3DViewer(
 
                             // Maximize to Fullscreen
                             IconButton(
-                                onClick = { isMaximized = true },
+                                onClick = {
+                                    if (onMaximize != null) {
+                                        onMaximize()
+                                    } else {
+                                        isMaximized = true
+                                    }
+                                },
                                 modifier = Modifier
                                     .size(30.dp)
                                     .clip(RoundedCornerShape(6.dp))
@@ -169,7 +177,7 @@ fun Model3DViewer(
         }
     }
 
-    // FULLSCREEN 3D DIALOG
+    // LOCAL FULLSCREEN FALLBACK (IF onMaximize NOT PROVIDED)
     if (isMaximized) {
         Dialog(
             onDismissRequest = { isMaximized = false },
@@ -178,47 +186,66 @@ fun Model3DViewer(
                 decorFitsSystemWindows = false
             )
         ) {
-            val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-            SideEffect {
-                dialogWindow?.let { window ->
-                    window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                    window.setBackgroundDrawableResource(android.R.color.transparent)
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-                }
-            }
+            Fullscreen3DViewer(
+                request = BmsViewModel.Fullscreen3DRequest(
+                    modelFile = modelFile,
+                    title = title,
+                    selectedSegment = selectedSegment,
+                    isAutoRotate = isAutoRotate
+                ),
+                bmsState = bmsState,
+                onClose = { isMaximized = false }
+            )
+        }
+    }
+}
 
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = Color(0xFF070A0F)
+@Composable
+fun Fullscreen3DViewer(
+    request: BmsViewModel.Fullscreen3DRequest,
+    bmsState: pt.fslart.bms.model.BmsState?,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = Color(0xFF070A0F)
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val isLandscape = maxWidth > maxHeight
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(
+                        horizontal = if (isLandscape) 16.dp else 12.dp,
+                        vertical = if (isLandscape) 4.dp else 8.dp
+                    )
             ) {
-                Column(
+                // Sleek Header
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .fillMaxWidth()
+                        .padding(bottom = if (isLandscape) 4.dp else 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Header
-                    Row(
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .weight(1f)
+                            .padding(end = 12.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 12.dp)
-                        ) {
-                            Text(
-                                text = title ?: "VISUALIZADOR 3D LART",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = DarkTextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                        Text(
+                            text = request.title ?: "VISUALIZADOR 3D LART",
+                            fontSize = if (isLandscape) 12.sp else 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = DarkTextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (!isLandscape) {
                             Text(
                                 text = "Arrasta para rodar · Pinça para zoom",
                                 fontSize = 10.sp,
@@ -227,29 +254,56 @@ fun Model3DViewer(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-
-                        Button(
-                            onClick = { isMaximized = false },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceElevated, contentColor = Color.White),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Icon(Icons.Default.FullscreenExit, contentDescription = "Minimizar", modifier = Modifier.size(16.dp), tint = LartYellow)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Fechar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LartYellow)
-                        }
                     }
 
-                    // Fullscreen 3D View
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        AndroidView(
-                            factory = { ctx ->
-                                createConfiguredWebView(ctx, modelFile, isAutoRotate, bmsState, selectedSegment)
-                            },
-                            modifier = Modifier.fillMaxSize()
+                    Button(
+                        onClick = onClose,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DarkSurfaceElevated,
+                            contentColor = Color.White
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(
+                            horizontal = if (isLandscape) 10.dp else 12.dp,
+                            vertical = if (isLandscape) 4.dp else 6.dp
+                        ),
+                        modifier = Modifier.height(if (isLandscape) 30.dp else 36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.FullscreenExit,
+                            contentDescription = "Minimizar",
+                            modifier = Modifier.size(14.dp),
+                            tint = LartYellow
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "Fechar",
+                            fontSize = if (isLandscape) 11.sp else 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LartYellow
                         )
                     }
+                }
+
+                // Fullscreen 3D View (taking 100% of remaining area)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    AndroidView(
+                        factory = { ctx ->
+                            createConfiguredWebView(
+                                ctx,
+                                request.modelFile,
+                                request.isAutoRotate,
+                                bmsState,
+                                request.selectedSegment
+                            )
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }

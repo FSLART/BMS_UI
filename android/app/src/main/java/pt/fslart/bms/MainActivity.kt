@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -20,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import pt.fslart.bms.ui.components.Fullscreen3DViewer
 import pt.fslart.bms.ui.screens.*
 import pt.fslart.bms.ui.theme.*
 import pt.fslart.bms.viewmodel.BmsViewModel
@@ -72,14 +74,16 @@ class MainActivity : ComponentActivity() {
 fun MainAppScaffold(viewModel: BmsViewModel) {
     val currentTab by viewModel.currentTab.collectAsState()
     val state by viewModel.bmsState.collectAsState()
+    val fullscreen3D by viewModel.fullscreen3D.collectAsState()
 
-    // Adaptive layout based on window width: phones get BottomBar, tablets get NavigationRail
-    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
-        val isTablet = maxWidth >= 650.dp
+    Box(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
+        // Adaptive layout based on window width: phones get BottomBar, tablets get NavigationRail
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val isTablet = maxWidth >= 650.dp
 
-        if (isTablet) {
-            // TABLET / WIDE LAYOUT (NAVIGATION RAIL ON THE LEFT)
-            Row(modifier = Modifier.fillMaxSize()) {
+            if (isTablet) {
+                // TABLET / WIDE LAYOUT (NAVIGATION RAIL ON THE LEFT)
+                Row(modifier = Modifier.fillMaxSize()) {
                 NavigationRail(
                     containerColor = DarkSurface,
                     contentColor = DarkTextSecondary,
@@ -221,6 +225,19 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
             }
         }
     }
+
+    // FULLSCREEN 3D OVERLAY (DIRECT ON TOP OF MAIN WINDOW)
+    fullscreen3D?.let { req ->
+        BackHandler {
+            viewModel.closeFullscreen3D()
+        }
+        Fullscreen3DViewer(
+            request = req,
+            bmsState = state,
+            onClose = { viewModel.closeFullscreen3D() }
+        )
+    }
+}
 }
 
 @Composable

@@ -189,6 +189,13 @@ fun Model3DScreen(
             height = 340.dp,
             showControls = true,
             title = "${selectedModel.title} — ${selectedModel.subtitle}",
+            onMaximize = {
+                viewModel.openFullscreen3D(
+                    modelFile = selectedModel.fileName,
+                    title = "${selectedModel.title} — ${selectedModel.subtitle}",
+                    selectedSegment = selectedSegmentNum
+                )
+            },
             modifier = Modifier.fillMaxWidth()
         )
 

@@ -522,6 +522,28 @@
       background: #FFD60A;
       color: #000;
     }
+    @media (max-height: 520px) {
+      .hotspot.hs-compact {
+        padding: 1px 4.5px;
+        font-size: 8px;
+        gap: 3px;
+        border-radius: 4px;
+      }
+      .hotspot.hs-compact .dot {
+        width: 4px;
+        height: 4px;
+      }
+      .segment-filters {
+        top: 6px;
+        left: 8px;
+        padding: 2px;
+        gap: 3px;
+      }
+      .seg-filter-btn {
+        font-size: 9px;
+        padding: 3px 6px;
+      }
+    }
     .model-card {
       background: #0E131A;
       border: 1px solid #1C242F;
@@ -1274,8 +1296,8 @@
         file: 'frontend/models/seguemento.glb',
         title: 'Módulo de Segmento (24 Células)',
         desc: 'Módulo padrão com duas placas BMS Slave e barramentos niquelados com monitorização individual.',
-        orbit: '-18deg 86deg 118%',
-        fov: '34deg',
+        orbit: '-18deg 86deg 148%',
+        fov: '38deg',
         orientation: '0deg 90deg 0deg',
         target: 'auto auto auto',
         hotspots: [

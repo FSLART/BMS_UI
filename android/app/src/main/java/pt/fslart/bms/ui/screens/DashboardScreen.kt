@@ -231,6 +231,12 @@ fun DashboardScreen(
                 bmsState = state,
                 height = 260.dp,
                 title = "CARRO TEK-26e 3D · SOLIDWORKS CAD",
+                onMaximize = {
+                    viewModel.openFullscreen3D(
+                        modelFile = "tek26e_closed.glb",
+                        title = "CARRO TEK-26e 3D · SOLIDWORKS CAD"
+                    )
+                },
                 modifier = Modifier.fillMaxWidth()
             )
         }

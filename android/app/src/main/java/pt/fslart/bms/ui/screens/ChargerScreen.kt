@@ -134,6 +134,12 @@ fun ChargerScreen(
                     bmsState = state,
                     height = 360.dp,
                     title = "Handcart T26 com Acumulador em Carga",
+                    onMaximize = {
+                        viewModel.openFullscreen3D(
+                            modelFile = "tek26e_charger.glb",
+                            title = "Handcart T26 com Acumulador em Carga"
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             }

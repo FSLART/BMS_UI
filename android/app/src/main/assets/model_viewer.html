@@ -266,6 +266,39 @@
       width: 13px;
       height: 13px;
     }
+
+    @media (max-height: 520px) {
+      .hotspot.hs-compact {
+        padding: 1px 4.5px;
+        font-size: 8px;
+        gap: 3px;
+        border-radius: 4px;
+      }
+      .hotspot.hs-compact .dot {
+        width: 4px;
+        height: 4px;
+      }
+      .segment-filters {
+        top: 6px;
+        left: 8px;
+        padding: 2px;
+        gap: 3px;
+      }
+      .seg-filter-btn {
+        font-size: 9px;
+        padding: 3px 6px;
+      }
+      .view-reset-btn {
+        bottom: 6px;
+        right: 8px;
+        font-size: 10px;
+        padding: 4px 8px;
+      }
+      .view-reset-btn svg {
+        width: 11px;
+        height: 11px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -358,8 +391,8 @@
         ]
       },
       'seguemento.glb': {
-        orbit: '-18deg 86deg 118%',
-        fov: '34deg',
+        orbit: '-18deg 86deg 148%',
+        fov: '38deg',
         orientation: '0deg 90deg 0deg',
         target: 'auto auto auto',
         hotspots: [
@@ -574,6 +607,16 @@
       }
     }
 
+    function getAdjustedOrbit(modelFile) {
+      const cfg = MODEL_CONFIGS[modelFile];
+      if (!cfg) return '45deg 70deg 110%';
+      const isLandscape = window.innerWidth > window.innerHeight;
+      if (modelFile === 'seguemento.glb') {
+        return isLandscape ? '-18deg 86deg 154%' : '-18deg 86deg 132%';
+      }
+      return cfg.orbit;
+    }
+
     function loadModel(modelFile, autoRotate = true) {
       if (!modelFile) return;
       const targetSrc = 'models/' + modelFile;
@@ -588,7 +631,7 @@
       if (cfg) {
         if (cfg.orientation) viewerEl.setAttribute('orientation', cfg.orientation);
         else viewerEl.removeAttribute('orientation');
-        if (cfg.orbit) viewerEl.cameraOrbit = cfg.orbit;
+        viewerEl.cameraOrbit = getAdjustedOrbit(modelFile);
         if (cfg.fov) viewerEl.fieldOfView = cfg.fov;
         if (cfg.target) viewerEl.cameraTarget = cfg.target;
       } else {
@@ -667,7 +710,7 @@
       if (cfg) {
         if (cfg.orientation) viewerEl.setAttribute('orientation', cfg.orientation);
         else viewerEl.removeAttribute('orientation');
-        if (cfg.orbit) viewerEl.cameraOrbit = cfg.orbit;
+        viewerEl.cameraOrbit = getAdjustedOrbit(currentModel);
         if (cfg.fov) viewerEl.fieldOfView = cfg.fov;
         if (cfg.target) viewerEl.cameraTarget = cfg.target;
       } else {
@@ -677,6 +720,18 @@
       }
       viewerEl.jumpCameraToGoal();
     }
+
+    let lastW = window.innerWidth;
+    let lastH = window.innerHeight;
+    window.addEventListener('resize', () => {
+      if (Math.abs(window.innerWidth - lastW) > 40 || Math.abs(window.innerHeight - lastH) > 40) {
+        lastW = window.innerWidth;
+        lastH = window.innerHeight;
+        if (currentModel && MODEL_CONFIGS[currentModel]) {
+          viewerEl.cameraOrbit = getAdjustedOrbit(currentModel);
+        }
+      }
+    });
 
     function toggleAutoRotate(enabled) {
       if (enabled === undefined) {

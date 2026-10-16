@@ -180,6 +180,25 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         _voltageHistory.value = voltList
     }
 
+    // Fullscreen 3D Overlay Request
+    data class Fullscreen3DRequest(
+        val modelFile: String,
+        val title: String?,
+        val selectedSegment: Int = 1,
+        val isAutoRotate: Boolean = false
+    )
+
+    private val _fullscreen3D = MutableStateFlow<Fullscreen3DRequest?>(null)
+    val fullscreen3D: StateFlow<Fullscreen3DRequest?> = _fullscreen3D.asStateFlow()
+
+    fun openFullscreen3D(modelFile: String, title: String?, selectedSegment: Int = 1, isAutoRotate: Boolean = false) {
+        _fullscreen3D.value = Fullscreen3DRequest(modelFile, title, selectedSegment, isAutoRotate)
+    }
+
+    fun closeFullscreen3D() {
+        _fullscreen3D.value = null
+    }
+
     override fun onCleared() {
         super.onCleared()
         simulatorJob?.cancel()
