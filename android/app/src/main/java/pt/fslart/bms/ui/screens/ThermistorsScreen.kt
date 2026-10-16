@@ -211,6 +211,7 @@ fun ThermistorsScreen(
                     tWarn = state.car.limits.tempWarn,
                     tFault = state.car.limits.tempFault,
                     brokenThermistors = state.car.brokenThermistors,
+                    onMaximize = { viewModel.openThermChartFullscreen() },
                     modifier = Modifier.fillMaxWidth()
                 )
 

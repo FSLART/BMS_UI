@@ -199,6 +199,30 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         _fullscreen3D.value = null
     }
 
+    // Fullscreen Cell Chart Overlay
+    private val _isCellChartFullscreen = MutableStateFlow(false)
+    val isCellChartFullscreen: StateFlow<Boolean> = _isCellChartFullscreen.asStateFlow()
+
+    fun openCellChartFullscreen() {
+        _isCellChartFullscreen.value = true
+    }
+
+    fun closeCellChartFullscreen() {
+        _isCellChartFullscreen.value = false
+    }
+
+    // Fullscreen Thermistor Chart Overlay
+    private val _isThermChartFullscreen = MutableStateFlow(false)
+    val isThermChartFullscreen: StateFlow<Boolean> = _isThermChartFullscreen.asStateFlow()
+
+    fun openThermChartFullscreen() {
+        _isThermChartFullscreen.value = true
+    }
+
+    fun closeThermChartFullscreen() {
+        _isThermChartFullscreen.value = false
+    }
+
     override fun onCleared() {
         super.onCleared()
         simulatorJob?.cancel()

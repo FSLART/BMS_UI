@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,12 +52,13 @@ fun CellVoltageBarChart(
     vMaxLimit: Float = 4.30f,
     vWarnLow: Float = 2.80f,
     vWarnHigh: Float = 4.15f,
+    onMaximize: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isMaximized by remember { mutableStateOf(false) }
     var selectedCell by remember { mutableStateOf<Cell?>(null) }
 
-    // Find global minimum and maximum healthy cells
+    // Find global minimum and maximum healthy cells (ENTIRE PACK)
     val validCells = cells.filter { it.status != Severity.UNKNOWN && !it.openWire && it.voltage > 0f }
     val minCell = validCells.minByOrNull { it.voltage }
     val maxCell = validCells.maxByOrNull { it.voltage }
@@ -93,9 +95,10 @@ fun CellVoltageBarChart(
             // Highlighting Min (Blue) and Max (Red) Callouts + Maximize Button
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (maxCell != null) {
+                    val maxGlobal = (maxCell.segment - 1) * 24 + maxCell.index
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "▲ MÁX (#${maxCell.index})",
+                            text = "▲ MÁX (#$maxGlobal · S${maxCell.segment})",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = ChartMaxRed
@@ -111,9 +114,10 @@ fun CellVoltageBarChart(
                 }
 
                 if (minCell != null) {
+                    val minGlobal = (minCell.segment - 1) * 24 + minCell.index
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "▼ MÍN (#${minCell.index})",
+                            text = "▼ MÍN (#$minGlobal · S${minCell.segment})",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = ChartMinBlue
@@ -149,7 +153,13 @@ fun CellVoltageBarChart(
 
                 // Maximize Button
                 IconButton(
-                    onClick = { isMaximized = true },
+                    onClick = {
+                        if (onMaximize != null) {
+                            onMaximize()
+                        } else {
+                            isMaximized = true
+                        }
+                    },
                     modifier = Modifier
                         .size(32.dp)
                         .clip(RoundedCornerShape(6.dp))
@@ -231,175 +241,234 @@ fun CellVoltageBarChart(
         }
     }
 
-    // FULLSCREEN MAXIMIZED DIALOG
+    // LOCAL FULLSCREEN FALLBACK (IF onMaximize NOT PROVIDED)
     if (isMaximized) {
         Dialog(
             onDismissRequest = { isMaximized = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
         ) {
-            Box(
+            FullscreenCellChartOverlay(
+                cells = cells,
+                vMinLimit = vMinLimit,
+                vMaxLimit = vMaxLimit,
+                vWarnLow = vWarnLow,
+                vWarnHigh = vWarnHigh,
+                onClose = { isMaximized = false }
+            )
+        }
+    }
+}
+
+@Composable
+fun FullscreenCellChartOverlay(
+    cells: List<Cell>,
+    vMinLimit: Float = 2.50f,
+    vMaxLimit: Float = 4.30f,
+    vWarnLow: Float = 2.80f,
+    vWarnHigh: Float = 4.15f,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var selectedCell by remember { mutableStateOf<Cell?>(null) }
+
+    // Find global minimum and maximum healthy cells (ENTIRE PACK)
+    val validCells = cells.filter { it.status != Severity.UNKNOWN && !it.openWire && it.voltage > 0f }
+    val minCell = validCells.minByOrNull { it.voltage }
+    val maxCell = validCells.maxByOrNull { it.voltage }
+
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = Color(0xFF070A0F)
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val isLandscape = maxWidth > maxHeight
+
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(DarkBackground)
-                    .systemBarsPadding()
-                    .padding(14.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = if (isLandscape) 14.dp else 12.dp, vertical = if (isLandscape) 4.dp else 8.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isLandscape) 4.dp else 8.dp)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                // Fullscreen Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Fullscreen Header
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .padding(end = 10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "TENSÃO DAS CÉLULAS",
+                                fontSize = if (isLandscape) 12.sp else 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DarkTextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(LartYellow.copy(alpha = 0.2f))
+                                    .border(1.dp, LartYellow.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "ECRÃ INTEIRO",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LartYellow
+                                )
+                            }
+                        }
+                        if (!isLandscape) {
+                            Text(
+                                text = "${cells.size} Células em Série (144s) · 6 Segmentos",
+                                fontSize = 11.sp,
+                                color = DarkTextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (maxCell != null) {
+                            val maxGlobal = (maxCell.segment - 1) * 24 + maxCell.index
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "▲ MÁX (#$maxGlobal · S${maxCell.segment})",
+                                    fontSize = if (isLandscape) 8.sp else 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ChartMaxRed
+                                )
+                                Text(
+                                    text = "%.3f V".format(maxCell.voltage),
+                                    fontSize = if (isLandscape) 12.sp else 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = ChartMaxRed,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        if (minCell != null) {
+                            val minGlobal = (minCell.segment - 1) * 24 + minCell.index
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "▼ MÍN (#$minGlobal · S${minCell.segment})",
+                                    fontSize = if (isLandscape) 8.sp else 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ChartMinBlue
+                                )
+                                Text(
+                                    text = "%.3f V".format(minCell.voltage),
+                                    fontSize = if (isLandscape) 12.sp else 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = ChartMinBlue,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = onClose,
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceElevated, contentColor = Color.White),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(if (isLandscape) 30.dp else 34.dp)
+                        ) {
+                            Icon(Icons.Default.FullscreenExit, contentDescription = "Fechar", modifier = Modifier.size(14.dp), tint = LartYellow)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Fechar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LartYellow)
+                        }
+                    }
+                }
+
+                // Selected Banner
+                selectedCell?.let { cell ->
+                    val globalIdx = (cell.segment - 1) * 24 + cell.index
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(DarkSurfaceElevated)
+                            .border(1.dp, LartYellow, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "TENSÃO DAS CÉLULAS",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = DarkTextPrimary
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(LartYellow.copy(alpha = 0.2f))
-                                        .border(1.dp, LartYellow.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "ECRÃ INTEIRO",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LartYellow
-                                    )
-                                }
-                            }
                             Text(
-                                text = "${cells.size} Células em Série (144s) · 6 Segmentos",
+                                text = "Célula #$globalIdx (Segmento ${cell.segment} · #${cell.index}) · Slave ${cell.slave}",
                                 fontSize = 11.sp,
-                                color = DarkTextSecondary
+                                fontWeight = FontWeight.Bold,
+                                color = DarkTextPrimary
                             )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            if (maxCell != null) {
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text("▲ MÁX (#${maxCell.index})", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ChartMaxRed)
-                                    Text(
-                                        text = "%.3f V".format(maxCell.voltage),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = ChartMaxRed,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-                            }
-                            if (minCell != null) {
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text("▼ MÍN (#${minCell.index})", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ChartMinBlue)
-                                    Text(
-                                        text = "%.3f V".format(minCell.voltage),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = ChartMinBlue,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-                            }
-
-                            Button(
-                                onClick = { isMaximized = false },
-                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceElevated, contentColor = Color.White),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Icon(Icons.Default.FullscreenExit, contentDescription = "Minimizar", modifier = Modifier.size(16.dp), tint = LartYellow)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Minimizar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LartYellow)
-                            }
-                        }
-                    }
-
-                    // Selected Banner
-                    selectedCell?.let { cell ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(DarkSurfaceElevated)
-                                .border(1.dp, LartYellow, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Célula #${cell.index} · Segmento ${cell.segment} · Slave ${cell.slave} · Ch ${cell.slaveChannel}",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = DarkTextPrimary
-                                )
-                                Text(
-                                    text = if (cell.balancing) "Balanceamento ativo (A descarregar)" else "Status: ${cell.status}",
-                                    fontSize = 10.sp,
-                                    color = if (cell.balancing) LartYellow else DarkTextSecondary
-                                )
-                            }
                             Text(
-                                text = "%.4f V".format(cell.voltage),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (cell.balancing) LartYellow else ChartOkGreen,
-                                fontFamily = FontFamily.Monospace
+                                text = if (cell.balancing) "Balanceamento ativo (A descarregar)" else "Status: ${cell.status}",
+                                fontSize = 9.sp,
+                                color = if (cell.balancing) LartYellow else DarkTextSecondary
                             )
                         }
-                    }
-
-                    // Maximized Chart (Tall Canvas)
-                    Box(modifier = Modifier.weight(1f)) {
-                        VoltageChartCanvas(
-                            cells = cells,
-                            vMinLimit = vMinLimit,
-                            vMaxLimit = vMaxLimit,
-                            vWarnLow = vWarnLow,
-                            vWarnHigh = vWarnHigh,
-                            minCell = minCell,
-                            maxCell = maxCell,
-                            chartHeight = 360.dp,
-                            barWidthDp = 8.dp,
-                            barGapDp = 1.5.dp,
-                            segGapDp = 22.dp,
-                            onCellSelected = { selectedCell = it }
+                        Text(
+                            text = "%.4f V".format(cell.voltage),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (cell.balancing) LartYellow else ChartOkGreen,
+                            fontFamily = FontFamily.Monospace
                         )
                     }
+                }
 
-                    // Maximized Legend
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(DarkSurface)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            LegendIndicator(color = ChartMaxRed, label = "Máxima (▲)")
-                            LegendIndicator(color = ChartMinBlue, label = "Mínima (▼)")
-                            LegendIndicator(color = ChartOkGreen, label = "Normal")
-                            LegendIndicator(color = LartYellow, label = "Balanceamento")
-                            LegendIndicator(color = ChartOpenWirePurple, label = "Fio Aberto")
-                        }
-                        Text("Scroll horizontal para ver todos os segmentos", fontSize = 10.sp, color = DarkTextMuted)
+                // Maximized Chart (takes 100% of remaining area)
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    VoltageChartCanvas(
+                        cells = cells,
+                        vMinLimit = vMinLimit,
+                        vMaxLimit = vMaxLimit,
+                        vWarnLow = vWarnLow,
+                        vWarnHigh = vWarnHigh,
+                        minCell = minCell,
+                        maxCell = maxCell,
+                        chartHeight = Dp.Unspecified,
+                        barWidthDp = if (isLandscape) 6.dp else 5.dp,
+                        barGapDp = 1.dp,
+                        segGapDp = if (isLandscape) 14.dp else 10.dp,
+                        onCellSelected = { selectedCell = it }
+                    )
+                }
+
+                // Maximized Legend
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(DarkSurface)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        LegendIndicator(color = ChartMaxRed, label = "Máx Bateria (▲)")
+                        LegendIndicator(color = ChartMinBlue, label = "Mín Bateria (▼)")
+                        LegendIndicator(color = ChartOkGreen, label = "Normal")
+                        LegendIndicator(color = LartYellow, label = "Balanceamento")
                     }
+                    Text("Scroll horizontal para ver todos os segmentos", fontSize = 9.sp, color = DarkTextMuted)
                 }
             }
         }
@@ -426,7 +495,7 @@ private fun VoltageChartCanvas(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(chartHeight)
+            .then(if (chartHeight != Dp.Unspecified) Modifier.height(chartHeight) else Modifier.fillMaxHeight())
             .clip(RoundedCornerShape(8.dp))
             .background(Color(0xFF0C1017))
             .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
@@ -594,8 +663,8 @@ private fun VoltageChartCanvas(
                 val y = yOf(cell.voltage)
                 val barH = (baselineY - y).coerceAtLeast(0f)
 
-                val isMax = (maxCell != null && cell.index == maxCell.index)
-                val isMin = (minCell != null && cell.index == minCell.index)
+                val isMax = (maxCell != null && cell.id == maxCell.id)
+                val isMin = (minCell != null && cell.id == minCell.id)
 
                 // Top highlight for balancing cells
                 if (cell.balancing) {

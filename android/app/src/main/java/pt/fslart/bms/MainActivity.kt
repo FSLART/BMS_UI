@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import pt.fslart.bms.ui.components.Fullscreen3DViewer
+import pt.fslart.bms.ui.components.FullscreenCellChartOverlay
+import pt.fslart.bms.ui.components.FullscreenThermChartOverlay
 import pt.fslart.bms.ui.screens.*
 import pt.fslart.bms.ui.theme.*
 import pt.fslart.bms.viewmodel.BmsViewModel
@@ -75,6 +77,25 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
     val currentTab by viewModel.currentTab.collectAsState()
     val state by viewModel.bmsState.collectAsState()
     val fullscreen3D by viewModel.fullscreen3D.collectAsState()
+    val isCellChartFullscreen by viewModel.isCellChartFullscreen.collectAsState()
+    val isThermChartFullscreen by viewModel.isThermChartFullscreen.collectAsState()
+    val selectedSegmentId by viewModel.selectedSegmentId.collectAsState()
+
+    val filteredCells = remember(state.cells, selectedSegmentId) {
+        if (selectedSegmentId == null) {
+            state.cells
+        } else {
+            state.cells.filter { it.segment == selectedSegmentId }
+        }
+    }
+
+    val filteredThermistors = remember(state.thermistors, selectedSegmentId) {
+        if (selectedSegmentId == null) {
+            state.thermistors
+        } else {
+            state.thermistors.filter { it.segment == selectedSegmentId }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
         // Adaptive layout based on window width: phones get BottomBar, tablets get NavigationRail
@@ -226,18 +247,49 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
         }
     }
 
-    // FULLSCREEN 3D OVERLAY (DIRECT ON TOP OF MAIN WINDOW)
-    fullscreen3D?.let { req ->
-        BackHandler {
-            viewModel.closeFullscreen3D()
+        // FULLSCREEN 3D OVERLAY (DIRECT ON TOP OF MAIN WINDOW)
+        fullscreen3D?.let { req ->
+            BackHandler {
+                viewModel.closeFullscreen3D()
+            }
+            Fullscreen3DViewer(
+                request = req,
+                bmsState = state,
+                onClose = { viewModel.closeFullscreen3D() }
+            )
         }
-        Fullscreen3DViewer(
-            request = req,
-            bmsState = state,
-            onClose = { viewModel.closeFullscreen3D() }
-        )
+
+        // FULLSCREEN CELL CHART OVERLAY
+        if (isCellChartFullscreen) {
+            BackHandler {
+                viewModel.closeCellChartFullscreen()
+            }
+            FullscreenCellChartOverlay(
+                cells = filteredCells,
+                vMinLimit = state.car.limits.vMin - 0.2f,
+                vMaxLimit = state.car.limits.vMax + 0.1f,
+                vWarnLow = state.car.limits.vWarnLow,
+                vWarnHigh = state.car.limits.vWarnHigh,
+                onClose = { viewModel.closeCellChartFullscreen() }
+            )
+        }
+
+        // FULLSCREEN THERMISTOR CHART OVERLAY
+        if (isThermChartFullscreen) {
+            BackHandler {
+                viewModel.closeThermChartFullscreen()
+            }
+            FullscreenThermChartOverlay(
+                thermistors = filteredThermistors,
+                tMinLimit = 0.0f,
+                tMaxLimit = 70.0f,
+                tWarn = state.car.limits.tempWarn,
+                tFault = state.car.limits.tempFault,
+                brokenThermistors = state.car.brokenThermistors,
+                onClose = { viewModel.closeThermChartFullscreen() }
+            )
+        }
     }
-}
 }
 
 @Composable

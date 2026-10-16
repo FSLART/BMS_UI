@@ -13,6 +13,8 @@ compile/
 # Android Build Outputs
 .gradle/
 android/.gradle/
+.kotlin/
+android/.kotlin/
 android/app/build/
 android/local.properties
 *.apk

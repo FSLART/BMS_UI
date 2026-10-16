@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +44,7 @@ fun ThermistorBarChart(
     tWarn: Float = 50.0f,
     tFault: Float = 60.0f,
     brokenThermistors: List<String> = emptyList(),
+    onMaximize: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isMaximized by remember { mutableStateOf(false) }
@@ -127,7 +129,13 @@ fun ThermistorBarChart(
 
                 // Maximize button
                 IconButton(
-                    onClick = { isMaximized = true },
+                    onClick = {
+                        if (onMaximize != null) {
+                            onMaximize()
+                        } else {
+                            isMaximized = true
+                        }
+                    },
                     modifier = Modifier
                         .size(32.dp)
                         .clip(RoundedCornerShape(6.dp))
@@ -225,177 +233,240 @@ fun ThermistorBarChart(
         }
     }
 
-    // FULLSCREEN MAXIMIZED DIALOG MODAL
+    // LOCAL FULLSCREEN FALLBACK (IF onMaximize NOT PROVIDED)
     if (isMaximized) {
         Dialog(
             onDismissRequest = { isMaximized = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
         ) {
-            Box(
+            FullscreenThermChartOverlay(
+                thermistors = thermistors,
+                tMinLimit = tMinLimit,
+                tMaxLimit = tMaxLimit,
+                tWarn = tWarn,
+                tFault = tFault,
+                brokenThermistors = brokenThermistors,
+                onClose = { isMaximized = false }
+            )
+        }
+    }
+}
+
+@Composable
+fun FullscreenThermChartOverlay(
+    thermistors: List<Thermistor>,
+    tMinLimit: Float = 0.0f,
+    tMaxLimit: Float = 70.0f,
+    tWarn: Float = 50.0f,
+    tFault: Float = 60.0f,
+    brokenThermistors: List<String> = emptyList(),
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var selectedNtc by remember { mutableStateOf<Thermistor?>(null) }
+
+    // Find global minimum and maximum healthy thermistors
+    val validThermistors = thermistors.filter {
+        it.temperature != null && it.temperature > 0f &&
+        !brokenThermistors.contains("${it.slave}:${it.index}") &&
+        it.status != Severity.UNKNOWN
+    }
+    val minNtc = validThermistors.minByOrNull { it.temperature!! }
+    val maxNtc = validThermistors.maxByOrNull { it.temperature!! }
+
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = Color(0xFF070A0F)
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val isLandscape = maxWidth > maxHeight
+
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(DarkBackground)
-                    .systemBarsPadding()
-                    .padding(14.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = if (isLandscape) 14.dp else 12.dp, vertical = if (isLandscape) 4.dp else 8.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isLandscape) 4.dp else 8.dp)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                // Fullscreen Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Fullscreen Header
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .padding(end = 10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "TEMPERATURAS NTC",
+                                fontSize = if (isLandscape) 12.sp else 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DarkTextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(LartYellow.copy(alpha = 0.2f))
+                                    .border(1.dp, LartYellow.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "ECRÃ INTEIRO",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LartYellow
+                                )
+                            }
+                        }
+                        if (!isLandscape) {
+                            Text(
+                                text = "${thermistors.size} Sensores · 6 Segmentos · 12 Slaves",
+                                fontSize = 11.sp,
+                                color = DarkTextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (maxNtc != null && maxNtc.temperature != null) {
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "▲ MÁX (S${maxNtc.slave}·T${maxNtc.index})",
+                                    fontSize = if (isLandscape) 8.sp else 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ChartMaxRed
+                                )
+                                Text(
+                                    text = "%.1f °C".format(maxNtc.temperature),
+                                    fontSize = if (isLandscape) 12.sp else 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = ChartMaxRed,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        if (minNtc != null && minNtc.temperature != null) {
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "▼ MÍN (S${minNtc.slave}·T${minNtc.index})",
+                                    fontSize = if (isLandscape) 8.sp else 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ChartMinBlue
+                                )
+                                Text(
+                                    text = "%.1f °C".format(minNtc.temperature),
+                                    fontSize = if (isLandscape) 12.sp else 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = ChartMinBlue,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = onClose,
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceElevated, contentColor = Color.White),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(if (isLandscape) 30.dp else 34.dp)
+                        ) {
+                            Icon(Icons.Default.FullscreenExit, contentDescription = "Fechar", modifier = Modifier.size(14.dp), tint = LartYellow)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Fechar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LartYellow)
+                        }
+                    }
+                }
+
+                // Selected Banner
+                selectedNtc?.let { ntc ->
+                    val isBroken = brokenThermistors.contains("${ntc.slave}:${ntc.index}")
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(DarkSurfaceElevated)
+                            .border(1.dp, LartYellow, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "TEMPERATURAS NTC",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = DarkTextPrimary
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(LartYellow.copy(alpha = 0.2f))
-                                        .border(1.dp, LartYellow.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "ECRÃ INTEIRO",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LartYellow
-                                    )
-                                }
-                            }
                             Text(
-                                text = "${thermistors.size} Sensores · 6 Segmentos · 12 Slaves",
+                                text = "NTC #${ntc.index} · Segmento ${ntc.segment} · Slave ${ntc.slave}",
                                 fontSize = 11.sp,
-                                color = DarkTextSecondary
+                                fontWeight = FontWeight.Bold,
+                                color = DarkTextPrimary
                             )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            if (maxNtc != null && maxNtc.temperature != null) {
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text("▲ MÁX", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ChartMaxRed)
-                                    Text(
-                                        text = "%.1f °C".format(maxNtc.temperature),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = ChartMaxRed,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-                            }
-                            if (minNtc != null && minNtc.temperature != null) {
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text("▼ MÍN", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ChartMinBlue)
-                                    Text(
-                                        text = "%.1f °C".format(minNtc.temperature),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = ChartMinBlue,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-                            }
-
-                            Button(
-                                onClick = { isMaximized = false },
-                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceElevated, contentColor = Color.White),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, LartYellow),
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Icon(Icons.Default.FullscreenExit, contentDescription = "Minimizar", modifier = Modifier.size(16.dp), tint = LartYellow)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Minimizar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LartYellow)
-                            }
-                        }
-                    }
-
-                    // Selected Banner
-                    selectedNtc?.let { ntc ->
-                        val isBroken = brokenThermistors.contains("${ntc.slave}:${ntc.index}")
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(DarkSurfaceElevated)
-                                .border(1.dp, LartYellow, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "NTC #${ntc.index} · Segmento ${ntc.segment} · Slave ${ntc.slave}",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = DarkTextPrimary
-                                )
-                                Text(
-                                    text = if (isBroken) "Estado: Bypass de fábrica (Avariado)" else "Status: ${ntc.status}",
-                                    fontSize = 10.sp,
-                                    color = if (isBroken) ChartOpenWirePurple else DarkTextSecondary
-                                )
-                            }
                             Text(
-                                text = if (isBroken) "BYPASS" else if (ntc.temperature != null) "%.1f °C".format(ntc.temperature) else "—",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (isBroken) ChartOpenWirePurple else if (ntc.temperature != null && ntc.temperature >= tWarn) ChartMaxRed else ChartOkGreen,
-                                fontFamily = FontFamily.Monospace
+                                text = if (isBroken) "Estado: Bypass de fábrica (Avariado)" else "Status: ${ntc.status}",
+                                fontSize = 9.sp,
+                                color = if (isBroken) ChartOpenWirePurple else DarkTextSecondary
                             )
                         }
-                    }
-
-                    // Maximized Chart (Tall Canvas)
-                    Box(modifier = Modifier.weight(1f)) {
-                        NtcChartCanvas(
-                            thermistors = thermistors,
-                            tMinLimit = tMinLimit,
-                            tMaxLimit = tMaxLimit,
-                            tWarn = tWarn,
-                            tFault = tFault,
-                            brokenThermistors = brokenThermistors,
-                            minNtc = minNtc,
-                            maxNtc = maxNtc,
-                            chartHeight = 360.dp,
-                            barWidthDp = 14.dp,
-                            barGapDp = 3.dp,
-                            segGapDp = 26.dp,
-                            onNtcSelected = { selectedNtc = it }
+                        Text(
+                            text = if (isBroken) "BYPASS" else if (ntc.temperature != null) "%.1f °C".format(ntc.temperature) else "—",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isBroken) ChartOpenWirePurple else if (ntc.temperature != null && ntc.temperature >= tWarn) ChartMaxRed else ChartOkGreen,
+                            fontFamily = FontFamily.Monospace
                         )
                     }
+                }
 
-                    // Maximized Legend
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(DarkSurface)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            LegendIndicator(color = ChartMaxRed, label = "Máxima (▲)")
-                            LegendIndicator(color = ChartMinBlue, label = "Mínima (▼)")
-                            LegendIndicator(color = ChartOkGreen, label = "Normal")
-                            LegendIndicator(color = ChartWarnAmber, label = "Aviso (≥50°C)")
-                            LegendIndicator(color = ChartOpenWirePurple, label = "Bypass / Aberto")
-                        }
-                        Text("Scroll horizontal para ver todos os segmentos", fontSize = 10.sp, color = DarkTextMuted)
+                // Maximized Chart (takes 100% of remaining area)
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    NtcChartCanvas(
+                        thermistors = thermistors,
+                        tMinLimit = tMinLimit,
+                        tMaxLimit = tMaxLimit,
+                        tWarn = tWarn,
+                        tFault = tFault,
+                        brokenThermistors = brokenThermistors,
+                        minNtc = minNtc,
+                        maxNtc = maxNtc,
+                        chartHeight = Dp.Unspecified,
+                        barWidthDp = if (isLandscape) 10.dp else 12.dp,
+                        barGapDp = 2.dp,
+                        segGapDp = if (isLandscape) 16.dp else 20.dp,
+                        onNtcSelected = { selectedNtc = it }
+                    )
+                }
+
+                // Maximized Legend
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(DarkSurface)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        LegendIndicator(color = ChartMaxRed, label = "Máx (▲)")
+                        LegendIndicator(color = ChartMinBlue, label = "Mín (▼)")
+                        LegendIndicator(color = ChartOkGreen, label = "Normal")
+                        LegendIndicator(color = ChartWarnAmber, label = "Aviso (≥50°C)")
+                        LegendIndicator(color = ChartOpenWirePurple, label = "Bypass")
                     }
+                    Text("Scroll horizontal para ver todos os segmentos", fontSize = 9.sp, color = DarkTextMuted)
                 }
             }
         }
@@ -423,7 +494,7 @@ private fun NtcChartCanvas(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(chartHeight)
+            .then(if (chartHeight != Dp.Unspecified) Modifier.height(chartHeight) else Modifier.fillMaxHeight())
             .clip(RoundedCornerShape(8.dp))
             .background(Color(0xFF0C1017))
             .border(1.dp, DarkBorder, RoundedCornerShape(8.dp))

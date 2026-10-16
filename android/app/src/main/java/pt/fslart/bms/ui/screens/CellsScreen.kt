@@ -211,6 +211,7 @@ fun CellsScreen(
                     vMaxLimit = state.car.limits.vMax + 0.1f,
                     vWarnLow = state.car.limits.vWarnLow,
                     vWarnHigh = state.car.limits.vWarnHigh,
+                    onMaximize = { viewModel.openCellChartFullscreen() },
                     modifier = Modifier.fillMaxWidth()
                 )
 
