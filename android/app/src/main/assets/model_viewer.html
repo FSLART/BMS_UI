@@ -299,6 +299,36 @@
         height: 11px;
       }
     }
+    /* Thermal Mode Legend & Badges */
+    .thermal-legend {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(7, 10, 15, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 20px;
+      padding: 5px 12px;
+      z-index: 15;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+    }
+    .thermal-legend .t-label {
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #C4C4CC;
+      font-family: monospace;
+    }
+    .thermal-legend .t-bar {
+      width: 120px;
+      height: 7px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #0A84FF 0%, #30D158 25%, #FFD60A 50%, #FF9500 75%, #FF453A 100%);
+      border: 0.5px solid rgba(255, 255, 255, 0.3);
+    }
   </style>
 </head>
 <body>
@@ -328,6 +358,13 @@
     <button class="seg-filter-btn active" id="flt-all" onclick="setSegmentFilterMode('all')">Tudo (36)</button>
     <button class="seg-filter-btn" id="flt-v" onclick="setSegmentFilterMode('v')">⚡ Tensões (24)</button>
     <button class="seg-filter-btn" id="flt-t" onclick="setSegmentFilterMode('t')">🌡️ Temp (12)</button>
+    <button class="seg-filter-btn" id="flt-thermal" onclick="toggleThermalMode()">🔥 Térmico</button>
+  </div>
+
+  <div id="thermal-legend" class="thermal-legend" style="display: none;">
+    <span class="t-label">20°C</span>
+    <div class="t-bar"></div>
+    <span class="t-label">60°C</span>
   </div>
 
   <button id="btn-reset-view" class="view-reset-btn" onclick="resetCamera()">
@@ -811,8 +848,19 @@
             const isHot = seg.id === hotId;
             segBtn.classList.toggle('is-hot', isHot);
             const temp = seg.tempMax ? `${Math.round(seg.tempMax)}°` : '45°';
-            segBtn.querySelector('.val').textContent = isHot ? `S${seg.id} ${temp}` : `S${seg.id}`;
+            segBtn.querySelector('.val').textContent = (isThermalMode && seg.tempMax) ? `S${seg.id} ${Math.round(seg.tempMax)}°C` : (isHot ? `S${seg.id} ${temp}` : `S${seg.id}`);
             segBtn.dataset.sev = seg.status || (isHot ? 'warn' : 'ok');
+
+            if (isThermalMode && seg.tempMax != null) {
+              const tCol = getThermalColor(seg.tempMax);
+              segBtn.style.borderColor = tCol.hex;
+              segBtn.style.boxShadow = '0 0 12px ' + tCol.hex;
+              segBtn.querySelector('.dot').style.background = tCol.hex;
+            } else {
+              segBtn.style.borderColor = '';
+              segBtn.style.boxShadow = '';
+              segBtn.querySelector('.dot').style.background = '';
+            }
           }
         });
       }
@@ -839,6 +887,12 @@
       if ((!cellsForSeg || !cellsForSeg.length) && data.cells && data.cells.length) {
         cellsForSeg = data.cells.filter(c => c.segment === segId);
       }
+
+      let thermsForSeg = data.segmentThermistors;
+      if ((!thermsForSeg || !thermsForSeg.length) && data.thermistors && data.thermistors.length) {
+        thermsForSeg = data.thermistors.filter(t => t.segment === segId);
+      }
+
       if (cellsForSeg && cellsForSeg.length) {
         cellsForSeg.forEach(c => {
           const btn = viewerEl.querySelector(`[slot="hotspot-par-${c.index}"]`);
@@ -849,14 +903,24 @@
             btn.classList.toggle('is-hot', !!c.balancing);
             btn.classList.toggle('is-balancing', !!c.balancing);
             btn.dataset.sev = isWarn ? 'warn' : (c.status || 'ok');
+
+            if (isThermalMode) {
+              const nearbyNtcIdx = Math.min(12, Math.max(1, Math.ceil(c.index / 2)));
+              const ntcMatch = thermsForSeg ? thermsForSeg.find(t => (t.index || 0) === nearbyNtcIdx) : null;
+              const cellTemp = (ntcMatch && ntcMatch.temperature != null) ? ntcMatch.temperature : 35;
+              const tCol = getThermalColor(cellTemp);
+              btn.style.borderColor = tCol.hex;
+              btn.style.boxShadow = '0 0 10px ' + tCol.hex;
+              btn.querySelector('.dot').style.background = tCol.hex;
+            } else {
+              btn.style.borderColor = '';
+              btn.style.boxShadow = '';
+              btn.querySelector('.dot').style.background = '';
+            }
           }
         });
       }
 
-      let thermsForSeg = data.segmentThermistors;
-      if ((!thermsForSeg || !thermsForSeg.length) && data.thermistors && data.thermistors.length) {
-        thermsForSeg = data.thermistors.filter(t => t.segment === segId);
-      }
       if (thermsForSeg && thermsForSeg.length) {
         thermsForSeg.forEach((t, idx) => {
           const ntcId = t.index || (idx + 1);
@@ -867,9 +931,46 @@
             const isWarn = t.temperature != null && t.temperature >= 50;
             btn.classList.toggle('is-hot', isWarn);
             btn.dataset.sev = isWarn ? 'warn' : (t.status || 'ok');
+
+            if (isThermalMode && t.temperature != null) {
+              const tCol = getThermalColor(t.temperature);
+              btn.style.borderColor = tCol.hex;
+              btn.style.boxShadow = '0 0 14px ' + tCol.hex;
+              btn.querySelector('.dot').style.background = tCol.hex;
+            } else {
+              btn.style.borderColor = '';
+              btn.style.boxShadow = '';
+              btn.querySelector('.dot').style.background = '';
+            }
           }
         });
       }
+    }
+
+    let isThermalMode = false;
+
+    function getThermalColor(temp) {
+      if (temp == null || isNaN(temp) || temp <= 0) return { hex: '#30D158', rgb: [0.19, 0.82, 0.35, 1.0] };
+      if (temp < 28) return { hex: '#0A84FF', rgb: [0.04, 0.52, 1.0, 1.0] }; // Cold blue (<28°C)
+      if (temp < 38) return { hex: '#30D158', rgb: [0.19, 0.82, 0.35, 1.0] }; // Normal green (28-38°C)
+      if (temp < 46) return { hex: '#FFD60A', rgb: [1.0, 0.84, 0.04, 1.0] };  // Warm yellow (38-46°C)
+      if (temp < 54) return { hex: '#FF9500', rgb: [1.0, 0.58, 0.0, 1.0] };   // Hot orange (46-54°C)
+      return { hex: '#FF453A', rgb: [1.0, 0.27, 0.23, 1.0] };                  // Critical red (>=54°C)
+    }
+
+    function setThermalMode(enabled) {
+      isThermalMode = !!enabled;
+      const leg = document.getElementById('thermal-legend');
+      if (leg) leg.style.display = isThermalMode ? 'flex' : 'none';
+      const fltBtn = document.getElementById('flt-thermal');
+      if (fltBtn) fltBtn.classList.toggle('active', isThermalMode);
+      if (lastTelemetry) {
+        updateTelemetry(lastTelemetry);
+      }
+    }
+
+    function toggleThermalMode() {
+      setThermalMode(!isThermalMode);
     }
 
     window.loadModel = loadModel;
@@ -878,6 +979,8 @@
     window.setFanSpeed = setFanSpeed;
     window.updateTelemetry = updateTelemetry;
     window.setSegmentFilterMode = setSegmentFilterMode;
+    window.setThermalMode = setThermalMode;
+    window.toggleThermalMode = toggleThermalMode;
   </script>
 </body>
 </html>

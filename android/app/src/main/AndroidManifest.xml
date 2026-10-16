@@ -30,6 +30,9 @@
         android:name="android.permission.BLUETOOTH_CONNECT"
         tools:targetApi="s" />
 
+    <!-- Vibration for Charging & Safety alarms -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:name=".BmsApplication"
         android:allowBackup="true"

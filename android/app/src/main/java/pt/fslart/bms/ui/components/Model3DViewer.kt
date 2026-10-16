@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.RotateRight
+import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,6 +48,8 @@ fun Model3DViewer(
     height: Dp = 320.dp,
     showControls: Boolean = true,
     title: String? = null,
+    isThermalMode: Boolean = false,
+    onThermalModeToggle: (() -> Unit)? = null,
     onMaximize: (() -> Unit)? = null
 ) {
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
@@ -57,8 +60,9 @@ fun Model3DViewer(
         webViewRef?.evaluateJavascript("if (typeof loadModel === 'function') loadModel('$modelFile', $isAutoRotate);", null)
     }
 
-    LaunchedEffect(bmsState, selectedSegment) {
+    LaunchedEffect(bmsState, selectedSegment, isThermalMode) {
         val json = if (bmsState != null) buildTelemetryJson(bmsState, selectedSegment) else buildDefaultTelemetryJson(selectedSegment)
+        webViewRef?.evaluateJavascript("if (typeof setThermalMode === 'function') setThermalMode($isThermalMode);", null)
         webViewRef?.evaluateJavascript("if (typeof updateTelemetry === 'function') updateTelemetry($json);", null)
     }
 
@@ -95,6 +99,25 @@ fun Model3DViewer(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Thermal Mode Toggle
+                            if (onThermalModeToggle != null) {
+                                IconButton(
+                                    onClick = onThermalModeToggle,
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (isThermalMode) Color(0xFFFF9500).copy(alpha = 0.25f) else DarkSurfaceElevated)
+                                        .border(1.dp, if (isThermalMode) Color(0xFFFF9500) else DarkBorder, RoundedCornerShape(6.dp))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Thermostat,
+                                        contentDescription = "Vista Térmica",
+                                        tint = if (isThermalMode) Color(0xFFFF9500) else DarkTextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
                             // Auto-rotate toggle
                             IconButton(
                                 onClick = {

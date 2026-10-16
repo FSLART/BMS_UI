@@ -41,6 +41,7 @@ fun Model3DScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.bmsState.collectAsState()
+    val isThermalView3D by viewModel.isThermalView3D.collectAsState()
     var selectedModel by remember { mutableStateOf(Model3DType.CAR_CLOSED) }
     var selectedSegmentNum by remember { mutableStateOf(1) }
 
@@ -189,6 +190,8 @@ fun Model3DScreen(
             height = 340.dp,
             showControls = true,
             title = "${selectedModel.title} — ${selectedModel.subtitle}",
+            isThermalMode = isThermalView3D,
+            onThermalModeToggle = { viewModel.toggleThermalView3D() },
             onMaximize = {
                 viewModel.openFullscreen3D(
                     modelFile = selectedModel.fileName,
@@ -198,6 +201,36 @@ fun Model3DScreen(
             },
             modifier = Modifier.fillMaxWidth()
         )
+
+        // THERMAL SCALE BAR (WHEN THERMAL MODE ACTIVE)
+        if (isThermalView3D) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF16110B))
+                    .border(1.dp, Color(0xFFFF9500).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Thermostat,
+                        contentDescription = "Térmico",
+                        tint = Color(0xFFFF9500),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text("ESCALA TÉRMICA 3D", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF9500))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("<28°C", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0A84FF))
+                    Text("35°C", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF30D158))
+                    Text("45°C", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFD60A))
+                    Text("55°C+", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF453A))
+                }
+            }
+        }
 
         // MODEL CONTEXTUAL DETAILS
         when (selectedModel) {

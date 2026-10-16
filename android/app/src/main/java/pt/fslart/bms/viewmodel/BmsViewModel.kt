@@ -11,12 +11,14 @@ import kotlinx.coroutines.launch
 import pt.fslart.bms.ble.*
 import pt.fslart.bms.model.*
 import pt.fslart.bms.simulator.BmsSimulator
+import pt.fslart.bms.util.ChargingAlertManager
 
 enum class ScreenTab {
     CONNECT,
     DASHBOARD,
     CELLS,
     TEMPS,
+    CHECKLIST,
     CHARGER,
     MODEL_3D,
     CONSOLE
@@ -26,6 +28,7 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val bleManager = BleManager(application, viewModelScope)
     private val bleScanner = BleScanner(application)
+    private val chargingAlertManager = ChargingAlertManager(application)
     private var simulator = BmsSimulator(CarProfile.TEK26E)
     private var simulatorJob: Job? = null
 
@@ -73,6 +76,7 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
                 if (state != null && !_isDemoMode.value) {
                     _bmsState.value = state
                     appendHistory(state.pack.current, state.pack.voltage)
+                    chargingAlertManager.onChargingStateUpdated(state.isCharging)
                 }
             }
         }
@@ -154,6 +158,7 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
                     _bmsState.value = fakeState
                     bleManager.injectSimulatorState(fakeState)
                     appendHistory(fakeState.pack.current, fakeState.pack.voltage)
+                    chargingAlertManager.onChargingStateUpdated(fakeState.isCharging)
                     delay(1000L) // 1 sample per second like the real RN4871
                 }
             }
@@ -221,6 +226,23 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun closeThermChartFullscreen() {
         _isThermChartFullscreen.value = false
+    }
+
+    // Thermal View State for 3D Viewer
+    private val _isThermalView3D = MutableStateFlow(false)
+    val isThermalView3D: StateFlow<Boolean> = _isThermalView3D.asStateFlow()
+
+    fun toggleThermalView3D() {
+        _isThermalView3D.value = !_isThermalView3D.value
+    }
+
+    fun setThermalView3D(enabled: Boolean) {
+        _isThermalView3D.value = enabled
+    }
+
+    fun triggerChargingAlert(start: Boolean) {
+        if (start) chargingAlertManager.triggerChargingStartedAlert()
+        else chargingAlertManager.triggerChargingStoppedAlert()
     }
 
     override fun onCleared() {

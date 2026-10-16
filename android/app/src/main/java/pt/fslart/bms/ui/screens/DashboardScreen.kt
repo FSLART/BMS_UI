@@ -8,6 +8,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ElectricBolt
+import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -24,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import pt.fslart.bms.ui.components.*
 import pt.fslart.bms.ui.theme.*
 import pt.fslart.bms.viewmodel.BmsViewModel
+import pt.fslart.bms.viewmodel.ScreenTab
 
 @Composable
 fun DashboardScreen(
@@ -90,6 +94,107 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(text = "Desligar", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+
+        // CHARGING STATUS BANNER (IF CHARGING)
+        if (state.isCharging) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(LartYellow.copy(alpha = 0.15f))
+                        .border(1.dp, LartYellow, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ElectricBolt,
+                            contentDescription = "A Carregar",
+                            tint = LartYellow,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "BATERIA A CARREGAR",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = LartYellow
+                            )
+                            Text(
+                                text = "${state.pack.soc.toInt()}% SOC · %.1f V · %.1f A".format(state.pack.voltage, state.pack.current),
+                                fontSize = 11.sp,
+                                color = DarkTextSecondary
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = { viewModel.setTab(ScreenTab.CHARGER) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LartYellow,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("Ver", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // SCRUTINEERING / INSPEÇÃO RÁPIDA
+        item {
+            val isPass = state.faults.isEmpty() && state.pack.cellVDelta <= 0.050f && state.pack.tempMax < 60f
+            Card(
+                onClick = { viewModel.setTab(ScreenTab.CHECKLIST) },
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = if (isPass) Icons.Default.CheckCircle else Icons.Default.FactCheck,
+                            contentDescription = "Checklist FSG",
+                            tint = if (isPass) StatusOk else StatusWarn,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Inspeção Técnica FSG EV",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DarkTextPrimary
+                            )
+                            Text(
+                                text = if (isPass) "✓ Conforme com Regulamento Formula Student" else "⚠ Verificar parâmetros antes de aprovação",
+                                fontSize = 10.sp,
+                                color = if (isPass) StatusOkGlow else StatusWarn
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Checklist ›",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LartYellow
+                    )
                 }
             }
         }
