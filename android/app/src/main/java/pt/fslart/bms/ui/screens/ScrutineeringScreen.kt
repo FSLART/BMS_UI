@@ -52,7 +52,26 @@ fun ScrutineeringScreen(
         val list = mutableListOf<ScrutineeringCheck>()
         val limits = state.car.limits
 
-        // 1. Cell Voltages within bounds (EV 4.1.4)
+        // 1. Maximum TS Voltage (EV 4.1.1: Max 600 V DC)
+        val packV = state.pack.voltage
+        val vTsStatus = when {
+            packV > 600f -> Severity.FAULT
+            packV > 595f -> Severity.WARN
+            else -> Severity.OK
+        }
+        list.add(
+            ScrutineeringCheck(
+                id = "ts_vmax",
+                ruleRef = "FS EV 4.1.1",
+                title = "Tensão Máxima do TS (≤ 600 V DC)",
+                liveValue = "V_pack: %.1f V · Média: %.3f V/célula".format(packV, packV / state.car.seriesCount.coerceAtLeast(1)),
+                targetLimit = "V_TS ≤ 600.0 V DC (630 V DC transitório)",
+                status = vTsStatus,
+                description = "A tensão máxima entre quaisquer duas ligações elétricas do TS é 600 V DC (630 V DC para sinais internos de controlo do AMS)."
+            )
+        )
+
+        // 2. Cell Operating Limits (EV 5.2.3 & EV 5.8.10: Cell voltages within limits)
         val validCells = state.cells.filter { it.status != Severity.UNKNOWN && !it.openWire && it.voltage > 0f }
         val minV = validCells.minOfOrNull { it.voltage } ?: state.pack.cellVMin
         val maxV = validCells.maxOfOrNull { it.voltage } ?: state.pack.cellVMax
@@ -64,36 +83,36 @@ fun ScrutineeringScreen(
         list.add(
             ScrutineeringCheck(
                 id = "cell_v",
-                ruleRef = "FSG EV 4.1.4",
-                title = "Tensão Individual das Células",
+                ruleRef = "FS EV 5.2.3",
+                title = "Limites Operacionais de Tensão das Células",
                 liveValue = "Mín: %.3f V · Máx: %.3f V".format(minV, maxV),
-                targetLimit = "%.2f V ≤ V_célula ≤ %.2f V".format(limits.vMin, limits.vMax),
+                targetLimit = "%.2f V ≤ V_célula ≤ %.2f V (Trip AMS > 500ms)".format(limits.vMin, limits.vMax),
                 status = vStatus,
-                description = "Todas as 144 células devem operar estritamente dentro da janela de subtensão e sobretensão."
+                description = "As células devem operar estritamente dentro dos limites do fabricante. O AMS deve abrir o SDC se violado por mais de 500 ms (EV 5.8.10)."
             )
         )
 
-        // 2. Cell Voltage Spread / Delta (EV 4.1.5)
-        val deltaV = (maxV - minV).coerceAtLeast(0f)
-        val deltaMv = (deltaV * 1000f).toInt()
-        val deltaStatus = when {
-            deltaV > 0.080f -> Severity.FAULT
-            deltaV > 0.050f -> Severity.WARN
+        // 3. Section / Segment Maximum Voltage (EV 5.3.4: Max 120 V DC per section)
+        val segVoltages = state.segments.map { seg -> state.cells.filter { it.segment == seg.id }.sumOf { it.voltage.toDouble() }.toFloat() }
+        val maxSegV = if (segVoltages.isNotEmpty()) segVoltages.maxOrNull() ?: 0f else (packV / 6f)
+        val segStatus = when {
+            maxSegV > 120f -> Severity.FAULT
+            maxSegV > 115f -> Severity.WARN
             else -> Severity.OK
         }
         list.add(
             ScrutineeringCheck(
-                id = "cell_delta",
-                ruleRef = "FSG EV 4.1.5",
-                title = "Equilíbrio & Dispersão (ΔV)",
-                liveValue = "Δ: %d mV".format(deltaMv),
-                targetLimit = "ΔV ≤ 50 mV (Ideal) | Máx 80 mV",
-                status = deltaStatus,
-                description = "Diferença entre a célula mais carregada e a menos carregada em repouso."
+                id = "seg_vmax",
+                ruleRef = "FS EV 5.3.4",
+                title = "Tensão Máxima por Secção (≤ 120 V DC)",
+                liveValue = "Máx: %.1f V DC (Segmento 24S · ≤ 6 MJ)".format(maxSegV),
+                targetLimit = "V_secção ≤ 120.0 V DC · Massa ≤ 12 kg",
+                status = segStatus,
+                description = "Cada secção mecânica do acumulador não pode exceder 120 V DC, energia máxima de 6 MJ e peso máximo de 12 kg."
             )
         )
 
-        // 3. Cell Temperatures (< 60°C strict cutoff) (EV 4.1.4)
+        // 4. Maximum Cell Temperature (EV 5.8.4 & EV 5.8.10: Max 60 °C)
         val validTherms = state.thermistors.filter { it.temperature != null && it.temperature > 0f && it.status != Severity.UNKNOWN }
         val maxT = validTherms.maxOfOrNull { it.temperature!! } ?: state.pack.tempMax
         val avgT = if (validTherms.isNotEmpty()) validTherms.map { it.temperature!! }.average().toFloat() else 0f
@@ -105,80 +124,95 @@ fun ScrutineeringScreen(
         list.add(
             ScrutineeringCheck(
                 id = "temp_max",
-                ruleRef = "FSG EV 4.1.4",
-                title = "Limite Térmico de Célula (60°C)",
-                liveValue = "Máx: %.1f °C (Média: %.1f °C)".format(maxT, avgT),
-                targetLimit = "T < 60.0 °C (Corte obrigatório)",
+                ruleRef = "FS EV 5.8.4",
+                title = "Temperatura Máxima de Célula (60.0 °C)",
+                liveValue = "Máx: %.1f °C · Média: %.1f °C".format(maxT, avgT),
+                targetLimit = "T < 60.0 °C (Trip AMS > 1s)",
                 status = tempStatus,
-                description = "O regulamento impõe paragem e desligamento imediato se qualquer célula atingir 60°C."
+                description = "A temperatura máxima permitida em qualquer célula é 60 °C (ou limite do fabricante). O AMS deve abrir o SDC se excedido por mais de 1 s (EV 5.8.10)."
             )
         )
 
-        // 4. Open-Wire Connections (EV 4.1.6)
+        // 5. Thermal Monitoring Coverage (EV 5.8.3: Min 30% of cells)
+        val totalTherms = state.thermistors.size
+        val brokenCount = state.car.brokenThermistors.size
+        val cellCount = state.cells.size.coerceAtLeast(1)
+        val coveragePct = ((totalTherms.toFloat() / cellCount) * 100).toInt()
+        val thermCoverageStatus = if (coveragePct >= 30) Severity.OK else Severity.FAULT
+        list.add(
+            ScrutineeringCheck(
+                id = "ntc_coverage",
+                ruleRef = "FS EV 5.8.3",
+                title = "Monitorização Térmica (≥ 30% das Células)",
+                liveValue = "$totalTherms NTCs em $cellCount células ($coveragePct% cobertura)",
+                targetLimit = "≥ 30% das células com NTC (Mín. 44 NTCs)",
+                status = thermCoverageStatus,
+                description = "O AMS deve monitorizar continuamente a temperatura de pelo menos 30% das células igualmente distribuídas no acumulador."
+            )
+        )
+
+        // 6. Loss of Measurement Sense / Open-Wire (EV 5.8.13)
         val openWiresCount = state.cells.count { it.openWire }
         val owStatus = if (openWiresCount > 0) Severity.FAULT else Severity.OK
         list.add(
             ScrutineeringCheck(
                 id = "open_wire",
-                ruleRef = "FSG EV 4.1.6",
-                title = "Deteção de Fio Aberto (Open-Wire)",
-                liveValue = if (openWiresCount == 0) "0 Fios partidos (144/144 OK)" else "$openWiresCount Fio(s) Aberto(s)!",
-                targetLimit = "0 Fios de medição desconectados",
+                ruleRef = "FS EV 5.8.13",
+                title = "Sinais Críticos do AMS (Loss of Sense / Open-Wire)",
+                liveValue = if (openWiresCount == 0) "0 Fios partidos (144/144 OK)" else "$openWiresCount Fio(s) Rompido(s)!",
+                targetLimit = "0 conexões de medição rompidas / falhas SCS",
                 status = owStatus,
-                description = "O BMS deve detetar e reportar falha se qualquer terminal de medição de tensão for rompido."
+                description = "Os sinais do AMS são Sinais Críticos do Sistema (T 11.9). A perda de conexão de medição tem de abrir o SDC imediatamente."
             )
         )
 
-        // 5. NTC Thermistor Coverage (EV 4.1.7)
-        val totalTherms = state.thermistors.size
-        val brokenCount = state.car.brokenThermistors.size
-        val thermCoverageStatus = if (totalTherms >= 72) Severity.OK else Severity.WARN
-        list.add(
-            ScrutineeringCheck(
-                id = "ntc_coverage",
-                ruleRef = "FSG EV 4.1.7",
-                title = "Cobertura & Continuidade dos NTCs",
-                liveValue = "$totalTherms NTCs ativos ($brokenCount bypass de fábrica)",
-                targetLimit = "Mín. 1 NTC para cada 4 células (25%)",
-                status = thermCoverageStatus,
-                description = "O acumulador monitoriza 1 NTC para cada 2 células (50% de cobertura), superando o requisito."
-            )
-        )
-
-        // 6. Safety Circuit & SDC (EV 4.2)
-        val sdcClosed = state.safety.sdcClosed
-        val amsOk = state.safety.amsOk
-        val safetyStatus = if (amsOk && sdcClosed) Severity.OK else if (!amsOk) Severity.FAULT else Severity.WARN
-        list.add(
-            ScrutineeringCheck(
-                id = "safety_sdc",
-                ruleRef = "FSG EV 4.2",
-                title = "Circuito de Desligamento (SDC / AMS OK)",
-                liveValue = if (sdcClosed) "Linha Fechada · AMS OK: Ativo" else "Linha Aberta (SDC Trip)",
-                targetLimit = "Sinal AMS OK ativo e SDC fechado",
-                status = safetyStatus,
-                description = "Linha de segurança hardwired em série com o relé de estado sólido do AMS."
-            )
-        )
-
-        // 7. High Voltage Contactors (AIRs & Precharge) (EV 4.3)
+        // 7. Pre-Charge Circuit (EV 5.7.1: Pre-charge to at least 95% TS voltage)
         val airPos = state.safety.airPositive
         val airNeg = state.safety.airNegative
         val prechargeDone = state.safety.prechargeDone
         val airsStatus = if (state.mode == "car" && !prechargeDone && (airPos || airNeg)) Severity.WARN else Severity.OK
         list.add(
             ScrutineeringCheck(
-                id = "airs_precharge",
-                ruleRef = "FSG EV 4.3",
-                title = "AIR+ / AIR- & Circuito de Pré-Carga",
-                liveValue = "AIR+: ${if (airPos) "ON" else "OFF"} · AIR-: ${if (airNeg) "ON" else "OFF"} · Pré-Carga: ${if (prechargeDone) "OK" else "PENDENTE"}",
-                targetLimit = "Sequência correta de fecho pós pré-carga",
+                id = "precharge",
+                ruleRef = "FS EV 5.7.1",
+                title = "Circuito de Pré-Carga (≥ 95% V_pack)",
+                liveValue = if (prechargeDone) "Pré-Carga Concluída (V_inv ≥ 95%)" else "Pendente / Em Curso",
+                targetLimit = "V_inversor ≥ 95% V_pack antes do 2º AIR",
                 status = airsStatus,
-                description = "Os relés principais só devem fechar após a tensão do inversor atingir 95% da tensão do pack."
+                description = "O circuito de pré-carga deve garantir que a tensão nos inversores atinge pelo menos 95% da tensão do acumulador antes de fechar o segundo AIR."
             )
         )
 
-        // 8. BMS Daisy-Chain & Slave Communication (EV 4.4)
+        // 8. Accumulator Isolation Relays - AIRs (EV 5.6.1 & EV 5.6.2)
+        list.add(
+            ScrutineeringCheck(
+                id = "airs",
+                ruleRef = "FS EV 5.6",
+                title = "Relés de Isolamento do Acumulador (AIRs)",
+                liveValue = "AIR+: ${if (airPos) "FECHADO" else "ABERTO"} · AIR-: ${if (airNeg) "FECHADO" else "ABERTO"}",
+                targetLimit = "2 relés NO mecânicos · Corte galvânico bipolar",
+                status = Severity.OK,
+                description = "Pelo menos dois AIRs normalmente abertos dentro do TSAC para isolar ambos os polos positivo e negativo do TS (EV 5.6.1 e EV 5.6.2)."
+            )
+        )
+
+        // 9. Shutdown Circuit & AMS Latch (EV 6.1.2 & EV 6.1.6)
+        val sdcClosed = state.safety.sdcClosed
+        val amsOk = state.safety.amsOk
+        val safetyStatus = if (amsOk && sdcClosed) Severity.OK else if (!amsOk) Severity.FAULT else Severity.WARN
+        list.add(
+            ScrutineeringCheck(
+                id = "safety_sdc",
+                ruleRef = "FS EV 6.1",
+                title = "Circuito de Desligamento (SDC & Latch AMS)",
+                liveValue = if (sdcClosed) "Linha Fechada · AMS OK: Ativo" else "Linha Aberta (SDC Trip / Latch)",
+                targetLimit = "SDC fechado e rearme manual após disparo",
+                status = safetyStatus,
+                description = "O SDC liga em série LVMS, BSPD, IMD, AMS, BOTS, Inertia Switch e botões de emergência. Disparo do AMS exige rearme manual não pelo piloto."
+            )
+        )
+
+        // 10. Live AMS Monitoring & Display (EV 5.8.15)
         val slavesDetected = state.ams.slavesDetected ?: state.car.slaveCount
         val pecError = state.ams.pecError
         val commStatus = when {
@@ -188,13 +222,13 @@ fun ScrutineeringScreen(
         }
         list.add(
             ScrutineeringCheck(
-                id = "bms_comm",
-                ruleRef = "FSG EV 4.4",
-                title = "Comunicação Daisy-Chain (isoSPI)",
-                liveValue = "$slavesDetected de ${state.car.slaveCount} Slaves detetados · Sem erros PEC",
-                targetLimit = "${state.car.slaveCount} Slaves online sem falha de paridade",
+                id = "ams_display",
+                ruleRef = "FS EV 5.8.15",
+                title = "Visão Global e Telemetria em Tempo Real",
+                liveValue = "$slavesDetected/${state.car.slaveCount} Slaves online · Sem erros PEC",
+                targetLimit = "Leitura em tempo real de todas as células e NTCs",
                 status = commStatus,
-                description = "Comunicação diferencial isoSPI entre a placa mestre e os escravos dos 6 segmentos."
+                description = "O AMS deve conseguir ler e apresentar todos os valores medidos de tensão e temperatura em qualquer momento numa visão única (EV 5.8.15)."
             )
         )
 
@@ -276,7 +310,7 @@ fun ScrutineeringScreen(
                         letterSpacing = 0.8.sp
                     )
                     Text(
-                        text = "Checklist Regulamento FS",
+                        text = "Checklist Regulamento FS 2027",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = DarkTextPrimary
@@ -422,7 +456,7 @@ fun ScrutineeringScreen(
         // SECTION HEADER
         item {
             Text(
-                text = "REGRAS DE CONFORMIDADE TÉCNICA (FSG EV)",
+                text = "REGRAS DE CONFORMIDADE TÉCNICA (FS RULES 2027 EV)",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = DarkTextMuted,
