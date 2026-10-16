@@ -6,7 +6,6 @@ plugins {
 
 
 android {
-    layout.buildDirectory.set(file("C:/Users/rafae/AppData/Local/Temp/bms_build/app"))
     namespace = "pt.fslart.bms"
     compileSdk = 35
 
