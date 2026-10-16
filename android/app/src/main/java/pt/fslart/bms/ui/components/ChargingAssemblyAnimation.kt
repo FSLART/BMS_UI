@@ -128,19 +128,17 @@ fun ChargingAssemblyContent(
 
     // Status description based on animation phase
     val stageText = when {
-        progress < 0.28f -> if (is3DMode) "3D · BATERIA ABERTA (SEM TAMPA NEM PARAFUSOS)" else "VISTA EXPLODIDA · BATERIA ABERTA (SEM TAMPA NEM PARAFUSOS)"
-        progress < 0.58f -> if (is3DMode) "3D · A ENCAIXAR 6 SEGMENTOS E BUSBARS NO CHASSI..." else "A MONTAR 6 SEGMENTOS DE CÉLULAS NO CHASSI..."
-        progress < 0.78f -> "3D · A BAIXAR TAMPA SUPERIOR E APERTAR 8 PARAFUSOS M6..."
-        progress < 0.88f -> "ACUMULADOR SELADO · SDC FECHADO"
-        else -> "⚡ RELÂMPAGO DE CARGA · 588 V ATIVO!"
+        progress < 0.25f -> if (is3DMode) "3D · BATERIA ABERTA (SEM TAMPA)" else "VISTA EXPLODIDA · BATERIA ABERTA (SEM TAMPA)"
+        progress < 0.75f -> "A DESCER TAMPA SUPERIOR DO ACUMULADOR..."
+        progress < 0.88f -> "A FIXAR PARAFUSOS M6 · SDC FECHADO"
+        else -> "ACUMULADOR SELADO · CARGA ATIVA (+30.0 A)"
     }
 
     val stageColor = when {
-        progress < 0.28f -> Color(0xFF0A84FF)
-        progress < 0.58f -> Color(0xFFFF9500)
-        progress < 0.78f -> LartYellow
-        progress < 0.88f -> StatusOk
-        else -> Color(0xFFFFD60A)
+        progress < 0.25f -> Color(0xFF0A84FF)
+        progress < 0.75f -> Color(0xFFFF9500)
+        progress < 0.88f -> LartYellow
+        else -> StatusOk
     }
 
     Column(
@@ -179,7 +177,7 @@ fun ChargingAssemblyContent(
                         letterSpacing = 0.8.sp
                     )
                     Text(
-                        text = "Montagem da Bateria & Relâmpago ⚡",
+                        text = "Montagem da Bateria & Tampa Superior",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
@@ -426,10 +424,6 @@ private fun DrawScope.drawBatteryAssemblyScene(
     val screwElev = (1f - cubicEaseOut(screwFactor)) * 160f
     val screwRotation = screwFactor * 720f
 
-    // 4. Lightning Bolt Trigger (strikes at progress >= 0.85)
-    val lightningActive = progress >= 0.85f
-    val lightningIntensity = if (lightningActive) ((progress - 0.85f) / 0.15f) else 0f
-
     // -------------------------------------------------------------
     // A. DRAW BACKGROUND CYBERNETIC GRID
     // -------------------------------------------------------------
@@ -551,26 +545,8 @@ private fun DrawScope.drawBatteryAssemblyScene(
     // -------------------------------------------------------------
     val lidCenter = Offset(cx, cy - trayH - lidElev)
 
-    // Exploded alignment laser guides when lid is high up
-    if (lidElev > 20f) {
-        drawLine(
-            color = LartYellow.copy(alpha = 0.3f),
-            start = Offset(cx - trayW * 0.45f, cy - trayH - lidElev),
-            end = Offset(cx - trayW * 0.45f, cy - trayH),
-            strokeWidth = 1f,
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
-        )
-        drawLine(
-            color = LartYellow.copy(alpha = 0.3f),
-            start = Offset(cx + trayW * 0.45f, cy - trayH - lidElev),
-            end = Offset(cx + trayW * 0.45f, cy - trayH),
-            strokeWidth = 1f,
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
-        )
-    }
-
-    // Draw the TSAC Lid Plate
-    val lidColorTop = if (lidElev <= 5f && lightningActive) Color(0xFF2C394A) else Color(0xFF212B37)
+    // Draw the TSAC Lid Plate (Descends smoothly onto chassis)
+    val lidColorTop = if (lidElev <= 5f) Color(0xFF2C394A) else Color(0xFF212B37)
     drawIsometricBox(
         center = lidCenter,
         w = trayW * 1.04f,
@@ -616,17 +592,6 @@ private fun DrawScope.drawBatteryAssemblyScene(
         val sX = lidCenter.x + pos.x
         val sY = lidCenter.y + pos.y - screwElev
 
-        // Dashed trajectory line
-        if (screwElev > 10f) {
-            drawLine(
-                color = Color.White.copy(alpha = 0.25f),
-                start = Offset(sX, sY),
-                end = Offset(sX, lidCenter.y + pos.y),
-                strokeWidth = 1f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f)
-            )
-        }
-
         // Screw Head (Hexagonal / Round with cross slot)
         drawCircle(color = screwColor, radius = 4f, center = Offset(sX, sY))
         drawCircle(color = Color(0xFF161B22), radius = 2f, center = Offset(sX, sY))
@@ -635,77 +600,6 @@ private fun DrawScope.drawBatteryAssemblyScene(
         val dx = (cos(rotRad) * 2.8).toFloat()
         val dy = (sin(rotRad) * 2.8).toFloat()
         drawLine(Color.Black, Offset(sX - dx, sY - dy), Offset(sX + dx, sY + dy), strokeWidth = 1f)
-    }
-
-    // -------------------------------------------------------------
-    // G. THE LIGHTNING BOLT (O Relâmpagozinho & Onda de Choque!)
-    // -------------------------------------------------------------
-    if (lightningActive) {
-        val targetPoint = Offset(lidCenter.x, lidCenter.y - 10f)
-
-        // 1. Expanding Radial Shockwave Ring
-        val shockRadius = 30f + lightningIntensity * 160f
-        val shockAlpha = (1f - lightningIntensity).coerceIn(0f, 1f)
-        drawCircle(
-            color = LartYellow.copy(alpha = shockAlpha * 0.6f),
-            radius = shockRadius,
-            center = targetPoint,
-            style = Stroke(width = 3f * (1f - lightningIntensity) + 1f)
-        )
-        drawCircle(
-            color = Color(0xFF00E5FF).copy(alpha = shockAlpha * 0.4f),
-            radius = shockRadius * 0.75f,
-            center = targetPoint,
-            style = Stroke(width = 2f)
-        )
-
-        // 2. Main Zig-Zag Lightning Bolt Path
-        val startY = -20f
-        val startX = cx - 15f + (sin(sparkPulse * 20f) * 8f)
-
-        val boltPath = Path().apply {
-            moveTo(startX, startY)
-            lineTo(startX + 18f, startY + 50f)
-            lineTo(startX - 12f, startY + 95f)
-            lineTo(startX + 24f, startY + 140f)
-            lineTo(startX - 8f, startY + 185f)
-            lineTo(targetPoint.x + 6f, targetPoint.y - 30f)
-            lineTo(targetPoint.x, targetPoint.y)
-        }
-
-        // Branching Lightning Arc
-        val branchPath = Path().apply {
-            moveTo(startX - 12f, startY + 95f)
-            lineTo(startX - 40f, startY + 125f)
-            lineTo(startX - 32f, startY + 155f)
-        }
-
-        // Layer 1: Outer Neon Aura (Golden Glow)
-        drawPath(boltPath, color = Color(0xFFFFD60A).copy(alpha = 0.35f), style = Stroke(width = 16f, cap = StrokeCap.Round))
-        drawPath(branchPath, color = Color(0xFFFFD60A).copy(alpha = 0.25f), style = Stroke(width = 8f, cap = StrokeCap.Round))
-
-        // Layer 2: Electric Cyan / Blue Arc
-        drawPath(boltPath, color = Color(0xFF00E5FF), style = Stroke(width = 6f, cap = StrokeCap.Round, join = StrokeJoin.Miter))
-        drawPath(branchPath, color = Color(0xFF00E5FF), style = Stroke(width = 3f, cap = StrokeCap.Round))
-
-        // Layer 3: Ultra Bright Pure White Core
-        drawPath(boltPath, color = Color.White, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
-
-        // 3. Electric Contact Flash Sparkle at impact
-        val flashRadius = 16f + (sparkPulse * 12f)
-        drawCircle(Color.White, radius = flashRadius * 0.7f, center = targetPoint)
-        drawCircle(Color(0xFFFFD60A), radius = flashRadius, center = targetPoint, style = Stroke(3f))
-
-        // 4. Particle Sparks (24 Sparks shooting outwards)
-        val rand = Random(42)
-        for (i in 0..24) {
-            val angle = rand.nextFloat() * 2f * Math.PI
-            val speed = 35f + rand.nextFloat() * 75f * lightningIntensity
-            val px = targetPoint.x + (cos(angle) * speed).toFloat()
-            val py = targetPoint.y + (sin(angle) * speed * 0.6f).toFloat() // flattened in isometric view
-            val pColor = if (i % 2 == 0) Color(0xFFFFD60A) else Color(0xFF00E5FF)
-            drawCircle(color = pColor, radius = (rand.nextFloat() * 3f + 1.5f), center = Offset(px, py))
-        }
     }
 }
 

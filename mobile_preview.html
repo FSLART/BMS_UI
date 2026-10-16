@@ -1671,7 +1671,7 @@
           <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255, 214, 10, 0.2); border: 1px solid #FFD60A; display: flex; align-items: center; justify-content: center; font-size: 16px;">⚡</div>
           <div>
             <div style="font-size: 9px; font-weight: 800; color: #8B949E; letter-spacing: 0.8px;">ANIMAÇÃO DE CARGA · VISTA EXPLODIDA</div>
-            <div style="font-size: 14px; font-weight: 900; color: #FFF;">Montagem Automática &amp; Relâmpago</div>
+            <div style="font-size: 14px; font-weight: 900; color: #FFF;">Montagem da Bateria &amp; Tampa Superior</div>
           </div>
         </div>
         <button style="background: #161D26; border: 1px solid #2B3848; color: #8B949E; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;" onclick="closeChargingAssemblyAnimation()">✕</button>
@@ -2670,20 +2670,6 @@ Gerado pelo LART BMS Mobile System`;
 
     function initSparkParticles() {
       sparkParticles = [];
-      for (let i = 0; i < 26; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 25 + Math.random() * 85;
-        sparkParticles.push({
-          x: 185,
-          y: 175,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed - 15,
-          size: 1.5 + Math.random() * 3,
-          life: 0,
-          maxLife: 0.4 + Math.random() * 0.6,
-          color: Math.random() > 0.4 ? '#FFD60A' : '#0A84FF'
-        });
-      }
     }
 
     let isChargingAssembly3D = true;
@@ -2775,30 +2761,25 @@ Gerado pelo LART BMS Mobile System`;
       const badge = document.getElementById('assemblyStageBadge');
       if (badge) {
         if (progress < 0.28) {
-          badge.textContent = "VISTA EXPLODIDA · BATERIA ABERTA (SEM TAMPA NEM PARAFUSOS)";
+          badge.textContent = "VISTA EXPLODIDA · BATERIA ABERTA (SEM TAMPA)";
           badge.style.color = "#0A84FF";
           badge.style.borderColor = "rgba(10,132,255,0.4)";
           badge.style.background = "rgba(10,132,255,0.12)";
-        } else if (progress < 0.58) {
-          badge.textContent = "A MONTAR 6 SEGMENTOS DE CÉLULAS NO CHASSI...";
+        } else if (progress < 0.72) {
+          badge.textContent = "A DESCER TAMPA SUPERIOR DO ACUMULADOR...";
           badge.style.color = "#FF9500";
           badge.style.borderColor = "rgba(255,149,0,0.4)";
           badge.style.background = "rgba(255,149,0,0.12)";
-        } else if (progress < 0.78) {
-          badge.textContent = "A BAIXAR TAMPA SUPERIOR E APERTAR PARAFUSOS M6...";
+        } else if (progress < 0.85) {
+          badge.textContent = "A FIXAR PARAFUSOS M6 · SDC FECHADO";
           badge.style.color = "#FFD60A";
           badge.style.borderColor = "rgba(255,214,10,0.4)";
           badge.style.background = "rgba(255,214,10,0.12)";
-        } else if (progress < 0.88) {
-          badge.textContent = "ACUMULADOR SELADO · SDC FECHADO";
+        } else {
+          badge.textContent = "ACUMULADOR SELADO · CARGA ATIVA (+30.0 A)";
           badge.style.color = "#32D74B";
           badge.style.borderColor = "rgba(50,215,75,0.4)";
           badge.style.background = "rgba(50,215,75,0.12)";
-        } else {
-          badge.textContent = "⚡ RELÂMPAGO DE CARGA · 588 V ATIVO!";
-          badge.style.color = "#FFD60A";
-          badge.style.borderColor = "#FFD60A";
-          badge.style.background = "rgba(255,214,10,0.2)";
         }
       }
 
@@ -2896,21 +2877,6 @@ Gerado pelo LART BMS Mobile System`;
       const lidExplodedY = 48;
       const currentLidY = lidExplodedY + (lidTargetY - lidExplodedY) * lidEase;
 
-      if (lidT < 0.95) {
-        ctx.strokeStyle = "rgba(255,214,10,0.35)";
-        ctx.setLineDash([4, 4]);
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(centerX - chassisW / 2 + 10, currentLidY + 16);
-        ctx.lineTo(centerX - chassisW / 2 + 10, chassisY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(centerX + chassisW / 2 - 10, currentLidY + 16);
-        ctx.lineTo(centerX + chassisW / 2 - 10, chassisY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
       ctx.fillStyle = "#161D26";
       ctx.strokeStyle = progress >= 0.78 ? "#FFD60A" : "#4A5D75";
       ctx.lineWidth = 1.5;
@@ -2941,20 +2907,10 @@ Gerado pelo LART BMS Mobile System`;
         const screwExplodedY = 22 + (idx % 2 === 0 ? 0 : 8);
         const curSy = screwExplodedY + (screwTargetY - screwExplodedY) * screwT;
 
-        if (screwT < 0.95) {
-          ctx.strokeStyle = "rgba(255,214,10,0.4)";
-          ctx.setLineDash([2, 3]);
-          ctx.beginPath();
-          ctx.moveTo(sx, curSy);
-          ctx.lineTo(sx, currentLidY);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-
         ctx.save();
         ctx.translate(sx, curSy);
         ctx.rotate(screwT * Math.PI * 6 + idx);
-        ctx.fillStyle = progress >= 0.85 ? "#FFD60A" : "#8B949E";
+        ctx.fillStyle = progress >= 0.85 ? "#32D74B" : "#8B949E";
         ctx.beginPath();
         ctx.arc(0, 0, 3.2, 0, Math.PI * 2);
         ctx.fill();
@@ -2966,87 +2922,6 @@ Gerado pelo LART BMS Mobile System`;
         ctx.stroke();
         ctx.restore();
       });
-
-      // LIGHTNING STRIKE & ELECTRIC SHOCKWAVE (Progress >= 0.85)
-      if (progress >= 0.85) {
-        const strikePhase = (progress - 0.85) / 0.15;
-
-        // Flash of Light
-        if (strikePhase < 0.35) {
-          const flashAlpha = (1.0 - (strikePhase / 0.35)) * 0.45;
-          ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
-          ctx.fillRect(0, 0, w, h);
-        }
-
-        // Radial Shockwave Ring
-        const shockRadius = 20 + strikePhase * 160;
-        const shockAlpha = Math.max(0, 1.0 - strikePhase * 1.1);
-        ctx.strokeStyle = `rgba(10, 132, 255, ${shockAlpha})`;
-        ctx.lineWidth = 3 * (1.0 - strikePhase);
-        ctx.beginPath();
-        ctx.arc(centerX, chassisY + chassisH / 2, shockRadius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Flying Spark Particles
-        sparkParticles.forEach(p => {
-          p.x += p.vx * 0.016;
-          p.y += p.vy * 0.016;
-          p.life += 0.016;
-          if (p.life < p.maxLife) {
-            const pAlpha = 1.0 - (p.life / p.maxLife);
-            ctx.fillStyle = p.color;
-            ctx.globalAlpha = pAlpha;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
-          }
-        });
-
-        // GIANT ELECTRIC LIGHTNING BOLT
-        const boltPoints = [
-          { x: centerX + (Math.sin(now * 0.02) * 6), y: 12 },
-          { x: centerX - 14 + (Math.sin(now * 0.03) * 8), y: 45 },
-          { x: centerX + 18, y: 85 },
-          { x: centerX - 10, y: 125 },
-          { x: centerX + 24, y: 165 },
-          { x: centerX - 6, y: chassisY - 8 },
-          { x: centerX, y: chassisY + 20 }
-        ];
-
-        ctx.shadowColor = "#FFD60A";
-        ctx.shadowBlur = 18;
-        ctx.strokeStyle = "rgba(255, 214, 10, 0.8)";
-        ctx.lineWidth = 7;
-        drawJaggedPath(ctx, boltPoints);
-
-        ctx.shadowColor = "#0A84FF";
-        ctx.shadowBlur = 12;
-        ctx.strokeStyle = "#00F0FF";
-        ctx.lineWidth = 3.5;
-        drawJaggedPath(ctx, boltPoints);
-
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2;
-        drawJaggedPath(ctx, boltPoints);
-
-        const subBranch = [
-          boltPoints[3],
-          { x: boltPoints[3].x - 28, y: boltPoints[3].y + 25 },
-          { x: boltPoints[3].x - 38, y: boltPoints[3].y + 45 }
-        ];
-        ctx.strokeStyle = "rgba(10, 132, 255, 0.75)";
-        ctx.lineWidth = 2;
-        drawJaggedPath(ctx, subBranch);
-
-        const pulse = (Math.sin(now * 0.015) + 1) / 2;
-        ctx.fillStyle = `rgba(255, 214, 10, ${0.4 + pulse * 0.5})`;
-        ctx.beginPath();
-        ctx.arc(centerX - 90, chassisY + 12, 6 + pulse * 4, 0, Math.PI * 2);
-        ctx.arc(centerX + 90, chassisY + 12, 6 + pulse * 4, 0, Math.PI * 2);
-        ctx.fill();
-      }
     }
 
     function drawJaggedPath(ctx, points) {

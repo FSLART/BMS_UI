@@ -37,7 +37,12 @@
       background-color: transparent;
       --poster-color: transparent;
       outline: none;
-      transition: opacity 0.4s ease-out;
+      transition: opacity 0.3s ease-out;
+    }
+
+    #viewerLid {
+      pointer-events: none;
+      will-change: transform;
     }
 
     #viewerClosed {
@@ -54,18 +59,7 @@
       z-index: 10;
     }
 
-    /* Flash Overlay */
-    .flash-overlay {
-      position: absolute;
-      inset: 0;
-      background: white;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 15;
-      transition: opacity 0.08s ease-out;
-    }
-
-    /* Reset view & Orbit controls button */
+    /* Reset view button */
     .btn-3d-reset {
       position: absolute;
       bottom: 12px;
@@ -99,18 +93,17 @@
       font-size: 11px;
       font-weight: 800;
       letter-spacing: 0.8px;
-      z-index: 30;
-      transition: opacity 0.3s;
-      pointer-events: none;
+      gap: 12px;
+      z-index: 50;
+      transition: opacity 0.3s ease-out;
     }
     .spinner {
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       border: 3px solid rgba(255, 214, 10, 0.2);
       border-top-color: #FFD60A;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
-      margin-bottom: 10px;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -125,18 +118,15 @@
     <span>A CARREGAR MODELOS 3D DO ACUMULADOR...</span>
   </div>
 
-  <!-- Screen Flash Effect -->
-  <div id="flash" class="flash-overlay"></div>
-
-  <!-- 3D Model Viewers Layer (Open & Closed Assemblies) -->
+  <!-- 3D Model Viewers Layer (Open Chassis + Descending Lid + Closed Assembly) -->
   <div class="viewer-container">
-    <!-- Open Battery 3D Assembly (No Lid, Segments & Busbars Exposed) -->
+    <!-- 1. Open Battery 3D Assembly (No Lid, 6 Segments & Busbars Exposed) -->
     <model-viewer id="viewerOpen"
       src="models/tek26e_open_light.glb"
       camera-controls
       touch-action="pan-y"
       auto-rotate
-      rotation-per-second="14deg"
+      rotation-per-second="12deg"
       camera-orbit="220deg 68deg 95%"
       field-of-view="28deg"
       shadow-intensity="1.2"
@@ -146,13 +136,28 @@
       animation-name="fans">
     </model-viewer>
 
-    <!-- Closed Battery 3D Assembly (Sealed Lid & Screws Mounted) -->
+    <!-- 2. Descending Lid 3D Assembly (Lid-1 + Cover Tabs + M6 Screws) -->
+    <model-viewer id="viewerLid"
+      src="models/tek26e_lid.glb"
+      camera-controls
+      touch-action="pan-y"
+      auto-rotate
+      rotation-per-second="12deg"
+      camera-orbit="220deg 68deg 95%"
+      field-of-view="28deg"
+      shadow-intensity="0"
+      exposure="0.85"
+      interaction-prompt="none"
+      style="transform: translateY(-140px);">
+    </model-viewer>
+
+    <!-- 3. Closed Battery 3D Assembly (Final Sealed Assembly) -->
     <model-viewer id="viewerClosed"
       src="models/tek26e_closed.glb"
       camera-controls
       touch-action="pan-y"
       auto-rotate
-      rotation-per-second="14deg"
+      rotation-per-second="12deg"
       camera-orbit="220deg 68deg 95%"
       field-of-view="28deg"
       shadow-intensity="1.2"
@@ -163,7 +168,6 @@
     </model-viewer>
   </div>
 
-  <!-- Real-time 2D/3D Canvas Overlay for Lightning, Exploded Guides, Sparks -->
   <canvas id="animCanvas"></canvas>
 
   <!-- 3D View Reset Button -->
@@ -173,17 +177,16 @@
 
   <script>
     const viewerOpen = document.getElementById('viewerOpen');
+    const viewerLid = document.getElementById('viewerLid');
     const viewerClosed = document.getElementById('viewerClosed');
     const canvas = document.getElementById('animCanvas');
     const ctx = canvas.getContext('2d');
     const loader = document.getElementById('loader');
-    const flash = document.getElementById('flash');
 
     let isLoaded = false;
     let animStartTime = 0;
-    const ANIM_DURATION = 3600; // ms
+    const ANIM_DURATION = 3500; // ms
     let animRAF = 0;
-    let sparks = [];
 
     function resizeCanvas() {
       canvas.width = window.innerWidth * window.devicePixelRatio;
@@ -193,30 +196,6 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    function initSparks() {
-      sparks = [];
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const originX = w * 0.50;
-      const originY = h * 0.44;
-
-      for (let i = 0; i < 32; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 40 + Math.random() * 140;
-        sparks.push({
-          x: originX,
-          y: originY,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed * 0.65 - 20, // isometric flat projection
-          size: 1.5 + Math.random() * 3.5,
-          life: 0,
-          maxLife: 0.35 + Math.random() * 0.55,
-          color: Math.random() > 0.4 ? '#FFD60A' : '#00E5FF'
-        });
-      }
-    }
-
-    // Material enhancement to make CAD models look authentic (matte composite & titanium)
     function enhanceMaterials(mv) {
       if (!mv.model || !mv.model.materials) return;
       for (const mat of mv.model.materials) {
@@ -227,10 +206,11 @@
     }
 
     let loadedCount = 0;
-    function checkBothLoaded() {
+    function checkLoaded() {
       loadedCount++;
       if (loadedCount >= 2) {
         enhanceMaterials(viewerOpen);
+        enhanceMaterials(viewerLid);
         enhanceMaterials(viewerClosed);
         loader.style.opacity = '0';
         setTimeout(() => { loader.style.display = 'none'; }, 300);
@@ -239,10 +219,10 @@
       }
     }
 
-    viewerOpen.addEventListener('load', () => { checkBothLoaded(); });
-    viewerClosed.addEventListener('load', () => { checkBothLoaded(); });
+    viewerOpen.addEventListener('load', checkLoaded);
+    viewerLid.addEventListener('load', checkLoaded);
+    viewerClosed.addEventListener('load', checkLoaded);
 
-    // Fallback if load takes longer than 2s
     setTimeout(() => {
       if (!isLoaded) {
         loader.style.opacity = '0';
@@ -250,26 +230,39 @@
         isLoaded = true;
         startAssemblySequence();
       }
-    }, 2000);
+    }, 2200);
 
-    // Sync camera orbits between open and closed model viewers
-    viewerOpen.addEventListener('camera-change', () => {
-      if (viewerClosed.style.opacity > '0.1') {
-        viewerClosed.cameraOrbit = viewerOpen.cameraOrbit;
+    // Sync camera orbits between all 3 viewers
+    function syncCameras(source) {
+      const orbit = source.cameraOrbit;
+      const fov = source.fieldOfView;
+
+      if (source !== viewerOpen && viewerOpen) {
+        viewerOpen.cameraOrbit = orbit;
+        viewerOpen.fieldOfView = fov;
       }
-    });
-    viewerClosed.addEventListener('camera-change', () => {
-      viewerOpen.cameraOrbit = viewerClosed.cameraOrbit;
-    });
+      if (source !== viewerLid && viewerLid) {
+        viewerLid.cameraOrbit = orbit;
+        viewerLid.fieldOfView = fov;
+      }
+      if (source !== viewerClosed && viewerClosed) {
+        viewerClosed.cameraOrbit = orbit;
+        viewerClosed.fieldOfView = fov;
+      }
+    }
+
+    viewerOpen.addEventListener('camera-change', () => syncCameras(viewerOpen));
+    viewerClosed.addEventListener('camera-change', () => syncCameras(viewerClosed));
 
     function reset3DCamera() {
-      viewerOpen.cameraOrbit = '220deg 68deg 95%';
-      viewerClosed.cameraOrbit = '220deg 68deg 95%';
+      const def = '220deg 68deg 95%';
+      viewerOpen.cameraOrbit = def;
+      viewerLid.cameraOrbit = def;
+      viewerClosed.cameraOrbit = def;
     }
 
     function startAssemblySequence() {
       if (animRAF) cancelAnimationFrame(animRAF);
-      initSparks();
       animStartTime = performance.now();
       runAnimLoop();
     }
@@ -289,199 +282,61 @@
       const h = window.innerHeight;
       ctx.clearRect(0, 0, w, h);
 
-      // Phase 1: 0.0 - 0.45 -> Open 3D Battery View
-      // Phase 2: 0.45 - 0.78 -> Lid Lowers, Closed 3D Battery crossfades in
-      // Phase 3: 0.78 - 0.88 -> Sealing SDC, Contact closure
-      // Phase 4: 0.85 - 1.00 -> Lightning Bolt Strike & Shockwave!
+      // Phase 1 (0.0 to 0.20): Open battery resting, lid hovering above at -140px
+      // Phase 2 (0.20 to 0.72): Lid smoothly descends from -140px down to 0px
+      // Phase 3 (0.72 to 0.85): Lid is seated at 0px; subtle seal
+      // Phase 4 (0.85 to 1.00): Battery fully closed & sealed (fans rotating)
 
-      // Crossfade 3D model-viewer
-      if (progress < 0.45) {
+      const startY = -140; // px above
+
+      if (progress < 0.20) {
+        // Hovering above
         viewerOpen.style.opacity = '1';
+        viewerLid.style.opacity = '1';
+        viewerLid.style.transform = `translateY(${startY}px)`;
         viewerClosed.style.opacity = '0';
         viewerClosed.style.pointerEvents = 'none';
         viewerOpen.style.pointerEvents = 'auto';
-      } else if (progress < 0.78) {
-        const lidEase = (progress - 0.45) / 0.33;
-        // Smoothstep crossfade
-        const t = lidEase * lidEase * (3 - 2 * lidEase);
-        viewerOpen.style.opacity = (1 - t).toString();
-        viewerClosed.style.opacity = t.toString();
-        viewerClosed.style.pointerEvents = 'auto';
-        viewerOpen.style.pointerEvents = 'none';
+      } else if (progress < 0.72) {
+        // Physical descent with smooth deceleration (easeOutCubic)
+        const p = (progress - 0.20) / 0.52;
+        const ease = 1 - Math.pow(1 - p, 3);
+        const yOffset = (1 - ease) * startY;
+
+        viewerOpen.style.opacity = '1';
+        viewerLid.style.opacity = '1';
+        viewerLid.style.transform = `translateY(${yOffset.toFixed(2)}px)`;
+        viewerClosed.style.opacity = '0';
+        viewerClosed.style.pointerEvents = 'none';
+        viewerOpen.style.pointerEvents = 'auto';
+      } else if (progress < 0.85) {
+        // Lid has landed flush onto the battery
+        viewerOpen.style.opacity = '1';
+        viewerLid.style.opacity = '1';
+        viewerLid.style.transform = 'translateY(0px)';
+
+        // Gentle crossfade to the final sealed assembly
+        const pSeal = (progress - 0.72) / 0.13;
+        viewerClosed.style.opacity = (pSeal * pSeal).toString();
       } else {
+        // Fully assembled and sealed
         viewerOpen.style.opacity = '0';
+        viewerLid.style.opacity = '0';
+        viewerLid.style.transform = 'translateY(0px)';
         viewerClosed.style.opacity = '1';
         viewerClosed.style.pointerEvents = 'auto';
         viewerOpen.style.pointerEvents = 'none';
       }
-
-      const centerX = w * 0.50;
-      const centerY = h * 0.44;
-
-      // DRAW EXPLODED VIEW GUIDES & HOVERING LID (0.0 to 0.75)
-      if (progress < 0.75) {
-        const lidProgress = Math.min(1.0, Math.max(0.0, (progress - 0.40) / 0.35));
-        const lidElev = (1.0 - Math.sin(lidProgress * Math.PI / 2)) * 120; // px above
-
-        // Corner trajectory guides
-        ctx.strokeStyle = "rgba(255, 214, 10, 0.4)";
-        ctx.lineWidth = 1.2;
-        ctx.setLineDash([4, 4]);
-
-        const boxW = w * 0.55;
-        const boxH = h * 0.28;
-
-        // 4 Trajectory Lasers
-        ctx.beginPath();
-        ctx.moveTo(centerX - boxW * 0.4, centerY - boxH * 0.3 - lidElev);
-        ctx.lineTo(centerX - boxW * 0.4, centerY - boxH * 0.3);
-        ctx.moveTo(centerX + boxW * 0.4, centerY - boxH * 0.3 - lidElev);
-        ctx.lineTo(centerX + boxW * 0.4, centerY - boxH * 0.3);
-        ctx.moveTo(centerX - boxW * 0.35, centerY + boxH * 0.25 - lidElev);
-        ctx.lineTo(centerX - boxW * 0.35, centerY + boxH * 0.25);
-        ctx.moveTo(centerX + boxW * 0.35, centerY + boxH * 0.25 - lidElev);
-        ctx.lineTo(centerX + boxW * 0.35, centerY + boxH * 0.25);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Hovering M6 Screws Guides
-        if (progress < 0.70) {
-          const screwElev = (1.0 - Math.min(1.0, progress / 0.70)) * 140;
-          for (let i = 0; i < 8; i++) {
-            const sx = centerX + (i - 3.5) * (boxW * 0.11);
-            const sy = centerY - boxH * 0.35 - screwElev;
-            // Draw Screw
-            ctx.fillStyle = "#FFD60A";
-            ctx.beginPath();
-            ctx.arc(sx, sy, 3, 0, Math.PI * 2);
-            ctx.fill();
-            // Guide line
-            ctx.strokeStyle = "rgba(255, 214, 10, 0.3)";
-            ctx.setLineDash([2, 3]);
-            ctx.beginPath();
-            ctx.moveTo(sx, sy);
-            ctx.lineTo(sx, centerY - boxH * 0.35);
-            ctx.stroke();
-            ctx.setLineDash([]);
-          }
-        }
-      }
-
-      // LIGHTNING STRIKE & SHOCKWAVE (Progress >= 0.82)
-      if (progress >= 0.82) {
-        const strikePhase = (progress - 0.82) / 0.18; // 0 to 1
-
-        // Flash of Light on impact (at strikePhase ~ 0.05 - 0.25)
-        if (strikePhase < 0.25) {
-          const flashAlpha = (1.0 - (strikePhase / 0.25)) * 0.65;
-          flash.style.opacity = flashAlpha.toString();
-        } else {
-          flash.style.opacity = '0';
-        }
-
-        // Radial Shockwave Ring radiating across 3D model
-        const shockRadius = 25 + strikePhase * (w * 0.48);
-        const shockAlpha = Math.max(0, 1.0 - strikePhase * 1.15);
-        ctx.strokeStyle = `rgba(0, 229, 255, ${shockAlpha * 0.85})`;
-        ctx.lineWidth = 3.5 * (1.0 - strikePhase);
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, shockRadius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.strokeStyle = `rgba(255, 214, 10, ${shockAlpha * 0.65})`;
-        ctx.lineWidth = 2.0 * (1.0 - strikePhase);
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, shockRadius * 0.75, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // 32 Flying Spark Particles
-        sparks.forEach(p => {
-          p.x += p.vx * 0.016;
-          p.y += p.vy * 0.016;
-          p.life += 0.016;
-          if (p.life < p.maxLife) {
-            const pAlpha = 1.0 - (p.life / p.maxLife);
-            ctx.fillStyle = p.color;
-            ctx.globalAlpha = pAlpha;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
-          }
-        });
-
-        // GIANT ELECTRIC LIGHTNING BOLT STRIKING INTO 3D ACCUMULATOR
-        const startX = centerX + Math.sin(now * 0.03) * 12;
-        const startY = 10;
-        const targetX = centerX;
-        const targetY = centerY;
-
-        const boltPoints = [
-          { x: startX, y: startY },
-          { x: centerX - 18 + Math.sin(now * 0.04) * 8, y: h * 0.12 },
-          { x: centerX + 22, y: h * 0.20 },
-          { x: centerX - 14, y: h * 0.28 },
-          { x: centerX + 26, y: h * 0.36 },
-          { x: targetX, y: targetY }
-        ];
-
-        // 1. Outer Golden Glow Aura
-        ctx.shadowColor = "#FFD60A";
-        ctx.shadowBlur = 22;
-        ctx.strokeStyle = "rgba(255, 214, 10, 0.85)";
-        ctx.lineWidth = 9;
-        drawJaggedPath(ctx, boltPoints);
-
-        // 2. Bright Cyan Electric Arc
-        ctx.shadowColor = "#00E5FF";
-        ctx.shadowBlur = 14;
-        ctx.strokeStyle = "#00E5FF";
-        ctx.lineWidth = 4;
-        drawJaggedPath(ctx, boltPoints);
-
-        // 3. Ultra Bright Pure White Core
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2.2;
-        drawJaggedPath(ctx, boltPoints);
-
-        // Branching Arc
-        const subBranch = [
-          boltPoints[3],
-          { x: boltPoints[3].x - 35, y: boltPoints[3].y + 22 },
-          { x: boltPoints[3].x - 48, y: boltPoints[3].y + 42 }
-        ];
-        ctx.strokeStyle = "rgba(0, 229, 255, 0.8)";
-        ctx.lineWidth = 2.5;
-        drawJaggedPath(ctx, subBranch);
-
-        // Continuous Electric Terminal Glow
-        const pulse = (Math.sin(now * 0.02) + 1) / 2;
-        ctx.fillStyle = `rgba(255, 214, 10, ${0.45 + pulse * 0.5})`;
-        ctx.beginPath();
-        ctx.arc(centerX - w * 0.18, centerY - 8, 8 + pulse * 5, 0, Math.PI * 2);
-        ctx.arc(centerX + w * 0.18, centerY - 8, 8 + pulse * 5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    function drawJaggedPath(ctx, points) {
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i].x, points[i].y);
-      }
-      ctx.stroke();
     }
 
     // Public API for Android / Web callers
     window.restartAnimation = function() {
+      viewerClosed.style.pointerEvents = 'none';
+      viewerOpen.style.pointerEvents = 'auto';
       startAssemblySequence();
     };
 
-    window.updateTelemetry = function(data) {
-      // Available for dynamic telemetry injection if needed
-    };
+    window.updateTelemetry = function(data) {};
   </script>
 </body>
 </html>

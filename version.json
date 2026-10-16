@@ -1,8 +1,8 @@
 {
-  "versionCode": 5,
-  "versionName": "1.3.0",
+  "versionCode": 6,
+  "versionName": "1.3.1",
   "releaseDate": "2026-10-16",
-  "title": "Animação 3D SolidWorks & Notificação Spotify de Carga",
-  "changelog": "Nova funcionalidade completa de carga: Animação 3D pop-up com os modelos CAD SolidWorks reais da bateria aberta (tek26e_open_light.glb mostrando os 6 segmentos internos e barramentos) e montagem com fecho da tampa (tek26e_closed.glb), aperto de parafusos M6 e relâmpago elétrico de alta potência. Adicionada notificação contínua e persistente em primeiro plano estilo Spotify que permanece ativa no ecrã de bloqueio e painel de notificações enquanto o veículo carrega, com telemetria em tempo real (tensão, corrente +30A, potência kW, SoC % e barra de progresso viva).",
+  "title": "Montagem 3D Realista da Bateria (Descida Física da Tampa)",
+  "changelog": "Animação de carga aprimorada com física mecânica pura e realista: removidos todos os efeitos de relâmpago, lasers e guias amarelas. A tampa superior do acumulador (tek26e_lid.glb) descende fisicamente a partir do topo em direção ao chassi aberto com desaceleração suave, encaixando com precisão milimétrica sobre os módulos de células e parafusos M6.",
   "apkUrl": "https://github.com/FSLART/BMS_UI/releases/latest/download/LART_BMS.apk"
 }
