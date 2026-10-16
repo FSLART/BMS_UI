@@ -41,8 +41,8 @@ sealed class UpdateState {
 object AppUpdateManager {
     private const val TAG = "AppUpdateManager"
     private const val GITHUB_RELEASES_URL = "https://api.github.com/repos/FSLART/BMS_UI/releases/latest"
-    private const val REMOTE_VERSION_URL = "https://raw.githubusercontent.com/FSLART/BMS_UI/android-app/version.json"
-    private const val FALLBACK_VERSION_URL = "https://github.com/FSLART/BMS_UI/raw/android-app/version.json"
+    private const val REMOTE_VERSION_URL = "https://raw.githubusercontent.com/FSLART/BMS_UI/main/version.json"
+    private const val FALLBACK_VERSION_URL = "https://github.com/FSLART/BMS_UI/raw/main/version.json"
 
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()

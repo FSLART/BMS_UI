@@ -3,6 +3,7 @@ name: Build and Release BMS UI
 on:
   push:
     branches:
+      - main
       - android-app
     tags:
       - 'v*'

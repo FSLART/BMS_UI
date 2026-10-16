@@ -4,5 +4,5 @@
   "releaseDate": "2026-10-16",
   "title": "Correção de Layout Vertical & Ecrã Inteiro 3D",
   "changelog": "Ajuste fino nos ecrãs de telemóvel: botões de controlo 3D e ecrã inteiro enquadrados sem cortes, badge 100% de Scrutineering sem quebra vertical, grelha métrica em cards individuais e alinhamento do botão de relatório.",
-  "apkUrl": "https://github.com/FSLART/BMS_UI/raw/android-app/LART_BMS.apk"
+  "apkUrl": "https://github.com/FSLART/BMS_UI/raw/main/LART_BMS.apk"
 }
