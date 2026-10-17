@@ -1,5 +1,7 @@
 package pt.fslart.bms.ui.screens
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayArrow
@@ -18,10 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.NotificationManagerCompat
 import pt.fslart.bms.ui.components.KpiCard
 import pt.fslart.bms.ui.components.Model3DViewer
 import pt.fslart.bms.ui.theme.*
@@ -40,6 +45,10 @@ fun ChargerScreen(
     val state by viewModel.bmsState.collectAsState()
     val charger = state.charger
     var viewMode by remember { mutableStateOf(ChargerScreenMode.METRICS) }
+    val context = LocalContext.current
+    val areNotificationsEnabled = remember(context) {
+        NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
 
     LazyColumn(
         modifier = modifier
@@ -148,42 +157,116 @@ fun ChargerScreen(
             }
         }
 
+        if (!areNotificationsEnabled) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF332A00))
+                        .border(1.dp, LartYellow, RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "🔔 NOTIFICAÇÕES DESATIVADAS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LartYellow
+                        )
+                        Text(
+                            text = "Ativa as notificações para ver o balão amarelo no topo do ecrã e telemetria contínua.",
+                            fontSize = 10.sp,
+                            color = DarkTextSecondary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            try {
+                                val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                }
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = LartYellow, contentColor = Color.Black),
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text("Ativar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
         // CHARGING STATUS BANNER
         item {
             val isCharging = state.isCharging
             val bannerBg = if (isCharging) Color(0xFF142B1E) else DarkSurface
             val bannerBorder = if (isCharging) StatusOk else DarkBorder
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(bannerBg)
                     .border(1.dp, bannerBorder, RoundedCornerShape(12.dp))
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column {
-                    Text(
-                        text = if (isCharging) "A CARREGAR ACUMULADOR" else "CARREGADOR EM ESPERA",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (isCharging) StatusOkGlow else DarkTextSecondary
-                    )
-                    Text(
-                        text = if (isCharging) "Corrente de carga controlada por CAN" else "À espera de comando de ativação",
-                        fontSize = 11.sp,
-                        color = DarkTextMuted
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = if (isCharging) "A CARREGAR ACUMULADOR" else "CARREGADOR EM ESPERA",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isCharging) StatusOkGlow else DarkTextSecondary
+                        )
+                        Text(
+                            text = if (isCharging) "Corrente de carga ativa · Balão de estado visível" else "À espera de comando ou clique em Simular",
+                            fontSize = 11.sp,
+                            color = DarkTextMuted
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(14.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(if (isCharging) StatusOk else DarkTextMuted)
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(14.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(if (isCharging) StatusOk else DarkTextMuted)
-                )
+                // TEST / SIMULATION TOGGLE BUTTON
+                Button(
+                    onClick = { viewModel.toggleManualCharging() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isCharging) StatusFault else LartYellow,
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 10.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isCharging) Icons.Default.Close else Icons.Default.ElectricBolt,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isCharging) "⏹️ PARAR CARGA (FECHAR BALÃO)" else "⚡ SIMULAR / ATIVAR CARGA (VER BALÃO)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
 

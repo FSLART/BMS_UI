@@ -261,6 +261,34 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         else chargingAlertManager.triggerChargingStoppedAlert()
     }
 
+    fun toggleManualCharging() {
+        val currentlyCharging = _bmsState.value.isCharging
+        val newCharging = !currentlyCharging
+        val currentState = _bmsState.value
+        val updatedPack = currentState.pack.copy(
+            current = if (newCharging) -30.0f else 0.0f,
+            power = if (newCharging) (currentState.pack.voltage * 30.0f) / 1000f else 0.0f
+        )
+        val updatedState = currentState.copy(
+            isCharging = newCharging,
+            pack = updatedPack,
+            charger = currentState.charger.copy(
+                present = newCharging,
+                enabled = newCharging,
+                outputCurrent = if (newCharging) 30.0f else 0.0f,
+                outputVoltage = if (newCharging) currentState.pack.voltage else 0.0f
+            )
+        )
+        _bmsState.value = updatedState
+        if (newCharging) {
+            ChargingNotificationService.startOrUpdate(getApplication(), updatedState)
+            chargingAlertManager.triggerChargingStartedAlert()
+        } else {
+            ChargingNotificationService.stop(getApplication())
+            chargingAlertManager.triggerChargingStoppedAlert()
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         simulatorJob?.cancel()
