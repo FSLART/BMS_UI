@@ -1,8 +1,8 @@
 {
-  "versionCode": 9,
-  "versionName": "1.5.0",
+  "versionCode": 10,
+  "versionName": "1.5.1",
   "releaseDate": "2026-10-17",
-  "title": "Balão de Carga Samsung One UI & Integração MediaSession",
-  "changelog": "Integração nativa com Samsung One UI (estilo Spotify / Live Notification) via MediaSession e Notification.MediaStyle: balão compacto amarelo na barra de estado e ecrã de bloqueio indicando a tensão (ex: ⚡ 580.4 V) que expande ao toque para exibir SoC %, corrente de carga (+30A), kW, temperatura e barra de progresso. Adicionado botão para simular/iniciar carga instantaneamente e aviso de permissão de notificações.",
+  "title": "Notificação Persistente de Carga Samsung One UI",
+  "changelog": "Correção definitiva da persistência da notificação: corrigido o ciclo do simulador que cancelava a notificação prematuramente. Implementada notificação contínua otimizada para a barra do Samsung One UI com balão compacto da tensão (⚡ 580.4 V) que expande ao toque revelando SoC %, corrente (+30A), kW, temperatura e barra de progresso. Botão de carga manual agora fixa o estado de carga sem expirar.",
   "apkUrl": "https://github.com/FSLART/BMS_UI/releases/latest/download/LART_BMS.apk"
 }

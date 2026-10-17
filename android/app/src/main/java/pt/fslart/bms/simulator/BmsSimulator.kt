@@ -38,7 +38,10 @@ class BmsSimulator(
         }
     }
 
+    var manualChargingOverride: Boolean? = null
+
     fun isChargingPhase(tSeconds: Float): Boolean {
+        manualChargingOverride?.let { return it }
         return (tSeconds % CYCLE_S) >= DRIVE_S
     }
 
