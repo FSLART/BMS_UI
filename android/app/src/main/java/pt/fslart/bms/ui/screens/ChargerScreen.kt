@@ -1,7 +1,12 @@
 package pt.fslart.bms.ui.screens
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,6 +32,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import pt.fslart.bms.ui.components.KpiCard
 import pt.fslart.bms.ui.components.Model3DViewer
 import pt.fslart.bms.ui.theme.*
@@ -46,8 +55,28 @@ fun ChargerScreen(
     val charger = state.charger
     var viewMode by remember { mutableStateOf(ChargerScreenMode.METRICS) }
     val context = LocalContext.current
-    val areNotificationsEnabled = remember(context) {
-        NotificationManagerCompat.from(context).areNotificationsEnabled()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var areNotificationsEnabled by remember {
+        mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                areNotificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        areNotificationsEnabled = isGranted || NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
     LazyColumn(
@@ -185,12 +214,17 @@ fun ChargerScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            try {
-                                val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                                }
-                                context.startActivity(intent)
-                            } catch (_: Exception) {}
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                try {
+                                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = LartYellow, contentColor = Color.Black),
                         shape = RoundedCornerShape(6.dp),
@@ -246,7 +280,13 @@ fun ChargerScreen(
 
                 // TEST / SIMULATION TOGGLE BUTTON
                 Button(
-                    onClick = { viewModel.toggleManualCharging() },
+                    onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                        viewModel.toggleManualCharging()
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isCharging) StatusFault else LartYellow,
                         contentColor = Color.Black

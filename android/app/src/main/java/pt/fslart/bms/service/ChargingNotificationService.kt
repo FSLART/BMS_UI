@@ -38,7 +38,7 @@ class ChargingNotificationDismissReceiver : BroadcastReceiver() {
 object ChargingNotificationService {
 
     private const val TAG = "ChargingNotif"
-    const val CHANNEL_ID = "bms_charging_status_v5"
+    const val CHANNEL_ID = "bms_charging_status_v6"
     const val NOTIFICATION_ID = 2601
 
     private var isChannelCreated = false
@@ -110,15 +110,15 @@ object ChargingNotificationService {
             )
 
             // Collapsed: Yellow title with JUST the voltage: "⚡ 580.4 V"
-            val collapsedTitle = "⚡ %.1f V".format(voltage)
-            val collapsedSubtitle = "🔋 $soc% SoC · ⚡ +%.1f A (%.2f kW)".format(current, power)
+            val collapsedTitle = "⚡ ${"%.1f".format(voltage)} V"
+            val collapsedSubtitle = "🔋 $soc% SoC · ⚡ +${"%.1f".format(current)} A (${"%.2f".format(power)} kW)"
 
             // Expanded: Full breakdown with Tensão, SoC, Corrente, Potência, Temp
             val expandedDetails = StringBuilder()
                 .append("🔋 Nível de Bateria (SoC): $soc%\n")
-                .append("⚡ Corrente de Carga: +%.2f A (%.2f kW)\n".format(current, power))
-                .append("🔌 Tensão Total do Pack: %.1f V\n".format(voltage))
-                .append("🌡️ Temperatura Máxima: %.1f °C\n".format(tempMax))
+                .append("⚡ Corrente de Carga: +${"%.2f".format(current)} A (${"%.2f".format(power)} kW)\n")
+                .append("🔌 Tensão Total do Pack: ${"%.1f".format(voltage)} V\n")
+                .append("🌡️ Temperatura Máxima: ${"%.1f".format(tempMax)} °C\n")
                 .append("🏁 Estação de Carga: Handcart T26 / EV Europe")
                 .toString()
 
@@ -126,11 +126,11 @@ object ChargingNotificationService {
                 .setSmallIcon(R.drawable.ic_bolt_notification)
                 .setContentTitle(collapsedTitle)
                 .setContentText(collapsedSubtitle)
-                .setSubText("⚡ %.1f V".format(voltage))
+                .setSubText("⚡ ${"%.1f".format(voltage)} V")
                 .setStyle(
                     NotificationCompat.BigTextStyle()
-                        .setBigContentTitle("⚡ %.1f V · $carName (A Carregar)".format(voltage))
-                        .setSummaryText("🔋 $soc% SoC · +%.1f A".format(current))
+                        .setBigContentTitle("⚡ ${"%.1f".format(voltage)} V · $carName (A Carregar)")
+                        .setSummaryText("🔋 $soc% SoC · +${"%.1f".format(current)} A")
                         .bigText(expandedDetails)
                 )
                 .setContentIntent(pendingIntent)
@@ -138,7 +138,6 @@ object ChargingNotificationService {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setColor(Color.parseColor("#FFD60A"))
-                .setColorized(true)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setPriority(NotificationCompat.PRIORITY_MAX)

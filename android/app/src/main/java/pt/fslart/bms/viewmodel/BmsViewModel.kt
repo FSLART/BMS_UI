@@ -154,14 +154,20 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         setDemoMode(!_isDemoMode.value)
     }
 
-    fun setDemoMode(enabled: Boolean) {
+    fun setDemoMode(enabled: Boolean, initialChargingOverride: Boolean? = null) {
         _isDemoMode.value = enabled
         if (enabled) {
             bleManager.disconnect()
-            simulator = BmsSimulator(_selectedCar.value)
+            simulator = BmsSimulator(_selectedCar.value).apply {
+                if (initialChargingOverride != null) {
+                    manualChargingOverride = initialChargingOverride
+                }
+            }
             simulatorJob?.cancel()
             simulatorJob = viewModelScope.launch {
-                _currentTab.value = ScreenTab.DASHBOARD
+                if (_currentTab.value == ScreenTab.CONNECT) {
+                    _currentTab.value = ScreenTab.DASHBOARD
+                }
                 while (isActive) {
                     val fakeState = simulator.step()
                     _bmsState.value = fakeState
@@ -266,10 +272,10 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         val newCharging = !currentlyCharging
 
         if (newCharging && !_isDemoMode.value && bleManager.connectionState.value != BleConnectionState.CONNECTED) {
-            setDemoMode(true)
+            setDemoMode(true, initialChargingOverride = true)
+        } else {
+            simulator.manualChargingOverride = newCharging
         }
-
-        simulator.manualChargingOverride = newCharging
 
         val currentState = _bmsState.value
         val packVoltage = if (currentState.pack.voltage > 10f) currentState.pack.voltage else 580.4f

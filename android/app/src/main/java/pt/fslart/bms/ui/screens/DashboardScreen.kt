@@ -130,7 +130,7 @@ fun DashboardScreen(
                                 color = LartYellow
                             )
                             Text(
-                                text = "${state.pack.soc.toInt()}% SOC · %.1f V · %.1f A".format(state.pack.voltage, state.pack.current),
+                                text = "${state.pack.soc.toInt()}% SOC · ${"%.1f".format(state.pack.voltage)} V · ${"%.1f".format(state.pack.current)} A",
                                 fontSize = 11.sp,
                                 color = DarkTextSecondary
                             )

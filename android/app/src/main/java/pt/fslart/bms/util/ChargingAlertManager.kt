@@ -72,12 +72,6 @@ class ChargingAlertManager(private val context: Context) {
             } catch (_: Exception) {}
         }
 
-        // 3. Visual feedback
-        mainHandler.post {
-            try {
-                Toast.makeText(context, "⚡ ACUMULADOR A CARREGAR!", Toast.LENGTH_SHORT).show()
-            } catch (_: Exception) {}
-        }
     }
 
     fun triggerChargingStoppedAlert() {
@@ -102,13 +96,6 @@ class ChargingAlertManager(private val context: Context) {
                 tone.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 500)
                 Thread.sleep(520)
                 tone.release()
-            } catch (_: Exception) {}
-        }
-
-        // 3. Visual feedback
-        mainHandler.post {
-            try {
-                Toast.makeText(context, "⏹️ CARGA INTERROMPIDA / FINALIZADA!", Toast.LENGTH_SHORT).show()
             } catch (_: Exception) {}
         }
     }

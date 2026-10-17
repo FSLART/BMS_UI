@@ -1,8 +1,8 @@
 {
-  "versionCode": 10,
-  "versionName": "1.5.1",
+  "versionCode": 11,
+  "versionName": "1.5.2",
   "releaseDate": "2026-10-17",
-  "title": "Notificação Persistente de Carga Samsung One UI",
-  "changelog": "Correção definitiva da persistência da notificação: corrigido o ciclo do simulador que cancelava a notificação prematuramente. Implementada notificação contínua otimizada para a barra do Samsung One UI com balão compacto da tensão (⚡ 580.4 V) que expande ao toque revelando SoC %, corrente (+30A), kW, temperatura e barra de progresso. Botão de carga manual agora fixa o estado de carga sem expirar.",
+  "title": "Correção de Crash e Balão Persistente de Carga Samsung",
+  "changelog": "Correção definitiva do crash ao iniciar carregamento: eliminados erros de formatação de strings e troca de ecrã indesejada. Otimizada notificação no topo do ecrã (Samsung One UI / Android) com balão amarelo compacto de tensão (⚡ 580.4 V) que expande ao toque mostrando SoC %, corrente (+30A), kW, temperatura e barra de progresso contínua. Removido toast confuso de 2 segundos.",
   "apkUrl": "https://github.com/FSLART/BMS_UI/releases/latest/download/LART_BMS.apk"
 }
