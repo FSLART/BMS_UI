@@ -74,7 +74,9 @@ class ChargingAlertManager(private val context: Context) {
 
         // 3. Visual feedback
         mainHandler.post {
-            Toast.makeText(context, "⚡ ACUMULADOR A CARREGAR!", Toast.LENGTH_SHORT).show()
+            try {
+                Toast.makeText(context, "⚡ ACUMULADOR A CARREGAR!", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {}
         }
     }
 
@@ -105,7 +107,9 @@ class ChargingAlertManager(private val context: Context) {
 
         // 3. Visual feedback
         mainHandler.post {
-            Toast.makeText(context, "⏹️ CARGA INTERROMPIDA / FINALIZADA!", Toast.LENGTH_SHORT).show()
+            try {
+                Toast.makeText(context, "⏹️ CARGA INTERROMPIDA / FINALIZADA!", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {}
         }
     }
 }

@@ -81,11 +81,6 @@ class MainActivity : ComponentActivity() {
             permissionLauncher.launch(permissionsToRequest.toTypedArray())
         }
     }
-
-    override fun onResume() {
-        super.onResume()
-        pt.fslart.bms.service.ChargingNotificationService.resetBackgroundFailure()
-    }
 }
 
 @Composable
@@ -100,12 +95,6 @@ fun MainAppScaffold(viewModel: BmsViewModel) {
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-
-    val isAnyOverlayActive = fullscreen3D != null || isCellChartFullscreen || isThermChartFullscreen
-    BackHandler(enabled = !isAnyOverlayActive) {
-        // Spotify-style backgrounding: minimizes app without destroying session, BLE connection or telemetry
-        (context as? ComponentActivity)?.moveTaskToBack(true)
-    }
 
     LaunchedEffect(Unit) {
         AppUpdateManager.checkForUpdate(context, coroutineScope, silent = true)

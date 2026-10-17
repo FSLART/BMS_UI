@@ -1,8 +1,8 @@
 {
-  "versionCode": 7,
-  "versionName": "1.4.0",
+  "versionCode": 8,
+  "versionName": "1.4.1",
   "releaseDate": "2026-10-17",
-  "title": "Notificação de Carga Samsung One UI & Correção de Estabilidade",
-  "changelog": "Remoção completa da animação de montagem. Notificação contínua estilo Spotify/despertador otimizada para Samsung One UI com balão / pop-up de alta prioridade na barra de notificações e atualização segura em tempo real de telemetria (SoC, corrente, tensão, temperatura) sem crash ao sair ou minimizar a aplicação.",
+  "title": "Correção Crítica: Estabilidade Total no Início de Carga",
+  "changelog": "Correção definitiva do crash e minimização ao iniciar carregamento: removido interceptor global de botão retroceder e transição do serviço de notificações para gestão direta e assíncrona via NotificationManager (sem ciclos de vida frágeis de Foreground Service). Mantém o balão / pop-up no topo do ecrã e notificação persistente estilo Spotify com telemetria em tempo real.",
   "apkUrl": "https://github.com/FSLART/BMS_UI/releases/latest/download/LART_BMS.apk"
 }
