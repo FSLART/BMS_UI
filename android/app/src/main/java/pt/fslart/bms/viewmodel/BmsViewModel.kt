@@ -374,14 +374,14 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val currentState = _bmsState.value
-        val packVoltage = if (currentState.pack.voltage > 10f) currentState.pack.voltage else 580.4f
-        val packSoc = if (currentState.pack.soc > 0f) currentState.pack.soc else 92.0f
+        val packVoltage = if (currentState.pack.voltage > 10f) currentState.pack.voltage else 520.0f
+        val packSoc = if (currentState.pack.soc > 0f) currentState.pack.soc else 55.0f
 
         val updatedPack = currentState.pack.copy(
             voltage = packVoltage,
             soc = packSoc,
-            current = if (newCharging) -30.0f else 0.0f,
-            power = if (newCharging) (packVoltage * 30.0f) / 1000f else 0.0f
+            current = if (newCharging) -6.0f else 0.0f,
+            power = if (newCharging) (packVoltage * 6.0f) / 1000f else 0.0f
         )
         val updatedState = currentState.copy(
             isCharging = newCharging,
@@ -389,7 +389,7 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
             charger = currentState.charger.copy(
                 present = newCharging,
                 enabled = newCharging,
-                outputCurrent = if (newCharging) 30.0f else 0.0f,
+                outputCurrent = if (newCharging) 6.0f else 0.0f,
                 outputVoltage = if (newCharging) packVoltage else 0.0f
             )
         )

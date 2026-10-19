@@ -36,6 +36,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import pt.fslart.bms.ui.components.ChargingEtaCard
 import pt.fslart.bms.ui.components.KpiCard
 import pt.fslart.bms.ui.components.Model3DViewer
 import pt.fslart.bms.ui.theme.*
@@ -310,6 +311,10 @@ fun ChargerScreen(
             }
         }
 
+        // PREVISÃO DE CARGA (ETA A 6 AMPERES)
+        item {
+            ChargingEtaCard(state = state)
+        }
 
         // METRICS SUMMARY
         item {

@@ -1,8 +1,8 @@
 {
-  "versionCode": 13,
-  "versionName": "1.6.1",
+  "versionCode": 14,
+  "versionName": "1.6.2",
   "releaseDate": "2026-10-19",
-  "title": "Correção de Assinatura Criptográfica & Atualizador OTA",
-  "changelog": "Configurado Keystore permanente de produção FSLART: resolve em definitivo o erro 'App não instalada' nas atualizações automáticas OTA. Inclui verificação proativa da permissão de fontes desconhecidas no Android e verificação estrita de integridade do ficheiro APK descarregado.",
+  "title": "Previsão Inteligente de Carga (ETA @ 6A) & Notificação Persistente",
+  "changelog": "Implementado cálculo preditivo de tempo restante de carregamento (ETA) calibrado para a corrente padrão de 6.0 A da estação Handcart T26. Apresenta o tempo exato e hora do relógio até aos 80% (carga rápida de pista) e até aos 100% (carga completa e balanceamento CV). A estimativa surge no ecrã de Carregamento (ChargingEtaCard com barra visual de progresso), no Dashboard e no balão persistente estilo Spotify do Samsung One UI.",
   "apkUrl": "https://github.com/FSLART/BMS_UI/releases/latest/download/LART_BMS.apk"
 }

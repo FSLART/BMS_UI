@@ -83,9 +83,10 @@ object ChargingNotificationService {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             ensureChannel(context, notificationManager)
 
+            val eta = pt.fslart.bms.util.ChargingEtaCalculator.calculate(state)
             val voltage = state.pack.voltage
-            val current = state.pack.current
-            val power = state.pack.power
+            val current = if (kotlin.math.abs(state.pack.current) >= 0.5f) kotlin.math.abs(state.pack.current) else eta.chargeCurrentA
+            val power = if (state.pack.power > 0.1f) state.pack.power else eta.chargingPowerKw
             val soc = state.pack.soc.toInt().coerceIn(0, 100)
             val tempMax = state.pack.tempMax
             val carName = state.car.name
@@ -109,17 +110,18 @@ object ChargingNotificationService {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            // Collapsed: Yellow title with JUST the voltage: "⚡ 580.4 V"
-            val collapsedTitle = "⚡ ${"%.1f".format(voltage)} V"
-            val collapsedSubtitle = "🔋 $soc% SoC · ⚡ +${"%.1f".format(current)} A (${"%.2f".format(power)} kW)"
+            // Collapsed: Yellow title with voltage and ETA
+            val collapsedTitle = "⚡ ${"%.1f".format(voltage)} V · ⏱️ ${eta.formattedTimeTo100()}"
+            val collapsedSubtitle = "🔋 $soc% SoC · Previsto: ${eta.completionTime100} (a ${"%.0f".format(eta.chargeCurrentA)}A)"
 
-            // Expanded: Full breakdown with Tensão, SoC, Corrente, Potência, Temp
+            // Expanded: Full breakdown with Tensão, SoC, Corrente, Potência, Temp e Previsão ETA
             val expandedDetails = StringBuilder()
                 .append("🔋 Nível de Bateria (SoC): $soc%\n")
-                .append("⚡ Corrente de Carga: +${"%.2f".format(current)} A (${"%.2f".format(power)} kW)\n")
-                .append("🔌 Tensão Total do Pack: ${"%.1f".format(voltage)} V\n")
-                .append("🌡️ Temperatura Máxima: ${"%.1f".format(tempMax)} °C\n")
-                .append("🏁 Estação de Carga: Handcart T26 / EV Europe")
+                .append("⏱️ Previsão até 100%: ${eta.formattedTimeTo100()} (às ${eta.completionTime100})\n")
+                .append("⚡ Carga Rápida (80%): ${eta.formattedTimeTo80()}" + (if (!eta.isAlreadyAbove80) " (às ${eta.completionTime80})" else "") + "\n")
+                .append("🔌 Corrente de Carga: +${"%.1f".format(current)} A (${"%.2f".format(power)} kW)\n")
+                .append("⚡ Tensão Total do Pack: ${"%.1f".format(voltage)} V · Temp: ${"%.1f".format(tempMax)} °C\n")
+                .append("🏁 Estação: Handcart T26 (${"%.1f".format(eta.remainingKwhTo100)} kWh em falta)")
                 .toString()
 
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -130,7 +132,7 @@ object ChargingNotificationService {
                 .setStyle(
                     NotificationCompat.BigTextStyle()
                         .setBigContentTitle("⚡ ${"%.1f".format(voltage)} V · $carName (A Carregar)")
-                        .setSummaryText("🔋 $soc% SoC · +${"%.1f".format(current)} A")
+                        .setSummaryText("🔋 $soc% SoC · ⏱️ ${eta.formattedTimeTo100()} restantes")
                         .bigText(expandedDetails)
                 )
                 .setContentIntent(pendingIntent)

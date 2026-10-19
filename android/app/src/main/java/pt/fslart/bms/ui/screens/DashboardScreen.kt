@@ -119,6 +119,9 @@ fun DashboardScreen(
         // CHARGING STATUS BANNER (IF CHARGING)
         if (state.isCharging) {
             item {
+                val eta = remember(state.pack.soc, state.pack.voltage, state.pack.current, state.car) {
+                    pt.fslart.bms.util.ChargingEtaCalculator.calculate(state)
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -142,13 +145,14 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "BATERIA A CARREGAR",
+                                text = "A CARREGAR @ 6A · ETA: ${eta.formattedTimeTo100()}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = LartYellow
                             )
                             Text(
-                                text = "${state.pack.soc.toInt()}% SOC · ${"%.1f".format(state.pack.voltage)} V · ${"%.1f".format(state.pack.current)} A",
+                                text = "${state.pack.soc.toInt()}% SOC · Previsto: ${eta.completionTime100}" +
+                                        (if (!eta.isAlreadyAbove80) " (${eta.formattedTimeTo80()} até 80%)" else ""),
                                 fontSize = 11.sp,
                                 color = DarkTextSecondary
                             )
