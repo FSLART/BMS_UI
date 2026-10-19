@@ -1,8 +1,8 @@
 {
-  "versionCode": 11,
-  "versionName": "1.5.2",
-  "releaseDate": "2026-10-17",
-  "title": "Correção de Crash e Balão Persistente de Carga Samsung",
-  "changelog": "Correção definitiva do crash ao iniciar carregamento: eliminados erros de formatação de strings e troca de ecrã indesejada. Otimizada notificação no topo do ecrã (Samsung One UI / Android) com balão amarelo compacto de tensão (⚡ 580.4 V) que expande ao toque mostrando SoC %, corrente (+30A), kW, temperatura e barra de progresso contínua. Removido toast confuso de 2 segundos.",
+  "versionCode": 12,
+  "versionName": "1.6.0",
+  "releaseDate": "2026-10-19",
+  "title": "Telemetria na Nuvem e Wi-Fi Multiusador (stocklart.pt)",
+  "changelog": "Implementado suporte completo a telemetria multiutilizador: quem se liga por Bluetooth ao BMS pode ativar 'Reencaminhar para a Nuvem', transmitindo em direto para bms.stocklart.pt via WebSocket seguro (WSS). Os restantes membros da equipa podem ligar-se via 'Wi-Fi / 4G (Pela Nuvem)' e acompanhar toda a telemetria em tempo real nos seus próprios dispositivos em simultâneo.",
   "apkUrl": "https://github.com/FSLART/BMS_UI/releases/latest/download/LART_BMS.apk"
 }

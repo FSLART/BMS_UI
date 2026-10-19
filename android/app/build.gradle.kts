@@ -13,8 +13,8 @@ android {
         applicationId = "pt.fslart.bms"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.5.2"
+        versionCode = 12
+        versionName = "1.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -80,6 +80,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.gson)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.webkit:webkit:1.12.0")
 
     debugImplementation(libs.androidx.ui.tooling)

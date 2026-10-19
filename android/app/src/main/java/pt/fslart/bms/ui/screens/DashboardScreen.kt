@@ -38,6 +38,7 @@ fun DashboardScreen(
     val currentHistory by viewModel.currentHistory.collectAsState()
     val voltageHistory by viewModel.voltageHistory.collectAsState()
     val selectedCar by viewModel.selectedCar.collectAsState()
+    val activeDataSource by viewModel.activeDataSource.collectAsState()
 
     LazyColumn(
         modifier = modifier
@@ -62,22 +63,39 @@ fun DashboardScreen(
                             color = DarkTextPrimary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
+
+                        val badgeLabel = when {
+                            state.isDemo -> "DEMO"
+                            activeDataSource == pt.fslart.bms.viewmodel.DataSource.SERVER -> "NUVEM LIVE"
+                            else -> "BLE LIVE"
+                        }
+                        val badgeColor = when {
+                            state.isDemo -> LartYellow
+                            activeDataSource == pt.fslart.bms.viewmodel.DataSource.SERVER -> LartBlueAccent
+                            else -> StatusOkGlow
+                        }
+
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(if (state.isDemo) LartYellow.copy(alpha = 0.2f) else StatusOk.copy(alpha = 0.2f))
+                                .background(badgeColor.copy(alpha = 0.2f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = if (state.isDemo) "DEMO" else "BLE LIVE",
+                                text = badgeLabel,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (state.isDemo) LartYellow else StatusOkGlow
+                                color = badgeColor
                             )
                         }
                     }
+                    val subText = when {
+                        state.isDemo -> "Simulador ativo"
+                        activeDataSource == pt.fslart.bms.viewmodel.DataSource.SERVER -> "bms.stocklart.pt"
+                        else -> state.connectionAddress.ifEmpty { selectedCar.bleAddress }
+                    }
                     Text(
-                        text = if (state.isDemo) "Simulador ativo" else state.connectionAddress.ifEmpty { selectedCar.bleAddress },
+                        text = subText,
                         fontSize = 11.sp,
                         color = DarkTextMuted,
                         fontFamily = FontFamily.Monospace
