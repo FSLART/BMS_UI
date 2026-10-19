@@ -37,7 +37,7 @@ jobs:
 
       - name: Build APK with Gradle
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
 
       - name: Prepare Release Assets and Notes
         id: prep
@@ -48,7 +48,7 @@ jobs:
           TAG="v$VERSION"
           
           # Copy APK to root release name
-          cp android/app/build/outputs/apk/debug/app-debug.apk LART_BMS.apk
+          cp android/app/build/outputs/apk/release/app-release.apk LART_BMS.apk
           
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
