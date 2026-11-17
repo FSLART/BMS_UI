@@ -1,6 +1,7 @@
 package pt.fslart.bms
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -26,6 +27,7 @@ import androidx.core.content.ContextCompat
 import pt.fslart.bms.ui.components.Fullscreen3DViewer
 import pt.fslart.bms.ui.components.FullscreenCellChartOverlay
 import pt.fslart.bms.ui.components.FullscreenThermChartOverlay
+import pt.fslart.bms.service.BmsNotifications
 import pt.fslart.bms.ui.components.UpdateNotificationBanner
 import pt.fslart.bms.ui.screens.*
 import pt.fslart.bms.ui.theme.*
@@ -46,11 +48,26 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         checkAndRequestBlePermissions()
+        if (savedInstanceState == null) openTabFromNotification(intent)
 
         setContent {
             BmsTheme {
                 MainAppScaffold(viewModel = viewModel)
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        openTabFromNotification(intent)
+    }
+
+    /** Toque no balao abre o ecra de carga; na notificacao de ligacao, o painel. */
+    private fun openTabFromNotification(intent: Intent?) {
+        when (intent?.getStringExtra(BmsNotifications.EXTRA_OPEN_TAB)) {
+            BmsNotifications.TAB_CHARGER -> viewModel.setTab(ScreenTab.CHARGER)
+            BmsNotifications.TAB_DASHBOARD -> viewModel.setTab(ScreenTab.DASHBOARD)
         }
     }
 

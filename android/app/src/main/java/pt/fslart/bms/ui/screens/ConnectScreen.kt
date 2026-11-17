@@ -216,8 +216,10 @@ fun ConnectScreen(
 
                 // PRIMARY ACTION BUTTON: CONNECT TO PRE-CONFIGURED DEVICE
                 Button(
-                    onClick = { viewModel.connectBle() },
-                    enabled = connectionState != BleConnectionState.CONNECTING,
+                    onClick = {
+                        // A ligar / a religar automaticamente: o toque cancela.
+                        if (connectionState == BleConnectionState.CONNECTING) viewModel.disconnect() else viewModel.connectBle()
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = LartYellow,
                         contentColor = Color.Black
@@ -235,9 +237,9 @@ fun ConnectScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "A LIGAR AO BMS…",
+                            text = "A LIGAR AO BMS… (TOCA PARA CANCELAR)",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 13.sp
                         )
                     } else {
                         Icon(

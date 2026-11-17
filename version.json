@@ -1,8 +1,8 @@
 {
-  "versionCode": 14,
-  "versionName": "1.6.2",
-  "releaseDate": "2026-10-19",
-  "title": "Previsão Inteligente de Carga (ETA @ 6A) & Notificação Persistente",
-  "changelog": "Implementado cálculo preditivo de tempo restante de carregamento (ETA) calibrado para a corrente padrão de 6.0 A da estação Handcart T26. Apresenta o tempo exato e hora do relógio até aos 80% (carga rápida de pista) e até aos 100% (carga completa e balanceamento CV). A estimativa surge no ecrã de Carregamento (ChargingEtaCard com barra visual de progresso), no Dashboard e no balão persistente estilo Spotify do Samsung One UI.",
+  "versionCode": 15,
+  "versionName": "1.7.0",
+  "releaseDate": "2026-11-17",
+  "title": "Ligação BLE Estável com Religação Automática & Balão de Carga em Tempo Real",
+  "changelog": "Balão de carga corrigido: o firmware envia os estados como texto (\"CHARGING\") e a app lia-os como número, por isso nunca detetava a carga. Agora o balão aparece sozinho quando o carregamento começa e é atualizado a cada amostra real do BMS (tensão, SoC, corrente, temperatura e previsão), mesmo com o ecrã bloqueado. Ligação Bluetooth reescrita: religa automaticamente quando cai (sinal perdido, RN4871 a reiniciar ou ligação sem dados) e mantém-se ativa em segundo plano através de um serviço em primeiro plano, com botão Desligar na notificação. O botão de teste do balão passa a usar os dados reais quando o BMS está ligado. Corrigidos também o estado do AMS e da pré-carga mostrados no painel.",
   "apkUrl": "https://github.com/FSLART/BMS_UI/releases/latest/download/LART_BMS.apk"
 }

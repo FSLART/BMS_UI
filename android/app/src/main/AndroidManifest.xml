@@ -36,6 +36,13 @@
     <!-- Persistent Spotify-style charging notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Servico em primeiro plano: mantem a ligacao BLE viva com o ecra bloqueado -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
+    <!-- CPU acordado durante a religacao rapida ao BMS (ecra desligado) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <!-- Internet access to check and download updates from GitHub -->
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -73,9 +80,15 @@
             </intent-filter>
         </activity>
 
-        <!-- Broadcast receiver to dismiss charging notification on user action -->
+        <!-- Ligacao ao BMS em segundo plano + balao de carga -->
+        <service
+            android:name=".service.BmsMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <!-- Botoes da notificacao (Fechar / Desligar) e deslizar para apagar -->
         <receiver
-            android:name=".service.ChargingNotificationDismissReceiver"
+            android:name=".service.BmsNotificationActionReceiver"
             android:exported="false" />
     </application>
 

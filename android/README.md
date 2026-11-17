@@ -25,7 +25,13 @@ Esta aplicação foi especificamente desenhada tendo como prioridade máxima a l
 1. O firmware envia um dump JSON por segundo (~3,1 kB) terminado por quebra de linha `\n`.
 2. As notificações BLE chegam ao telemóvel em fragmentos de ~20 a 180 bytes.
 3. O `BleManager` acumula os fragmentos em buffer de memória seguro (com teto máximo de 16 kB contra overflows) e corta exatamente em cada linha completa terminada em `\n`.
-4. Cada linha JSON é processada pelo `LiveJsonDecoder`, garantindo coerência temporal instantânea sem dependência de ficheiros DBC externos.
+4. Cada linha JSON é processada pelo `LiveJsonDecoder`, garantindo coerência temporal instantânea sem dependência de ficheiros DBC externos. Os estados (`bms.state`, `precharge.state`, `charger.state`) chegam **como texto** (`"CHARGING"`, `"HV_ON"`), e o descodificador aceita texto e número.
+
+### Ligação em segundo plano, religação e balão de carga
+
+- A ligação vive na `BmsSession` (ao nível do processo) e não no ecrã. Enquanto houver ligação real (Bluetooth ou nuvem), o `BmsMonitorService` corre em primeiro plano (tipo `connectedDevice`), para o Android/Samsung não congelar a app com o ecrã bloqueado.
+- Se a ligação cair (sinal perdido, RN4871 a reiniciar, 15 s sem dados), o `BleManager` religa sozinho: tentativas rápidas nos primeiros 10 minutos e, depois disso, uma ligação pendente (`autoConnect`) que o Android completa quando o BMS voltar. Só pára quando se carrega em **Desligar** (na app ou na notificação).
+- O **balão de carga** aparece automaticamente quando `charger.state` passa a `CHARGING` (ou quando há corrente a entrar com o handcart presente) e é atualizado a cada amostra. O botão de teste no ecrã de Carga mostra o balão com os dados reais quando o BMS está ligado.
 
 ---
 

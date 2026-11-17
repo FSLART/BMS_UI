@@ -16,5 +16,42 @@ object BleConstants {
     val BMS_DEVICE_NAMES = listOf("RN4871", "LART Accumulator", "ACU_V3", "BMS_MASTER")
 
     const val LINE_BUFFER_MAX = 16384
-    const val CONNECT_TIMEOUT_MS = 10000L
+
+    /** MTU pedido. O Android 14+ usa sempre 517 independentemente do valor. */
+    const val MTU_REQUEST = 517
+
+    /** Tempo maximo para o RN4871 aceitar a ligacao (o Android desiste aos ~30 s). */
+    const val CONNECT_TIMEOUT_MS = 20_000L
+
+    /** Tempo maximo entre ligar e ter as notificacoes ativas (MTU + servicos + CCCD). */
+    const val SETUP_TIMEOUT_MS = 15_000L
+
+    /** Se o MTU nao responder, descobrir servicos na mesma ao fim disto. */
+    const val MTU_FALLBACK_MS = 3_000L
+
+    /**
+     * O firmware manda uma linha por segundo. Tanto tempo sem um unico byte
+     * numa ligacao "ligada" quer dizer ligacao morta: religar.
+     */
+    const val DATA_SILENCE_TIMEOUT_MS = 15_000L
+
+    /** Ligacao estavel ha este tempo = repor o contador de tentativas. */
+    const val STABLE_LINK_MS = 10_000L
+
+    /** Espera entre tentativas de religacao (a ultima repete-se). */
+    val RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 2_000L, 3_000L, 5_000L, 5_000L, 10_000L)
+
+    /**
+     * Durante este tempo depois de uma queda tenta-se religar depressa, com o
+     * CPU acordado (wakelock) para os temporizadores correrem com o ecra
+     * desligado. Passado isto, fica uma ligacao pendente (autoConnect) que o
+     * Android completa sozinho quando o BMS voltar, sem gastar bateria.
+     */
+    const val FAST_RECONNECT_WINDOW_MS = 10 * 60_000L
+
+    /** Validade de cada aquisicao do wakelock de religacao (renovado a cada tentativa). */
+    const val RECONNECT_WAKELOCK_MS = 60_000L
+
+    /** Espera entre tentativas depois da janela rapida. */
+    const val RECONNECT_SLOW_MS = 30_000L
 }

@@ -40,6 +40,12 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
 
         val CHARGER_STATES = listOf("WAIT_HV", "PRESTART_STOP", "CHARGING", "STOPPING", "DONE")
 
+        /** Uma ISA sem trama ha mais do que isto esta calada (LIVE_DEBUG_JSON.md, sec. 4). */
+        private const val ISA_SILENT_MS = 1000L
+
+        /** Corrente minima (A) para considerar que esta a entrar carga no pack. */
+        private const val CHARGE_CURRENT_MIN_A = 0.5f
+
         private fun nameFromTable(table: List<String>, value: Any?): String {
             if (value is String) return value
             if (value is Number) {
@@ -48,6 +54,48 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
                 return idx.toString()
             }
             return ""
+        }
+
+        /**
+         * Nome de um enum do firmware.
+         *
+         * O `LiveDebug_SendJson()` manda os estados JA COMO TEXTO
+         * (`"charger":{"state":"CHARGING"}`), e nao como indice. Ler esse campo
+         * com `asInt` falhava sempre, caia no valor por omissao e a app nunca
+         * via a carga a comecar. Aceita-se as duas formas: texto e numero.
+         */
+        private fun enumName(table: List<String>, element: JsonElement?, default: String): String {
+            if (element == null || element.isJsonNull || !element.isJsonPrimitive) return default
+            return try {
+                val primitive = element.asJsonPrimitive
+                when {
+                    primitive.isNumber -> nameFromTable(table, primitive.asInt)
+                    primitive.isString -> {
+                        val text = primitive.asString.trim()
+                        when {
+                            text.isEmpty() -> default
+                            text.toIntOrNull() != null -> nameFromTable(table, text.toInt())
+                            else -> text.uppercase()
+                        }
+                    }
+                    else -> default
+                }
+            } catch (e: Exception) {
+                default
+            }
+        }
+
+        /**
+         * A ISA so conta se estiver a falar. Calada (`rx_age_ms` acima do
+         * limite) os ultimos valores ja nao valem. Sem o campo (firmware antigo)
+         * assume-se viva, como antes.
+         */
+        private fun isaAlive(isa: JsonObject): Boolean {
+            if (isa.size() == 0) return false
+            val age = isa.get("rx_age_ms") ?: return true
+            if (age.isJsonNull) return true
+            val ageMs = age.asLongSafe(-1L)
+            return ageMs in 0L..ISA_SILENT_MS
         }
 
         private fun bit(mask: Int?, n: Int): Boolean {
@@ -83,6 +131,9 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
         return lastAmsTimestamp > 0 && (now - lastAmsTimestamp) <= 3500L
     }
 
+    // Synchronized: o relay da nuvem descodifica em corrotinas paralelas e este
+    // objeto guarda estado entre linhas (seq, energia da sessao de carga).
+    @Synchronized
     fun decodeLine(jsonLine: String, now: Long = System.currentTimeMillis()): BmsState? {
         val trimmed = jsonLine.trim()
         if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
@@ -123,8 +174,9 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
         val board = raw.getAsJsonObject("board") ?: JsonObject()
         val soc = raw.getAsJsonObject("soc") ?: JsonObject()
         val chg = raw.getAsJsonObject("charger") ?: JsonObject()
-        val i1 = raw.getAsJsonObject("isa_pack") ?: JsonObject()
-        val i2 = raw.getAsJsonObject("isa_handcart") ?: JsonObject()
+        // ISA calada = sem valores (como no descodificador do desktop).
+        val i1 = (raw.getAsJsonObject("isa_pack") ?: JsonObject()).let { if (isaAlive(it)) it else JsonObject() }
+        val i2 = (raw.getAsJsonObject("isa_handcart") ?: JsonObject()).let { if (isaAlive(it)) it else JsonObject() }
 
         val pecFlagsArray = raw.getAsJsonArray("pec_flags")
         val cellMvArray = raw.getAsJsonArray("cell_mV")
@@ -335,10 +387,8 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
         )
 
         // 5. Safety
-        val prechargeStateCode = pre.get("state")?.asIntSafe() ?: 0
-        val prechargeStateName = nameFromTable(PRECHARGE_STATES, prechargeStateCode)
-        val brainStateCode = bms.get("state")?.asIntSafe() ?: 2
-        val masterStateName = nameFromTable(AMS_STATES, brainStateCode)
+        val prechargeStateName = enumName(PRECHARGE_STATES, pre.get("state"), PRECHARGE_STATES[0])
+        val masterStateName = enumName(AMS_STATES, bms.get("state"), "IDLE")
 
         val amsErrorActive = ae.get("active")?.asBooleanSafe() ?: false
         val airPos = pre.get("air_pos")?.asBooleanSafe() ?: false
@@ -375,9 +425,7 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
         )
 
         // 7. Charger & Mode
-        val chgStateCode = chg.get("state")?.asIntSafe() ?: 0
-        val chgStateName = nameFromTable(CHARGER_STATES, chgStateCode)
-        val isCharging = (chgStateName == "CHARGING")
+        val chgStateName = enumName(CHARGER_STATES, chg.get("state"), CHARGER_STATES[0])
         val handcartSwitch = chg.get("handcart_switch")?.asBooleanSafe() ?: false
         val statusOk = chg.get("status_ok")?.asBooleanSafe() ?: false
         val chgPresent = handcartSwitch || statusOk
@@ -385,6 +433,15 @@ class LiveJsonDecoder(var car: CarProfile = CarProfile.TEK26E) {
         val chgRawCurrent = (chg.get("requested_current_raw")?.asFloatSafe() ?: 0f) / 10.0f
         val i2Ma = i2.get("current_mA")?.asFloatSafe() ?: 0f
         val i2Mv = i2.get("voltage_mV")?.asFloatSafe() ?: 0f
+
+        // A carga e o estado CHARGING da maquina do carregador (o mesmo criterio
+        // do desktop). Como reforco, com o handcart presente, corrente real a
+        // entrar no pack tambem conta: ISA do handcart a medir corrente, ou a
+        // ISA do pack negativa (a ISA reporta negativo em carga).
+        val handcartCurrentA = abs(i2Ma) / 1000f
+        val packCurrentA = isaI
+        val currentFlowingIn = handcartCurrentA >= CHARGE_CURRENT_MIN_A || packCurrentA <= -CHARGE_CURRENT_MIN_A
+        val isCharging = chgStateName == "CHARGING" || (chgPresent && currentFlowingIn)
 
         if (isCharging) {
             if (chgStarted == null) {

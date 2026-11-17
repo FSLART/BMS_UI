@@ -23,11 +23,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pt.fslart.bms.ble.BleConnectionState
 import pt.fslart.bms.ui.components.*
 import pt.fslart.bms.ui.theme.*
 import pt.fslart.bms.viewmodel.BmsViewModel
+import pt.fslart.bms.viewmodel.DataSource
 import pt.fslart.bms.viewmodel.ScreenTab
 
 @Composable
@@ -40,6 +43,13 @@ fun DashboardScreen(
     val voltageHistory by viewModel.voltageHistory.collectAsState()
     val selectedCar by viewModel.selectedCar.collectAsState()
     val activeDataSource by viewModel.activeDataSource.collectAsState()
+    val connectionState by viewModel.connectionState.collectAsState()
+    val statusMessage by viewModel.statusMessage.collectAsState()
+    val dataAgeSeconds by viewModel.dataAgeSeconds.collectAsState()
+
+    // Ligacao BLE em baixo ou sem amostras recentes: a religar sozinha.
+    val bleLinkDown = activeDataSource == DataSource.BLE && !state.isDemo &&
+        (connectionState != BleConnectionState.CONNECTED || dataAgeSeconds >= 5)
 
     LazyColumn(
         modifier = modifier
@@ -55,7 +65,7 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = selectedCar.name,
@@ -67,12 +77,14 @@ fun DashboardScreen(
 
                         val badgeLabel = when {
                             state.isDemo -> "DEMO"
-                            activeDataSource == pt.fslart.bms.viewmodel.DataSource.SERVER -> "NUVEM LIVE"
+                            bleLinkDown -> "A RELIGAR…"
+                            activeDataSource == DataSource.SERVER -> "NUVEM LIVE"
                             else -> "BLE LIVE"
                         }
                         val badgeColor = when {
                             state.isDemo -> LartYellow
-                            activeDataSource == pt.fslart.bms.viewmodel.DataSource.SERVER -> LartBlueAccent
+                            bleLinkDown -> StatusWarn
+                            activeDataSource == DataSource.SERVER -> LartBlueAccent
                             else -> StatusOkGlow
                         }
 
@@ -92,16 +104,20 @@ fun DashboardScreen(
                     }
                     val subText = when {
                         state.isDemo -> "Simulador ativo"
-                        activeDataSource == pt.fslart.bms.viewmodel.DataSource.SERVER -> "bms.stocklart.pt"
+                        bleLinkDown -> statusMessage
+                        activeDataSource == DataSource.SERVER -> "bms.stocklart.pt"
                         else -> state.connectionAddress.ifEmpty { selectedCar.bleAddress }
                     }
                     Text(
                         text = subText,
                         fontSize = 11.sp,
-                        color = DarkTextMuted,
-                        fontFamily = FontFamily.Monospace
+                        color = if (bleLinkDown) StatusWarn else DarkTextMuted,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Button(
                     onClick = { viewModel.disconnect() },

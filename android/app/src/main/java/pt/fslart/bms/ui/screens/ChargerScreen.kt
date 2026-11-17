@@ -41,6 +41,7 @@ import pt.fslart.bms.ui.components.KpiCard
 import pt.fslart.bms.ui.components.Model3DViewer
 import pt.fslart.bms.ui.theme.*
 import pt.fslart.bms.viewmodel.BmsViewModel
+import pt.fslart.bms.viewmodel.DataSource
 
 enum class ChargerScreenMode {
     METRICS,
@@ -53,6 +54,9 @@ fun ChargerScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.bmsState.collectAsState()
+    val activeDataSource by viewModel.activeDataSource.collectAsState()
+    val isBalloonPreview by viewModel.isBalloonPreview.collectAsState()
+    val isRealSource = activeDataSource == DataSource.BLE || activeDataSource == DataSource.SERVER
     val charger = state.charger
     var viewMode by remember { mutableStateOf(ChargerScreenMode.METRICS) }
     val context = LocalContext.current
@@ -265,7 +269,11 @@ fun ChargerScreen(
                             color = if (isCharging) StatusOkGlow else DarkTextSecondary
                         )
                         Text(
-                            text = if (isCharging) "Corrente de carga ativa · Balão de estado visível" else "À espera de comando ou clique em Simular",
+                            text = when {
+                                isCharging -> "Corrente de carga ativa · Balão de estado visível"
+                                isRealSource -> "O balão aparece sozinho quando a carga começar"
+                                else -> "Sem BMS ligado · usa Simular para ver o balão"
+                            },
                             fontSize = 11.sp,
                             color = DarkTextMuted
                         )
@@ -279,34 +287,50 @@ fun ChargerScreen(
                     )
                 }
 
-                // TEST / SIMULATION TOGGLE BUTTON
-                Button(
-                    onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                        viewModel.toggleManualCharging()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isCharging) StatusFault else LartYellow,
-                        contentColor = Color.Black
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 10.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isCharging) Icons.Default.Close else Icons.Default.ElectricBolt,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
+                if (isRealSource && isCharging) {
+                    // Carga real: o balao e automatico e segue os dados do BMS.
                     Text(
-                        text = if (isCharging) "⏹️ PARAR CARGA (FECHAR BALÃO)" else "⚡ SIMULAR / ATIVAR CARGA (VER BALÃO)",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        text = "🔔 Balão ativo automaticamente com os dados reais do BMS",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = StatusOkGlow
                     )
+                } else {
+                    // TESTE DO BALAO: dados reais com BMS ligado, simulador sem ligacao
+                    val stopMode = if (isRealSource) isBalloonPreview else isCharging
+                    Button(
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                            viewModel.toggleManualCharging()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (stopMode) StatusFault else LartYellow,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 10.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (stopMode) Icons.Default.Close else Icons.Default.ElectricBolt,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = when {
+                                isRealSource && isBalloonPreview -> "⏹️ FECHAR TESTE DO BALÃO"
+                                isRealSource -> "🔔 TESTAR BALÃO COM DADOS REAIS"
+                                isCharging -> "⏹️ PARAR CARGA SIMULADA (FECHAR BALÃO)"
+                                else -> "⚡ SIMULAR CARGA (VER BALÃO)"
+                            },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }

@@ -28,6 +28,11 @@ class ChargingAlertManager(private val context: Context) {
     private var previousChargingState: Boolean? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    /** Esquece o estado anterior (nova fonte de dados): a primeira amostra nao toca. */
+    fun reset() {
+        previousChargingState = null
+    }
+
     fun onChargingStateUpdated(isCharging: Boolean) {
         val prev = previousChargingState
         if (prev == null) {

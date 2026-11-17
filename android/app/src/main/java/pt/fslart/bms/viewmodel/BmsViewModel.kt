@@ -3,18 +3,15 @@ package pt.fslart.bms.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import pt.fslart.bms.ble.*
-import pt.fslart.bms.model.*
+import pt.fslart.bms.BmsApplication
+import pt.fslart.bms.ble.BleConnectionState
+import pt.fslart.bms.model.BmsState
+import pt.fslart.bms.model.CarProfile
 import pt.fslart.bms.network.RelayConnectionState
-import pt.fslart.bms.network.TelemetryRelayManager
-import pt.fslart.bms.simulator.BmsSimulator
-import pt.fslart.bms.service.ChargingNotificationService
-import pt.fslart.bms.util.ChargingAlertManager
 
 enum class ScreenTab {
     CONNECT,
@@ -34,20 +31,21 @@ enum class DataSource {
     NONE
 }
 
+/**
+ * Estado dos ecras. A ligacao, a telemetria e a notificacao vivem na
+ * [pt.fslart.bms.session.BmsSession] (ao nivel do processo), para continuarem
+ * com o ecra bloqueado; aqui fica so o que e da interface.
+ */
 class BmsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val bleManager = BleManager(application, viewModelScope)
-    private val bleScanner = BleScanner(application)
-    private val chargingAlertManager = ChargingAlertManager(application)
-    val relayManager = TelemetryRelayManager(application, viewModelScope)
-    private var simulator = BmsSimulator(CarProfile.TEK26E)
-    private var simulatorJob: Job? = null
+    private val session = (application as BmsApplication).session
 
-    // Active Data Source
-    private val _activeDataSource = MutableStateFlow(DataSource.NONE)
-    val activeDataSource: StateFlow<DataSource> = _activeDataSource.asStateFlow()
+    val relayManager = session.relayManager
 
-    // Relay / Cloud State Flows
+    // Fonte de dados ativa
+    val activeDataSource: StateFlow<DataSource> = session.activeDataSource
+
+    // Nuvem
     val serverViewerState = relayManager.viewerState
     val serverRelayState = relayManager.relayState
     val serverUrl = relayManager.serverUrl
@@ -56,123 +54,71 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
     val packetsReceived = relayManager.packetsReceived
     val serverError = relayManager.lastError
 
-    // Car Selection
-    private val _selectedCar = MutableStateFlow(CarProfile.TEK26E)
-    val selectedCar: StateFlow<CarProfile> = _selectedCar.asStateFlow()
+    // Carro, BLE e demo
+    val selectedCar: StateFlow<CarProfile> = session.selectedCar
+    val bleAddress: StateFlow<String> = session.bleAddress
+    val isDemoMode: StateFlow<Boolean> = session.isDemoMode
 
-    // BLE configuration
-    private val _bleAddress = MutableStateFlow(CarProfile.TEK26E.bleAddress)
-    val bleAddress: StateFlow<String> = _bleAddress.asStateFlow()
+    val connectionState = session.bleManager.connectionState
+    val statusMessage = session.bleManager.statusMessage
+    val logLines = session.bleManager.logLines
+    val reconnectAttempt = session.bleManager.reconnectAttempt
+    val discoveredDevices = session.bleScanner.devices
+    val isScanning = session.bleScanner.isScanning
 
-    // Demo Mode toggle
-    private val _isDemoMode = MutableStateFlow(false)
-    val isDemoMode: StateFlow<Boolean> = _isDemoMode.asStateFlow()
+    // Telemetria
+    val bmsState: StateFlow<BmsState> = session.bmsState
+    val currentHistory: StateFlow<List<Float>> = session.currentHistory
+    val voltageHistory: StateFlow<List<Float>> = session.voltageHistory
+    val dataAgeSeconds: StateFlow<Int> = session.dataAgeSeconds
+    val isBalloonPreview: StateFlow<Boolean> = session.balloonPreview
 
-    // Navigation Tab
-    private val _currentTab = MutableStateFlow(ScreenTab.CONNECT)
+    // Navegacao: se a sessao ja esta ligada (app reaberta), comecar no painel.
+    private val _currentTab = MutableStateFlow(
+        if (session.activeDataSource.value == DataSource.NONE) ScreenTab.CONNECT else ScreenTab.DASHBOARD
+    )
     val currentTab: StateFlow<ScreenTab> = _currentTab.asStateFlow()
 
-    // Selected Segment filter
     private val _selectedSegmentId = MutableStateFlow<Int?>(null)
     val selectedSegmentId: StateFlow<Int?> = _selectedSegmentId.asStateFlow()
 
-    // Connection state & BMS telemetry state
-    val connectionState = bleManager.connectionState
-    val statusMessage = bleManager.statusMessage
-    val logLines = bleManager.logLines
-    val discoveredDevices = bleScanner.devices
-    val isScanning = bleScanner.isScanning
-
-    private val _bmsState = MutableStateFlow(BmsState(car = CarProfile.TEK26E))
-    val bmsState: StateFlow<BmsState> = _bmsState.asStateFlow()
-
-    // Telemetry History for Sparkline
-    private val _currentHistory = MutableStateFlow<List<Float>>(emptyList())
-    val currentHistory: StateFlow<List<Float>> = _currentHistory.asStateFlow()
-
-    private val _voltageHistory = MutableStateFlow<List<Float>>(emptyList())
-    val voltageHistory: StateFlow<List<Float>> = _voltageHistory.asStateFlow()
-
-    private var previousChargingState: Boolean = false
-
     init {
-        // 1. Collect real BLE state
+        // Primeira ligacao BLE: saltar para o painel. As religacoes automaticas
+        // nao mexem no ecra em que o utilizador esta.
         viewModelScope.launch {
-            bleManager.bmsState.collect { state ->
-                if (state != null && !_isDemoMode.value && _activeDataSource.value == DataSource.BLE) {
-                    _bmsState.value = state
-                    appendHistory(state.pack.current, state.pack.voltage)
-                    chargingAlertManager.onChargingStateUpdated(state.isCharging)
-                    if (state.isCharging) {
-                        ChargingNotificationService.startOrUpdate(getApplication(), state)
-                    } else if (previousChargingState) {
-                        ChargingNotificationService.stop(getApplication())
-                    }
-                    previousChargingState = state.isCharging
-                }
-            }
-        }
-
-        // 2. Forward raw BLE lines to Server when connected to BLE (Relay Broadcaster)
-        viewModelScope.launch {
-            bleManager.rawLines.collect { rawLine ->
-                if (_activeDataSource.value == DataSource.BLE) {
-                    relayManager.publishRawLine(rawLine)
-                }
-            }
-        }
-
-        // 3. Collect Telemetry from Server (Viewer mode over Wi-Fi/4G)
-        viewModelScope.launch {
-            relayManager.incomingState.collect { state ->
-                if (_activeDataSource.value == DataSource.SERVER) {
-                    _bmsState.value = state
-                    appendHistory(state.pack.current, state.pack.voltage)
-                    chargingAlertManager.onChargingStateUpdated(state.isCharging)
-                    if (state.isCharging) {
-                        ChargingNotificationService.startOrUpdate(getApplication(), state)
-                    } else if (previousChargingState) {
-                        ChargingNotificationService.stop(getApplication())
-                    }
-                    previousChargingState = state.isCharging
-                }
-            }
-        }
-
-        // When BLE connects, jump to Dashboard
-        viewModelScope.launch {
-            bleManager.connectionState.collect { state ->
-                if (state == BleConnectionState.CONNECTED) {
-                    _activeDataSource.value = DataSource.BLE
+            connectionState.collect { state ->
+                if (state == BleConnectionState.CONNECTED && _currentTab.value == ScreenTab.CONNECT) {
                     _currentTab.value = ScreenTab.DASHBOARD
                 }
             }
         }
 
-        // When Server Viewer connects, jump to Dashboard
         viewModelScope.launch {
-            relayManager.viewerState.collect { state ->
-                if (state == RelayConnectionState.CONNECTED && _activeDataSource.value == DataSource.SERVER) {
+            serverViewerState.collect { state ->
+                if (state == RelayConnectionState.CONNECTED &&
+                    activeDataSource.value == DataSource.SERVER &&
+                    _currentTab.value == ScreenTab.CONNECT
+                ) {
                     _currentTab.value = ScreenTab.DASHBOARD
                 }
             }
         }
-    }
 
-    fun selectCar(car: CarProfile) {
-        _selectedCar.value = car
-        _bleAddress.value = car.bleAddress
-        simulator = BmsSimulator(car)
-        bleManager.setCar(car)
-        relayManager.setCar(car)
-        if (_bmsState.value.isDemo) {
-            _bmsState.value = _bmsState.value.copy(car = car)
+        // Desligado por fora do ecra (ex.: botao Desligar da notificacao).
+        viewModelScope.launch {
+            var previous = activeDataSource.value
+            activeDataSource.collect { source ->
+                if (source == DataSource.NONE && previous != DataSource.NONE) {
+                    _currentTab.value = ScreenTab.CONNECT
+                }
+                previous = source
+            }
         }
     }
 
-    fun setBleAddress(address: String) {
-        _bleAddress.value = address
-    }
+    fun selectCar(car: CarProfile) = session.selectCar(car)
+
+    fun setBleAddress(address: String) = session.setBleAddress(address)
 
     fun setTab(tab: ScreenTab) {
         _currentTab.value = tab
@@ -185,122 +131,39 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun startBleScan() {
-        bleScanner.startScan()
-    }
+    fun startBleScan() = session.startBleScan()
 
-    fun stopBleScan() {
-        bleScanner.stopScan()
-    }
+    fun stopBleScan() = session.stopBleScan()
 
-    fun connectBle(targetAddress: String? = null) {
-        val mac = targetAddress ?: _bleAddress.value
-        if (_isDemoMode.value) {
-            setDemoMode(false)
-        }
-        relayManager.disconnectViewer()
-        _activeDataSource.value = DataSource.BLE
-        bleScanner.stopScan()
-        bleManager.connect(mac, _selectedCar.value)
-    }
+    fun connectBle(targetAddress: String? = null) = session.connectBle(targetAddress)
 
-    fun connectServer(customUrl: String? = null) {
-        if (_isDemoMode.value) {
-            setDemoMode(false)
-        }
-        bleManager.disconnect()
-        _activeDataSource.value = DataSource.SERVER
-        relayManager.startViewer(customUrl)
-    }
+    fun connectServer(customUrl: String? = null) = session.connectServer(customUrl)
 
     fun disconnectServer() {
-        relayManager.disconnectViewer()
-        if (_activeDataSource.value == DataSource.SERVER) {
-            _activeDataSource.value = DataSource.NONE
-        }
-        ChargingNotificationService.stop(getApplication())
-        _bmsState.value = BmsState(car = _selectedCar.value)
+        session.disconnectServer()
         _currentTab.value = ScreenTab.CONNECT
     }
 
-    fun setServerUrl(url: String) {
-        relayManager.setServerUrl(url)
-    }
+    fun setServerUrl(url: String) = session.setServerUrl(url)
 
-    fun setRelayEnabled(enabled: Boolean) {
-        relayManager.setRelayEnabled(enabled)
-    }
+    fun setRelayEnabled(enabled: Boolean) = session.setRelayEnabled(enabled)
 
     fun disconnect() {
-        if (_isDemoMode.value) {
-            setDemoMode(false)
-        }
-        bleManager.disconnect()
-        relayManager.disconnectAll()
-        _activeDataSource.value = DataSource.NONE
+        session.disconnect()
         _currentTab.value = ScreenTab.CONNECT
     }
 
     fun toggleDemoMode() {
-        setDemoMode(!_isDemoMode.value)
+        setDemoMode(!isDemoMode.value)
     }
 
     fun setDemoMode(enabled: Boolean, initialChargingOverride: Boolean? = null) {
-        _isDemoMode.value = enabled
+        session.setDemoMode(enabled, initialChargingOverride)
         if (enabled) {
-            _activeDataSource.value = DataSource.SIMULATOR
-            bleManager.disconnect()
-            relayManager.disconnectViewer()
-            simulator = BmsSimulator(_selectedCar.value).apply {
-                if (initialChargingOverride != null) {
-                    manualChargingOverride = initialChargingOverride
-                }
-            }
-            simulatorJob?.cancel()
-            simulatorJob = viewModelScope.launch {
-                if (_currentTab.value == ScreenTab.CONNECT) {
-                    _currentTab.value = ScreenTab.DASHBOARD
-                }
-                while (isActive) {
-                    val fakeState = simulator.step()
-                    _bmsState.value = fakeState
-                    bleManager.injectSimulatorState(fakeState)
-                    appendHistory(fakeState.pack.current, fakeState.pack.voltage)
-                    chargingAlertManager.onChargingStateUpdated(fakeState.isCharging)
-                    if (fakeState.isCharging) {
-                        ChargingNotificationService.startOrUpdate(getApplication(), fakeState)
-                    } else if (previousChargingState) {
-                        ChargingNotificationService.stop(getApplication())
-                    }
-                    previousChargingState = fakeState.isCharging
-                    delay(1000L) // 1 sample per second like the real RN4871
-                }
-            }
+            if (_currentTab.value == ScreenTab.CONNECT) _currentTab.value = ScreenTab.DASHBOARD
         } else {
-            simulatorJob?.cancel()
-            simulatorJob = null
-            if (_activeDataSource.value == DataSource.SIMULATOR) {
-                _activeDataSource.value = DataSource.NONE
-            }
-            ChargingNotificationService.stop(getApplication())
-            _bmsState.value = BmsState(car = _selectedCar.value)
             _currentTab.value = ScreenTab.CONNECT
         }
-    }
-
-    private fun appendHistory(current: Float, voltage: Float) {
-        val maxLen = 45
-        val curList = _currentHistory.value.toMutableList()
-        val voltList = _voltageHistory.value.toMutableList()
-
-        if (curList.size >= maxLen) curList.removeAt(0)
-        if (voltList.size >= maxLen) voltList.removeAt(0)
-
-        curList.add(current)
-        voltList.add(voltage)
-
-        _currentHistory.value = curList
-        _voltageHistory.value = voltList
     }
 
     // Fullscreen 3D Overlay Request
@@ -358,57 +221,22 @@ class BmsViewModel(application: Application) : AndroidViewModel(application) {
         _isThermalView3D.value = enabled
     }
 
-    fun triggerChargingAlert(start: Boolean) {
-        if (start) chargingAlertManager.triggerChargingStartedAlert()
-        else chargingAlertManager.triggerChargingStoppedAlert()
-    }
+    fun triggerChargingAlert(start: Boolean) = session.triggerChargingAlert(start)
 
+    /**
+     * Botao de teste do balao no ecra de carga: com o BMS ligado mostra o
+     * balao com os dados reais; sem ligacao simula uma carga.
+     */
     fun toggleManualCharging() {
-        val currentlyCharging = _bmsState.value.isCharging
-        val newCharging = !currentlyCharging
-
-        if (newCharging && !_isDemoMode.value && bleManager.connectionState.value != BleConnectionState.CONNECTED) {
-            setDemoMode(true, initialChargingOverride = true)
-        } else {
-            simulator.manualChargingOverride = newCharging
-        }
-
-        val currentState = _bmsState.value
-        val packVoltage = if (currentState.pack.voltage > 10f) currentState.pack.voltage else 520.0f
-        val packSoc = if (currentState.pack.soc > 0f) currentState.pack.soc else 55.0f
-
-        val updatedPack = currentState.pack.copy(
-            voltage = packVoltage,
-            soc = packSoc,
-            current = if (newCharging) -6.0f else 0.0f,
-            power = if (newCharging) (packVoltage * 6.0f) / 1000f else 0.0f
-        )
-        val updatedState = currentState.copy(
-            isCharging = newCharging,
-            pack = updatedPack,
-            charger = currentState.charger.copy(
-                present = newCharging,
-                enabled = newCharging,
-                outputCurrent = if (newCharging) 6.0f else 0.0f,
-                outputVoltage = if (newCharging) packVoltage else 0.0f
-            )
-        )
-        _bmsState.value = updatedState
-        if (newCharging) {
-            ChargingNotificationService.startOrUpdate(getApplication(), updatedState)
-            chargingAlertManager.triggerChargingStartedAlert()
-        } else {
-            ChargingNotificationService.stop(getApplication())
-            chargingAlertManager.triggerChargingStoppedAlert()
+        val startedDemo = session.toggleChargingTest()
+        if (startedDemo && _currentTab.value == ScreenTab.CONNECT) {
+            _currentTab.value = ScreenTab.DASHBOARD
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        simulatorJob?.cancel()
-        bleManager.disconnect()
-        bleScanner.stopScan()
-        relayManager.disconnectAll()
-        ChargingNotificationService.stop(getApplication())
+        // A ligacao real (BLE/nuvem) continua no servico em primeiro plano.
+        session.onUiCleared()
     }
 }

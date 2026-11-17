@@ -13,8 +13,8 @@ android {
         applicationId = "pt.fslart.bms"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.6.2"
+        versionCode = 15
+        versionName = "1.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -67,6 +67,11 @@ android {
         noCompress += listOf("glb", "gltf")
     }
 
+    testOptions {
+        // android.util.Log nos testes de JVM devolve valores por omissao em vez de rebentar.
+        unitTests.isReturnDefaultValues = true
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -94,4 +99,6 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.0")
 
     debugImplementation(libs.androidx.ui.tooling)
+
+    testImplementation("junit:junit:4.13.2")
 }
